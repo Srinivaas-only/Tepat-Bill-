@@ -59,3 +59,7 @@ Swap the stack · rewrite `shared/core` · store money as floats · let staff ap
 
 ## Agent notes
 <!-- Agent: append short learnings here (gotchas, commands). Do not edit the sections above. -->
+- Build finished M0–M10 (see `docs/PROGRESS.md`, `docs/DECISIONS_LOG.md`). API tests run in a separate `test` Postgres schema (never touch dev data); `npm test` needs `DATABASE_URL`.
+- Browser testing needs `OWNER_PIN=1234 STAFF_PIN=5678` on the workflow because the real PINs are secrets. Settings → "Set semula demo" (dev only) reseeds the DB (`POST /api/dev/reset`).
+- Deployment: Reserved VM (`npm run build` then `npm run start`). Set `PUBLIC_BASE_URL` to the published URL so evidence links in WhatsApp messages are correct; run the seed once on the production DB.
+- Not measured: Lighthouse scores; wa.me opening on a real phone.
