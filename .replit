@@ -5,3 +5,6 @@ channel = "stable-25_05"
 
 [agent]
 expertMode = true
+
+[objectStorage]
+defaultBucketID = "replit-objstore-ae27597d-addd-4e8c-bde3-1c495b5ff139"
