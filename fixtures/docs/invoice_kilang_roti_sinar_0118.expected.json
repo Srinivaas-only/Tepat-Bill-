@@ -1,0 +1,34 @@
+{
+  "docType": "invoice",
+  "supplierName": "Kilang Roti Sinar",
+  "docNo": "0118",
+  "docDate": "2026-10-21",
+  "currency": "MYR",
+  "totalAmount": "59.00",
+  "lines": [
+    {
+      "description": "Roti putih besar",
+      "qty": 20,
+      "unitPrice": "1.90",
+      "lineTotal": "38.00",
+      "box_2d": [
+        315,
+        100,
+        399,
+        895
+      ]
+    },
+    {
+      "description": "Roti mentega jagung",
+      "qty": 10,
+      "unitPrice": "2.10",
+      "lineTotal": "21.00",
+      "box_2d": [
+        391,
+        102,
+        475,
+        896
+      ]
+    }
+  ]
+}

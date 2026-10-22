@@ -1,0 +1,63 @@
+{
+  "docType": "invoice",
+  "supplierName": "Syarikat Borong Ali Sdn. Bhd.",
+  "docNo": "INV-2291",
+  "docDate": "2026-10-20",
+  "currency": "MYR",
+  "supplierCountry": "MY",
+  "totalAmount": "993.90",
+  "lines": [
+    {
+      "description": "MAGGI KARI 5'S (CTN 8 PEK)",
+      "qty": 10,
+      "unit": "CTN",
+      "unitPrice": "45.00",
+      "lineTotal": "450.00",
+      "box_2d": [
+        273,
+        67,
+        314,
+        933
+      ]
+    },
+    {
+      "description": "BERAS CAP RAMBUTAN 10KG",
+      "qty": 5,
+      "unit": "BAG",
+      "unitPrice": "38.50",
+      "lineTotal": "192.50",
+      "box_2d": [
+        314,
+        67,
+        356,
+        933
+      ]
+    },
+    {
+      "description": "MINYAK MASAK BURUH 5KG",
+      "qty": 6,
+      "unit": "BTL",
+      "unitPrice": "31.90",
+      "lineTotal": "191.40",
+      "box_2d": [
+        356,
+        67,
+        397,
+        933
+      ]
+    },
+    {
+      "description": "GULA PASIR 1KG",
+      "qty": 50,
+      "unit": "PKT",
+      "unitPrice": "3.20",
+      "lineTotal": "160.00",
+      "box_2d": [
+        397,
+        67,
+        439,
+        933
+      ]
+    }
+  ]
+}

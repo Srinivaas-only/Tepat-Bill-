@@ -1,0 +1,21 @@
+{
+  "name": "tepat-bill",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck:core": "tsc -p shared/core/tsconfig.json"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "4.0.103",
+    "ai": "7.0.149",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^22",
+    "fast-check": "4.10.2",
+    "typescript": "^5.9.3",
+    "vitest": "5.0.5"
+  }
+}

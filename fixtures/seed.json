@@ -1,0 +1,106 @@
+{
+  "_readme": "Synthetic demo data. All times are daysAgo relative to the moment the seed runs, so reminders and 'this month' always look right on demo day. Money is integer sen (MYR). INV-2291 (Borong Ali) and Kilang Roti Sinar bill 0118 are NOT seeded: they are uploaded live in the demo from fixtures/docs.",
+  "shop": {
+    "name": "Kedai Runcit Maju", "ownerName": "Rahman", "address": "No. 12, Jalan Bendahara, 30200 Ipoh, Perak",
+    "tin": "IG12345678901", "brn": "202601000123", "msic": "47111",
+    "pins": { "owner": "1234", "staff": "5678", "_note": "dev defaults; production reads OWNER_PIN / STAFF_PIN secrets" }
+  },
+  "suppliers": [
+    { "id": "sup_ali", "name": "Syarikat Borong Ali Sdn. Bhd.", "whatsapp": "012-345 6789", "isForeign": false, "country": "MY",
+      "policyNote": "Barang kurang: tuntut dalam 7 hari dengan gambar bon bertandatangan. Nota kredit diberi pada invois seterusnya." },
+    { "id": "sup_sinar", "name": "Kilang Roti Sinar", "whatsapp": "016-552 0198", "isForeign": false, "country": "MY",
+      "policyNote": "Roti salah/rosak boleh tukar esok pagi." },
+    { "id": "sup_lim", "name": "Lim Brothers Trading", "whatsapp": "017-880 2231", "isForeign": false, "country": "MY", "policyNote": null },
+    { "id": "sup_gz", "name": "Guangzhou Hengda Snacks Trading Co., Ltd.", "whatsapp": null, "isForeign": true, "country": "CN", "policyNote": "T/T 30 days. Claims by email within 14 days." }
+  ],
+  "priceList": {
+    "sup_ali": { "maggi-kari": { "lastInvoiceSen": 4500 }, "beras-rambutan-10kg": { "lastInvoiceSen": 3850 },
+                 "minyak-masak-buruh-5kg": { "lastInvoiceSen": 3190 }, "gula-pasir-1kg": { "lastInvoiceSen": 280 } },
+    "sup_sinar": { "roti-putih-besar": { "lastInvoiceSen": 190 }, "roti-kaya": { "lastInvoiceSen": 210 } },
+    "sup_lim": { "kicap-manis-cap-kipas-udang": { "lastInvoiceSen": 525, "agreedSen": 500 }, "sardin-ayam-brand-425g": { "lastInvoiceSen": 690 } },
+    "sup_gz": { "roasted-seaweed-snack": { "lastInvoiceSen": 7770 }, "dried-shiitake-mushroom": { "lastInvoiceSen": 10080 } }
+  },
+  "purchaseOrders": [
+    { "id": "po_001", "poNo": "PO-2610-001", "supplierId": "sup_ali", "daysAgo": 30, "source": "notebook", "lines": [
+      { "sku": "maggi-kari", "description": "Maggi kari", "orderedQty": 10 },
+      { "sku": "beras-rambutan-10kg", "description": "Beras Rambutan 10kg", "orderedQty": 5 },
+      { "sku": "minyak-masak-buruh-5kg", "description": "Minyak masak Buruh 5kg", "orderedQty": 6 },
+      { "sku": "gula-pasir-1kg", "description": "Gula pasir 1kg", "orderedQty": 50 } ] },
+    { "id": "po_002", "poNo": "PO-2610-002", "supplierId": "sup_lim", "daysAgo": 19, "source": "whatsapp", "lines": [
+      { "sku": "kicap-manis-cap-kipas-udang", "description": "Kicap manis Cap Kipas Udang", "orderedQty": 50 },
+      { "sku": "sardin-ayam-brand-425g", "description": "Sardin Ayam Brand 425g", "orderedQty": 48 } ] },
+    { "id": "po_003", "poNo": "PO-2610-003", "supplierId": "sup_gz", "daysAgo": 9, "source": "typed", "lines": [
+      { "sku": "roasted-seaweed-snack", "description": "Roasted Seaweed Snack 24x10g", "orderedQty": 20 },
+      { "sku": "dried-shiitake-mushroom", "description": "Dried Shiitake Mushroom 500g", "orderedQty": 10 } ] },
+    { "id": "po_004", "poNo": "PO-2610-004", "supplierId": "sup_ali", "daysAgo": 4, "source": "notebook",
+      "fixture": "docs/po_notebook_borong_ali.png", "_demo": "the order the live demo invoice INV-2291 is checked against", "lines": [
+      { "sku": "maggi-kari", "description": "Maggi kari", "orderedQty": 10 },
+      { "sku": "beras-rambutan-10kg", "description": "Beras Rambutan 10kg", "orderedQty": 5 },
+      { "sku": "minyak-masak-buruh-5kg", "description": "Minyak masak Buruh 5kg", "orderedQty": 6 },
+      { "sku": "gula-pasir-1kg", "description": "Gula pasir 1kg", "orderedQty": 50 } ] },
+    { "id": "po_005", "poNo": "PO-2610-005", "supplierId": "sup_sinar", "daysAgo": 3, "source": "whatsapp",
+      "fixture": "docs/po_whatsapp_kilang_roti_sinar.png", "_demo": "optional second demo: substitution (kaya ordered, mentega jagung delivered)", "lines": [
+      { "sku": "roti-putih-besar", "description": "Roti putih besar", "orderedQty": 20 },
+      { "sku": "roti-kaya", "description": "Roti kaya", "orderedQty": 10 } ] }
+  ],
+  "invoices": [
+    { "id": "inv_2207", "invoiceNo": "INV-2207", "supplierId": "sup_ali", "poId": "po_001", "daysAgo": 28,
+      "payment": "paid", "paidDaysAgo": 10, "currency": "MYR", "totalSen": 97390, "lines": [
+      { "lineId": "L1", "sku": "maggi-kari", "description": "MAGGI KARI 5'S (CTN 8 PEK)", "qty": 10, "unitPriceSen": 4500 },
+      { "lineId": "L2", "sku": "beras-rambutan-10kg", "description": "BERAS CAP RAMBUTAN 10KG", "qty": 5, "unitPriceSen": 3850 },
+      { "lineId": "L3", "sku": "minyak-masak-buruh-5kg", "description": "MINYAK MASAK BURUH 5KG", "qty": 6, "unitPriceSen": 3190 },
+      { "lineId": "L4", "sku": "gula-pasir-1kg", "description": "GULA PASIR 1KG", "qty": 50, "unitPriceSen": 280 } ],
+      "received": { "maggi-kari": 10, "beras-rambutan-10kg": 5, "minyak-masak-buruh-5kg": 5, "gula-pasir-1kg": 50 },
+      "ownerMarkedCorrect": true },
+    { "id": "inv_lb7781", "invoiceNo": "LB-7781", "supplierId": "sup_lim", "poId": "po_002", "daysAgo": 18,
+      "payment": "on_credit", "currency": "MYR", "totalSen": 59370, "lines": [
+      { "lineId": "L1", "sku": "kicap-manis-cap-kipas-udang", "description": "KICAP MANIS KIPAS UDANG 320ML", "qty": 50, "unitPriceSen": 525 },
+      { "lineId": "L2", "sku": "sardin-ayam-brand-425g", "description": "SARDIN AYAM BRAND 425G", "qty": 48, "unitPriceSen": 690 } ],
+      "received": { "kicap-manis-cap-kipas-udang": 50, "sardin-ayam-brand-425g": 42 },
+      "ownerMarkedCorrect": false },
+    { "id": "inv_gz088", "invoiceNo": "GZ-2026-088", "supplierId": "sup_gz", "poId": "po_003", "daysAgo": 7,
+      "payment": "on_credit", "currency": "USD", "exchangeRateToMYR": 4.2, "totalForeignMinor": 61000, "totalSen": 256200,
+      "fixture": "docs/invoice_foreign_GZ-2026-088.png", "_demo": "foreign supplier -> self-billed e-invoice preview", "lines": [
+      { "lineId": "L1", "sku": "roasted-seaweed-snack", "description": "Roasted Seaweed Snack 24x10g", "qty": 20, "unitPriceSen": 7770, "foreignUnitMinor": 1850 },
+      { "lineId": "L2", "sku": "dried-shiitake-mushroom", "description": "Dried Shiitake Mushroom 500g", "qty": 10, "unitPriceSen": 10080, "foreignUnitMinor": 2400 } ],
+      "received": { "roasted-seaweed-snack": 20, "dried-shiitake-mushroom": 10 },
+      "ownerMarkedCorrect": true }
+  ],
+  "flags": [
+    { "id": "flg_h1", "supplierId": "sup_ali", "invoiceId": "inv_2207", "poId": "po_001", "invoiceLineId": "L3",
+      "type": "short_qty", "amountSen": 3190, "request": "deduct", "status": "settled", "settlement": "credit_note",
+      "openedDaysAgo": 27, "sentDaysAgo": 27, "settledDaysAgo": 5, "photoKinds": ["invoice", "signed_bon"],
+      "_story": "settled AFTER INV-2207 was paid -> RM31.90 supplier credit, applied to the next Borong Ali invoice (INV-2291 in the demo)" },
+    { "id": "flg_l1", "supplierId": "sup_lim", "invoiceId": "inv_lb7781", "poId": "po_002", "invoiceLineId": "L2",
+      "type": "short_qty", "amountSen": 4140, "request": "send_missing", "status": "open",
+      "openedDaysAgo": 16, "sentDaysAgo": 15, "photoKinds": ["invoice", "signed_bon", "delivery"],
+      "_story": "15 days since WhatsApp sent -> 'follow up' reminder shows" },
+    { "id": "flg_l2", "supplierId": "sup_lim", "invoiceId": "inv_lb7781", "poId": "po_002", "invoiceLineId": "L1",
+      "type": "price_change", "amountSen": 1250, "baselineUnitSen": 500, "baselineSource": "agreed", "request": "agreed_price",
+      "status": "disputed", "openedDaysAgo": 16, "sentDaysAgo": 15,
+      "photoKinds": ["invoice"], "_story": "supplier disagrees -> stays owed; shows under 'Under dispute'" }
+  ],
+  "aliases": { "sup_lim": { "kicap manis kipas udang 320ml": "kicap-manis-cap-kipas-udang" } },
+  "events": [
+    { "daysAgo": 27, "role": "owner", "action": "flag.approve", "ref": "flg_h1" },
+    { "daysAgo": 27, "role": "owner", "action": "flag.send_whatsapp", "ref": "flg_h1" },
+    { "daysAgo": 10, "role": "owner", "action": "invoice.mark_paid", "ref": "inv_2207" },
+    { "daysAgo": 5, "role": "owner", "action": "flag.settle.credit_note", "ref": "flg_h1" },
+    { "daysAgo": 18, "role": "staff", "action": "delivery.record_counts", "ref": "inv_lb7781" },
+    { "daysAgo": 16, "role": "owner", "action": "flag.approve", "ref": "flg_l1" },
+    { "daysAgo": 16, "role": "owner", "action": "flag.approve", "ref": "flg_l2" },
+    { "daysAgo": 15, "role": "owner", "action": "flag.send_whatsapp", "ref": "flg_l1" },
+    { "daysAgo": 12, "role": "owner", "action": "flag.dispute", "ref": "flg_l2" }
+  ],
+  "demo": {
+    "liveInvoiceFixture": "docs/invoice_borong_ali_INV-2291.png",
+    "liveBonFixture": "docs/bon_signed_DO-5512.png",
+    "liveDeliveryPhoto": "docs/delivery_photo_INV-2291.png",
+    "staffTypesReceived": { "maggi-kari": 8, "beras-rambutan-10kg": 5, "minyak-masak-buruh-5kg": 6, "gula-pasir-1kg": 50 },
+    "expectedFlags": [
+      { "type": "short_qty", "sku": "maggi-kari", "amountSen": 9000, "rm": "RM90.00" },
+      { "type": "price_change", "sku": "gula-pasir-1kg", "amountSen": 2000, "rm": "RM20.00", "baselineSource": "last_invoice" } ],
+    "expectedBorongAliOwedAfterUpload": { "owedSen": 96200, "creditAppliedSen": 3190, "_calc": "993.90 - 31.90 supplier credit" },
+    "expectedBorongAliOwedAfterDeductSettled": { "owedSen": 87200, "_calc": "962.00 - 90.00" }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "docType": "invoice",
+  "supplierName": "Guangzhou Hengda Snacks Trading Co., Ltd.",
+  "docNo": "GZ-2026-088",
+  "docDate": "2026-10-15",
+  "currency": "USD",
+  "supplierCountry": "CN",
+  "totalAmount": "610.00",
+  "lines": [
+    {
+      "description": "Roasted Seaweed Snack 24x10g",
+      "qty": 20,
+      "unit": "CTN",
+      "unitPrice": "18.50",
+      "lineTotal": "370.00",
+      "box_2d": [
+        349,
+        62,
+        398,
+        938
+      ]
+    },
+    {
+      "description": "Dried Shiitake Mushroom 500g",
+      "qty": 10,
+      "unit": "CTN",
+      "unitPrice": "24.00",
+      "lineTotal": "240.00",
+      "box_2d": [
+        398,
+        62,
+        447,
+        938
+      ]
+    }
+  ]
+}

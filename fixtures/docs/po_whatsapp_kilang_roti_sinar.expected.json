@@ -1,0 +1,27 @@
+{
+  "docType": "purchase_order",
+  "supplierName": "Kilang Roti Sinar",
+  "docDate": "2026-10-19",
+  "lines": [
+    {
+      "description": "Roti putih besar",
+      "qty": 20,
+      "box_2d": [
+        188,
+        322,
+        217,
+        935
+      ]
+    },
+    {
+      "description": "Roti kaya",
+      "qty": 10,
+      "box_2d": [
+        217,
+        322,
+        246,
+        935
+      ]
+    }
+  ]
+}

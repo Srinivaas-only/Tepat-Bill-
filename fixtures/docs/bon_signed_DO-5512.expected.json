@@ -1,0 +1,52 @@
+{
+  "docType": "delivery_note",
+  "supplierName": "Syarikat Borong Ali Sdn. Bhd.",
+  "docNo": "DO-5512",
+  "docDate": "2026-10-20",
+  "lines": [
+    {
+      "description": "MAGGI KARI 5'S (CTN 8 PEK)",
+      "qty": 10,
+      "unit": "CTN",
+      "box_2d": [
+        244,
+        109,
+        339,
+        901
+      ]
+    },
+    {
+      "description": "BERAS CAP RAMBUTAN 10KG",
+      "qty": 5,
+      "unit": "BAG",
+      "box_2d": [
+        325,
+        107,
+        398,
+        899
+      ]
+    },
+    {
+      "description": "MINYAK MASAK BURUH 5KG",
+      "qty": 6,
+      "unit": "BTL",
+      "box_2d": [
+        383,
+        106,
+        456,
+        898
+      ]
+    },
+    {
+      "description": "GULA PASIR 1KG",
+      "qty": 50,
+      "unit": "PKT",
+      "box_2d": [
+        441,
+        105,
+        514,
+        896
+      ]
+    }
+  ]
+}

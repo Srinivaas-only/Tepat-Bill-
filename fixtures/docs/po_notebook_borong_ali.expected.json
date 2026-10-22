@@ -1,0 +1,51 @@
+{
+  "docType": "purchase_order",
+  "supplierName": "Borong Ali",
+  "docDate": "2026-10-18",
+  "lines": [
+    {
+      "description": "Maggi kari",
+      "qty": 10,
+      "unit": "ctn",
+      "box_2d": [
+        175,
+        134,
+        279,
+        851
+      ]
+    },
+    {
+      "description": "Beras Rambutan 10kg",
+      "qty": 5,
+      "unit": "beg",
+      "box_2d": [
+        263,
+        137,
+        367,
+        854
+      ]
+    },
+    {
+      "description": "Minyak masak Buruh 5kg",
+      "qty": 6,
+      "unit": "btl",
+      "box_2d": [
+        351,
+        140,
+        455,
+        857
+      ]
+    },
+    {
+      "description": "Gula pasir 1kg",
+      "qty": 50,
+      "unit": "pek",
+      "box_2d": [
+        439,
+        143,
+        543,
+        860
+      ]
+    }
+  ]
+}
