@@ -1,6 +1,6 @@
 # Tepat Bill: standing rules for Replit Agent
 
-> Read this file, `docs/PRD.md` and `docs/PROGRESS.md` before every task. The PRD is the source of truth; this file is the law.
+> Read this file, `docs/PRD.md`, `docs/IMPLEMENTATION_NOTES.md` (exact wiring, data rules and UI specs; it overrides the PRD where they differ) and `docs/PROGRESS.md` before every task. The PRD is the source of truth; this file is the law.
 > Keep this file's rules intact. You may append to the **Agent notes** section at the bottom; do not rewrite the sections above it.
 
 ## What we're building

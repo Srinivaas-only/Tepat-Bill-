@@ -51,6 +51,7 @@ You are the lead engineer building "Tepat Bill", a hackathon-winning, premium-qu
 READ FIRST, IN THIS ORDER, AND RE-READ WHEN UNSURE:
 1. replit.md: standing rules (stack, non-negotiables, never-list). These override anything else.
 2. docs/PRD.md: the product: roles, stories with acceptance criteria, every screen, the design system (section 6), data model (7), API (8), AI contract (9), demo (12), decisions (15).
+2b. docs/IMPLEMENTATION_NOTES.md: exact deps, scripts, Express 5 and Vite wiring, App Storage API, data rules and pixel-level UI specs. It OVERRIDES the PRD where they differ, including the milestone splits (M6a/M6b, M8a/M8b).
 3. shared/core/*.ts and its tests: the ONLY implementation of flags, money, roles, messages, evidence, e-invoice and the Gemini reader. Import it; never rewrite it; never edit it.
 4. fixtures/: demo documents, expected AI reads with true bounding boxes, and seed.json.
 5. docs/PROGRESS.md: tick milestones here as you finish them.

@@ -8,9 +8,11 @@
 - [ ] **M3 The reading moment**: extract route, cache, fallback, fixtures, scan-beam + box animation
 - [ ] **M4 Review screens**: PO/invoice correction, PO numbering, PO suggestion, foreign banner
 - [ ] **M5 Counts → flags**: steppers, photos, detectFlags, result card, flags list, api tests
-- [ ] **M6 Flag detail + approval + message**: actions, substitution, message preview, WhatsApp
+- [ ] **M6a Flag detail + owner actions**: crop, approve/dismiss/report-price/link-substitute, staff view
+- [ ] **M6b Message + WhatsApp**: preview, BM/EN, wa.me, sent, reminder
 - [ ] **M7 Evidence page**: public `/e/:token`, highlight, photos, tests
-- [ ] **M8 Money + lifecycle**: settle/dispute, supplier ledger, payments, home, reminders, activity
+- [ ] **M8a Money**: settle/dispute, supplier ledger, payments, mark correct
+- [ ] **M8b Home + activity**: hero, needs action, follow-ups, activity log
 - [ ] **M9 Extras**: e-invoice stub, CSV, settings, substitution demo
 - [ ] **M10 Polish + ship**: 6.8 checklist on every screen, Lighthouse, demo script ×2, Reserved VM
 
