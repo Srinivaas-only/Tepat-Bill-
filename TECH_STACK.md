@@ -2,7 +2,7 @@
 
 > SDC Hackathon 2026 · Domain 2 · Orbyte Smart SME Challenge. **Gemini is the only AI provider.** Built with Replit Agent, then polished with Claude Code via GitHub.
 > Full product detail: `docs/PRD.md`. How to build it: `docs/BUILD_PROMPT.md`. Agent rules: `replit.md`.
-> Verified 2026-10-22: live fact-check, red-team (all 35 stories, 11 slides), empirical build. `shared/core` has **78 passing tests**, and package versions were checked against npm.
+> Verified 2026-10-22: live fact-check, red-team (all 35 stories, 11 slides), empirical build. `shared/core` has **82 passing tests**, and package versions were checked against npm.
 
 ## Architecture in one sentence
 
@@ -33,7 +33,7 @@ A mobile-first React + Express app built and hosted on Replit. Staff photograph 
 | **Own `GEMINI_API_KEY`** (Replit Secret); billing attached for demo day | Not Replit's AI proxy (reported unreliable for structured output); about RM0.03 per read, and billed-tier data isn't used for training. |
 | **Flat Zod `ExtractedDoc` + `EXTRACTION_PROMPT`** (`shared/core/extract.ts`) | BM/EN/Chinese, handwritten or printed; prices as strings → integer sen; boxes per line. |
 | **SHA-256 read cache + pre-read fixtures + manual entry** | Demo can't die: live → cache → fixture → manual. |
-| **`shared/core`: pure rules, ledger, roles, messages, evidence, e-invoice stub** | The AI never does arithmetic; every RM figure is reproducible and tested (78 tests, property-based). |
+| **`shared/core`: pure rules, ledger, roles, messages, evidence, e-invoice stub** | The AI never does arithmetic; every RM figure is reproducible and tested (82 tests, property-based). |
 | **`wa.me` deep link** | Owner taps send; nothing is auto-sent. |
 
 ## 3. Database & Auth (Replit-native)

@@ -25,7 +25,7 @@ docs/        PRD.md BUILD_PROMPT.md PROGRESS.md DECISIONS_LOG.md
 ```
 
 ## `shared/core/` is read-only golden logic
-`rules.ts` (flags), `ledger.ts` (status, amount owed, reminders, home summary), `roles.ts`, `messages.ts` (supplier message + `wa.me` link), `evidence.ts` (evidence page whitelist), `einvoice.ts` (stub), `extract.ts` (Gemini reader, **server-only**), with 78 passing tests.
+`rules.ts` (flags), `ledger.ts` (status, amount owed, reminders, home summary), `roles.ts`, `messages.ts` (supplier message + `wa.me` link), `evidence.ts` (evidence page whitelist), `einvoice.ts` (stub), `extract.ts` (Gemini reader, **server-only**), with 82 passing tests.
 - **Import and call these functions. Never re-implement flag, money, role, message or evidence logic anywhere else.**
 - Never edit `shared/core/*` or `fixtures/*` to make something pass. If you truly believe core is wrong, write it in `docs/DECISIONS_LOG.md` and work around it at the call site.
 - Client code imports from `shared/core/index.ts` only (browser-safe). Only the server imports `shared/core/extract.ts`.
@@ -45,6 +45,7 @@ docs/        PRD.md BUILD_PROMPT.md PROGRESS.md DECISIONS_LOG.md
 ## Commands
 - `npm run dev`: client and server on one port (bind to `0.0.0.0`, port from `PORT`).
 - `npm test`: Vitest. **Must stay green after every milestone.**
+- `npm run typecheck`: add this script in M0 (`tsc --noEmit` over client, server and shared).
 - `npm run db:push`: apply the Drizzle schema. `npm run seed`: reset and load `fixtures/seed.json`.
 
 ## Secrets

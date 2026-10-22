@@ -93,11 +93,11 @@ Story numbers match the spec (1–35). **D-** stories come from the deck.
 - **6–7.** The PO suggestion is the top result of `rankPoCandidates()`, shown as a chip "Padan dengan PO-2610-004" with a dropdown of other POs from that supplier (last 60 days) plus "Tiada PO".
 - **D-foreign.** If `looksForeign(currency, supplierCountry)`, show the banner "Pembekal luar negara?" (Foreign supplier?). The owner confirms, which sets `supplier.isForeign`.
 - **Invoice `issuedAt`** = the time it was recorded in the app, not the printed date (used for "next invoice" credit ordering). The printed date is stored as `docDate`.
-- Foreign invoices: store the original currency and total, and ask for the exchange rate (default 4.20 for USD). The ledger uses MYR sen.
+- Foreign invoices: store the original currency, total and per-line `unit_price_foreign_minor`, and ask for the exchange rate (default 4.20 for USD). The ledger uses MYR sen; the e-invoice preview uses the foreign amounts, formatted with the currency code (not `formatRM`).
 
 ### E3 Delivery evidence and counts (stories 8–10)
 - **8–9.** On the count screen, staff can attach a **delivery photo** and a **signed bon photo** (two labelled tiles). Neither is read for counts.
-- **10.** Each invoice line shows a big number stepper (−/+ and tap-to-type) prefilled with the **invoice qty**. Staff change only what differs. "Simpan kiraan" (Save counts) runs `detectFlags()` server-side and creates **Proposed** flags (replacing earlier Proposed flags for that invoice).
+- **10.** Each invoice line shows a big number stepper (−/+ and tap-to-type) prefilled with the **invoice qty**. Staff change only what differs. Counts are saved per invoice line as key `line:<lineId>` (and per sku `<sku>` for PO-only lines). "Simpan kiraan" (Save counts) runs `detectFlags()` server-side and creates **Proposed** flags (replacing earlier Proposed flags for that invoice).
 - Lines the PO expected but the invoice didn't bill: show them greyed with qty 0, so a substitution can be detected.
 
 ### E4 Flags (stories 11–16, D-wrong-item)
@@ -106,7 +106,7 @@ Story numbers match the spec (1–35). **D-** stories come from the deck.
   - Decreases show as an info card with RM0 and no actions except Dismiss.
 - **14.** "Ini kenaikan biasa" (This is a normal increase) dismisses it and updates the price list via `autofillPriceList` without skip.
 - **15.** "Laporkan harga" (Report price): the owner types the agreed price. This calls `setAgreedPrice`, then approves with request `agreed_price`, and the message states the agreed price.
-- **D-wrong-item.** `not_ordered`: request "Ambil semula / jangan caj" (Collect back / don't charge).
+- **D-wrong-item.** `not_ordered`: request "Ambil semula, tidak dicaj" (Collect back, remove from invoice).
   - If `possibleSubstituteFor` is set, show one **"Diganti?"** (Substituted?) card: "Roti kaya dipesan, Roti mentega jagung dihantar" (kaya was ordered, mentega jagung was delivered).
   - Actions: **Pautkan** (Link): learn an alias for that supplier and re-run detection, so it becomes at most a price-change flag. **Asingkan** (Keep separate): keep the not_ordered flag.
 - **18.** Only **Owner** can approve (`proposed → open`). Approve requires choosing a request.
@@ -121,17 +121,17 @@ Story numbers match the spec (1–35). **D-** stories come from the deck.
   - It has no login and no amounts owed. For grouped messages, the link is the first flag's token; the evidence page lists the sibling flags from the same invoice that were sent together.
 
 ### E6 Lifecycle and money (stories 23–31, 33, D-correct)
-- **23–25.** Status chips: Perlu semakan (Proposed) · Terbuka (Open) · Dipertikai (Disputed) · Selesai (Settled) · Ditolak (Dismissed).
-  - Settle sheet offers **Dihantar semula** (Redelivered; short qty only) · **Nota kredit** (Credit note) · **Ditolak dari invois** (Deducted).
+- **23–25.** Status chips: Perlu semakan (Proposed) · Terbuka (Open) · Dipertikai (Disputed) · Selesai (Settled) · Diabaikan (Dismissed).
+  - Settle sheet offers **Dihantar semula** (Redelivered; short qty only) · **Nota kredit** (Credit note) · **Ditolak daripada invois** (Deducted).
   - Dispute keeps all photos and lets the owner add a note.
   - Use `transition()` only.
 - **26.** Follow-up reminder: `needsReminder()` on Open/Disputed flags 14+ days after sending. It shows on Home "Perlu susulan" (Needs follow-up) and on the flag, with a "Hantar peringatan" (Send reminder) button that reopens the WhatsApp message.
-- **27–28.** Each invoice is `on_credit` by default with `dueAt = defaultDueAt(issuedAt)`, editable. "Tanda sudah bayar" (Mark paid) sets `paidAt`.
+- **27–28.** Each invoice is `on_credit` by default with `dueAt = defaultDueAt(issuedAt)`, editable. "Tandakan sudah dibayar" (Mark paid) sets `paidAt`.
 - **29–31, D-credit.**
   - Supplier page money comes only from `supplierLedger()`: **Perlu bayar** (Pay now: `payNowSen`), **Dipertikai** (Under dispute: `disputedSen`), **Kredit pembekal** (Supplier credit: `creditCarrySen`, shown as "Pembekal berhutang RM X dengan anda"), and **Baki penyata dijangka** (Expected statement balance: `owedSen`).
   - Per-invoice rows show credit applied.
-- **33.** Home summary uses `monthSummary()`: RM flagged, settled and still open this month, with animated digits.
-- **D-correct.** Invoice state uses `orderState()`. "Tanda betul" (Mark correct) is owner-only and enabled only when `canMarkCorrect()`.
+- **33.** Home summary uses `last30Days()`: RM flagged, settled and still open in the **last 30 days** (label "30 hari lepas"; robust on any demo date), with animated digits. `monthSummary()` exists for a month filter.
+- **D-correct.** Invoice state uses `orderState()`. "Sahkan tepat" (Mark correct) is owner-only and enabled only when `canMarkCorrect()`.
 
 ### E7 Deck extras
 - **D-log.** Activity log of every write (who, role, action, ref, time), at `/activity`. Grouped by day.
@@ -150,14 +150,14 @@ Navigation:
 | Route | Purpose | Key components and states |
 |---|---|---|
 | `/login` | PIN entry | Brand mark, "Tepat Bill" wordmark, 4 PIN dots, a numeric keypad with large keys (no system keyboard), shake animation plus haptic on a wrong PIN, Owner/Staff detected from the PIN. |
-| `/` Home | Money at a glance + what needs action | Hero card "Bulan ini" (This month) with 3 NumberFlow figures. "Perlu tindakan" (Needs action) list: proposed flags (owner), reminders. Supplier credit chips. Recent activity (5). Checks chip. **Staff home:** a big "Rekod penghantaran" (Record delivery) CTA and today's deliveries. Empty state: illustration plus "Imbas invois pertama anda" (Scan your first invoice). |
+| `/` Home | Money at a glance + what needs action | Hero card "30 hari lepas" (Last 30 days) with 3 NumberFlow figures. "Perlu tindakan" (Needs action) list: proposed flags (owner), reminders. Supplier credit chips. Recent activity (5). Checks chip. **Staff home:** a big "Rekod penghantaran" (Record delivery) CTA and today's deliveries. Empty state: illustration plus "Imbas invois pertama anda" (Scan your first invoice). |
 | `/scan` | Capture | Sheet: "Apa yang anda imbas?" (What are you scanning?): Pesanan / Invois / Bon. Then camera or file. Client-side downscale or PDF raster with a thumbnail preview. Upload with a progress ring. |
 | `/read/:documentId` | **The reading moment** (hero UX) | Full-width image with a scanning-beam animation while Gemini works. Rotating status text ("Membaca baris…", "Menyemak harga…"). Then each box draws in with a stagger while its row slides into the list. If >12 s: "Masih membaca…"; if `DEMO_FIXTURES`: a "Guna bacaan demo" link. On failure: "Tak dapat baca, isi sendiri" (Couldn't read, fill it in yourself), going to manual entry. |
 | `/review/po/:documentId` | Correct the PO read | Editable rows (tap a row to highlight its box on the image, and the reverse). Supplier picker. Save → PO number toast. |
 | `/review/invoice/:documentId` | Correct the invoice read | As above, plus invoice no., date, currency, PO suggestion chip, foreign banner, and totals check (lines sum vs printed total: warn if different). |
 | `/invoices/:id/count` | Received counts | Line cards with big steppers (prefilled with invoice qty; changed lines glow amber), evidence photo tiles (delivery, signed bon), and a sticky "Simpan kiraan" button. Then an animated result: "2 perbezaan ditemui · RM110.00" (2 differences found) or a green "Semua tepat ✓" (All correct). |
 | `/flags` | All flags | Segmented tabs: Perlu semakan · Terbuka · Dipertikai · Selesai. Cards show the type icon/colour, item, RM, supplier, age and reminder dot. Pull-to-refresh is not needed. |
-| `/flags/:id` | Flag detail | Header: RM amount (big) plus type chip. The invoice image cropped and zoomed to the **highlighted line** (pinch-zoom on tap). Facts table (billed / received / missing or price vs baseline with source). PO ↔ invoice links. Policy note. Request selector. Owner actions in a sticky bottom bar: Lulus (Approve) / Tolak (Dismiss), or later Hantar (Send) / Pertikai (Dispute) / Selesaikan (Settle). Timeline of events for this flag. |
+| `/flags/:id` | Flag detail | Header: RM amount (big) plus type chip. The invoice image cropped and zoomed to the **highlighted line** (pinch-zoom on tap). Facts table (billed / received / missing or price vs baseline with source). PO ↔ invoice links. Policy note. Request selector. Owner actions in a sticky bottom bar: Lulus (Approve) / Abaikan (Dismiss), or later Hantar (Send) / Pertikai (Dispute) / Selesaikan (Settle). Timeline of events for this flag. |
 | `/flags/:id/message` | Message preview | Phone-style chat bubble preview, BM/EN toggle, editable text, "Buka WhatsApp" (primary, WhatsApp green), "Salin mesej". |
 | `/suppliers` | Suppliers list | Each shows Pay now, Under dispute and credit, plus a next-due date. |
 | `/suppliers/:id` | Supplier page | Money header (Pay now / Dipertikai / Kredit / Expected statement balance). Invoices list with payment status and due dates. Flags. Policy note (editable, owner). WhatsApp number. Foreign toggle. |
@@ -229,7 +229,7 @@ Navigation:
 | key | ms | en |
 |---|---|---|
 | app.tagline | Semak setiap penghantaran. Semak setiap bil. | Check every delivery. Check every bill. |
-| home.thisMonth | Bulan ini | This month |
+| home.thisMonth | 30 hari lepas | Last 30 days |
 | home.flagged / settled / open | Ditanda / Selesai / Masih terbuka | Flagged / Settled / Still open |
 | home.needsAction | Perlu tindakan | Needs action |
 | home.followUp | Perlu susulan | Needs follow-up |
@@ -244,13 +244,13 @@ Navigation:
 | flag.price | Harga naik | Price increased |
 | flag.notOrdered | Tidak dipesan | Not ordered |
 | flag.substituted | Diganti? | Substituted? |
-| flag.approve / dismiss | Lulus / Tolak | Approve / Dismiss |
-| flag.req.send / deduct / collect / agreed | Hantar barang yang kurang / Tolak jumlah / Ambil semula, jangan caj / Caj harga dipersetujui | Send missing items / Deduct amount / Collect back, don't charge / Charge agreed price |
+| flag.approve / dismiss | Lulus / Abaikan | Approve / Dismiss |
+| flag.req.send / deduct / collect / agreed | Hantar barang yang kurang / Tolak jumlah / Ambil semula, tidak dicaj / Caj ikut harga yang dipersetujui | Send missing items / Deduct amount / Collect back, don't charge / Charge agreed price |
 | flag.openWa / copy | Buka WhatsApp / Salin mesej | Open WhatsApp / Copy message |
 | flag.dispute / settle | Pertikai / Selesaikan | Dispute / Settle |
-| settle.redelivered / credit / deducted | Dihantar semula / Nota kredit / Ditolak dari invois | Redelivered / Credit note / Deducted |
-| status.* | Perlu semakan · Terbuka · Dipertikai · Selesai · Ditolak | Needs review · Open · Disputed · Settled · Dismissed |
-| supplier.payNow / disputed / credit / statement | Perlu bayar / Dipertikai / Pembekal berhutang {rm} / Baki penyata dijangka | Pay now / Under dispute / Supplier owes you {rm} / Expected statement balance |
+| settle.redelivered / credit / deducted | Dihantar semula / Nota kredit / Ditolak daripada invois | Redelivered / Credit note / Deducted |
+| status.* | Perlu semakan · Terbuka · Dipertikai · Selesai · Diabaikan | Needs review · Open · Disputed · Settled · Dismissed |
+| supplier.payNow / disputed / credit / statement | Perlu bayar / Dipertikai / Pembekal berhutang {rm} kepada anda / Baki penyata dijangka | Pay now / Under dispute / Supplier owes you {rm} / Expected statement balance |
 | owner.only | Menunggu kelulusan pemilik | Waiting for owner approval |
 | evidence.title | Bukti aduan | Complaint evidence |
 | evidence.readOnly | Halaman baca sahaja · Tepat Bill | Read-only page · Tepat Bill |
@@ -283,8 +283,8 @@ Money = `integer` sen. Quantities = `integer`. Times = `timestamp with time zone
 | `purchase_orders` | id, po_no unique, supplier_id, document_id nullable, source enum(`notebook`,`whatsapp`,`typed`), ordered_at, created_at |
 | `po_lines` | id, po_id, sku, description, ordered_qty, unit nullable, unit_price_sen nullable, box jsonb nullable, position |
 | `invoices` | id, invoice_no, supplier_id, po_id nullable, document_id nullable, doc_date nullable, currency default 'MYR', exchange_rate numeric nullable, total_foreign_minor nullable, total_sen, issued_at (recorded time), payment enum(`on_credit`,`paid`), paid_at nullable, due_at, owner_marked_correct bool, extraction_model nullable, created_at |
-| `invoice_lines` | id, invoice_id, line_id (`L1`…), sku nullable (matched PO sku), description, qty, unit nullable, unit_price_sen, line_total_sen nullable, box jsonb nullable, position |
-| `received_counts` | invoice_id, sku, qty, recorded_by_role, recorded_at; PK(invoice_id, sku) |
+| `invoice_lines` | id, invoice_id, line_id (`L1`…), sku nullable (matched PO sku), description, qty, unit nullable, unit_price_sen (MYR sen), unit_price_foreign_minor nullable (original currency, foreign invoices only), line_total_sen nullable, box jsonb nullable, position |
+| `received_counts` | invoice_id, key (`line:<lineId>` or PO sku), qty, recorded_by_role, recorded_at; PK(invoice_id, key) |
 | `price_list` | supplier_id, sku, last_invoice_sen nullable, agreed_sen nullable; PK(supplier_id, sku) |
 | `aliases` | supplier_id, normalised_desc, sku; PK(supplier_id, normalised_desc) |
 | `flags` | id, supplier_id, invoice_id, po_id nullable, invoice_line_id, sku nullable, type, amount_sen, status, settlement nullable, request nullable, missing_qty, invoice_unit_sen, baseline_unit_sen, baseline_source, priced_qty, direction, possible_substitute_for, note, evidence_token unique (32-hex, `crypto.randomBytes(16)`), opened_at, sent_at, settled_at, created_at |
@@ -312,11 +312,11 @@ Errors: `{ error: { code, message } }` with 400 / 401 / 403 / 404 / 409 / 422. E
 | GET `/api/pos?supplierId=` · GET `/api/pos/:id` | any | |
 | POST `/api/invoices` | any | `{supplierId|newSupplier, documentId?, poId?, invoiceNo, docDate?, currency, exchangeRate?, lines[], totalSen}` → `{id}`. Matches lines to PO skus (`matchLine`) and stores `sku`. |
 | GET `/api/invoices/:id/po-suggestions` | any | → `rankPoCandidates()` output with poNo |
-| PUT `/api/invoices/:id/counts` | any | `{counts:{[sku]:qty}, photoDocIds?}` → `{flags:[...]}` (runs `detectFlags`, replaces this invoice's Proposed flags, attaches photos) |
+| PUT `/api/invoices/:id/counts` | any | `{counts:{['line:L1'\|sku]:qty}, photoDocIds?}` → `{flags:[...]}` (runs `detectFlags`, replaces this invoice's Proposed flags, attaches photos) |
 | GET `/api/flags?status=&supplierId=` · GET `/api/flags/:id` | any | detail includes invoice lines, photos, PO, supplier policy, events |
-| POST `/api/flags/:id/approve` | owner | `{request}` → flag (`transition` → open) |
+| POST `/api/flags/:id/approve` | owner | `{request}` → flag (`transition` → open). 409 unless proposed. |
 | POST `/api/flags/:id/dismiss` | owner | `{asInflation?:boolean}` → flag (if a price flag and asInflation, update price list) |
-| POST `/api/flags/:id/report-price` | owner | `{agreedSen}` → flag (`setAgreedPrice` then approve with `agreed_price`) |
+| POST `/api/flags/:id/report-price` | owner | `{agreedSen}` → flag. 409 unless the flag is proposed. Steps: `setAgreedPrice`, re-run `detectFlags` for that line, update amountSen, baselineUnitSen and baselineSource='agreed', then `transition` proposed→open with request `agreed_price`. Do **not** call approve first. |
 | POST `/api/flags/:id/link-substitute` | owner | `{poSku}` → `{flags}` (learnAlias + re-detect) |
 | GET `/api/flags/:id/message?lang=` | owner | → `{text, waUrl, flagIds}` (draftMessage over unsent Open flags of the same invoice) |
 | POST `/api/flags/sent` | owner | `{flagIds}` → `markSent` each |
@@ -324,11 +324,11 @@ Errors: `{ error: { code, message } }` with 400 / 401 / 403 / 404 / 409 / 422. E
 | PATCH `/api/invoices/:id/payment` | owner | `{payment, paidAt?, dueAt?}` |
 | POST `/api/invoices/:id/mark-correct` | owner | 409 unless `canMarkCorrect` |
 | GET `/api/suppliers` · GET `/api/suppliers/:id` · PATCH `/api/suppliers/:id` | any / any / owner | detail includes `supplierLedger()` output |
-| GET `/api/home` | any | `{summary: monthSummary, needsAction, reminders, credits, recent, checksLeft}` |
+| GET `/api/home` | any | `{summary: last30Days, needsAction, reminders, credits, recent, checksLeft}` |
 | GET `/api/events?limit=` | any | |
 | POST `/api/invoices/:id/einvoice` · `/einvoice/approve` · `/einvoice/release` | owner | draft lifecycle via `shared/core/einvoice.ts` |
 | GET `/api/export.csv` | owner | flags + invoices, sen formatted as RM |
-| GET `/api/public/evidence/:token` | **public** | → `buildEvidence()` + `{shopName, supplierName, siblings}`; header `X-Robots-Tag: noindex`; 404 for proposed or dismissed |
+| GET `/api/public/evidence/:token` | **public** | → `buildEvidence()` + `{shopName, supplierName, siblings, invoiceDocDate}` (page shows docDate, falling back to issuedAt); header `X-Robots-Tag: noindex`; 404 for proposed or dismissed |
 | GET `/api/public/evidence/:token/photo/:documentId` | **public** | streams only if that document belongs to that flag |
 | POST `/api/dev/reset` | owner, dev only | wipe + seed |
 
@@ -357,7 +357,7 @@ Rules:
 | `supplierLedger` | owedSen, disputedSen, payNowSen, creditCarrySen, recoveredSen, rows |
 | `needsReminder` | Open/Disputed ≥ 14 days since sent (or approval) |
 | `orderState` / `canMarkCorrect` | recorded / has_flags / correct |
-| `monthSummary` | Home hero numbers |
+| `last30Days` / `rangeSummary` / `monthSummary` | Home hero numbers (Home uses `last30Days`) |
 | `poNumber` / `rankPoCandidates` / `looksForeign` / `matchLine` | Documents |
 | `draftMessage` / `waLink` / `toMsisdn` | Message (section 11) |
 | `buildEvidence` | Evidence whitelist |
@@ -378,7 +378,7 @@ Rules:
   Terima kasih.
   ```
 - The evidence URL host comes from `PUBLIC_BASE_URL`, else the request origin. Production must use the deployed `.replit.app` URL.
-- No supplier number → `wa.me/?text=` (WhatsApp contact picker).
+- No supplier number → `wa.me/?text=` (WhatsApp contact picker). Seed suppliers deliberately have **no** numbers, so the demo never messages a stranger.
 
 ## 12. Demo data, fixtures and demo-safety
 - `npm run seed` loads `fixtures/seed.json`. `daysAgo` fields are relative to now. Upload the `fixture` images in it to App Storage and pre-fill `extractions` with each fixture image's sha256 → its `*.expected.json` (model `fixture`).
@@ -387,6 +387,9 @@ Rules:
   2. Cache hit (the same image read before).
   3. `DEMO_FIXTURES=1` "Guna bacaan demo" (Use demo read) link after 12 s or on failure. It lists fixtures and loads the chosen `*.expected.json`.
   4. Manual entry.
+- **Substitution (Pautkan):** learn the alias, then re-run `detectFlags` with the same `line:<lineId>` counts. The count follows the invoice line, so linking yields no flag (same price) or only a price-change flag.
+- **Seed `po_seq`:** set `po_seq:<YYMM of now>` to the highest seeded PO sequence for that month, so live POs never collide.
+- **Before demo day:** read 5+ real photographed handwritten bons on the billed key (spec requirement) and note the results in `docs/DECISIONS_LOG.md`.
 - `fixtures/docs`:
 
   | File | Use |
@@ -398,6 +401,7 @@ Rules:
   | `po_whatsapp_kilang_roti_sinar.png` + `invoice_kilang_roti_sinar_0118.png` | Substitution demo |
   | `invoice_foreign_GZ-2026-088.png` | e-invoice demo, seeded |
 
+- **Bon (DO) reads** are for evidence and cross-checking quantities only; counts are always typed.
 - **Expected live result** (asserted in `shared/core/fixtures.test.ts`):
   - Staff types Maggi **8** (others unchanged) → **Maggi short RM90.00** + **Gula +RM0.40 × 50 = RM20.00** (baseline: last invoice RM2.80).
   - Borong Ali Pay now is **RM962.00** after upload (RM993.90 − RM31.90 supplier credit), then **RM872.00** after the RM90 deduction settles.
@@ -408,9 +412,9 @@ Rules:
 ### Demo script (90 s, two phones + projector mirror of the owner phone)
 1. Owner phone on Home. Hero shows this month's numbers; Lim Brothers is in "Perlu susulan".
 2. Scan → Invois → photograph the printed INV-2291. **The reading moment**: lines and boxes draw in. The PO chip suggests PO-2610-004. Save.
-3. Staff count screen: change Maggi 10 → **8**, attach the signed bon photo. "Simpan kiraan" → **"2 perbezaan ditemui · RM110.00"**.
-4. Open the Maggi flag: the invoice crops to the highlighted Maggi line. Approve → Deduct. Approve Gula → "Laporkan harga" RM2.80.
-5. Message → BM preview → **Buka WhatsApp** → send to the judge's phone.
+3. Count screen (owner records it, so there's no user switch mid-demo): change Maggi 10 → **8**, attach the signed bon photo. "Simpan kiraan" → **"2 perbezaan ditemui · RM110.00"**.
+4. Open the Maggi flag: the invoice crops to the highlighted Maggi line. Lulus → Tolak jumlah (Deduct). Gula flag: tap **Laporkan harga**, enter RM2.80 (this approves it; don't tap Lulus first).
+5. Message → BM preview → **Buka WhatsApp** → WhatsApp's contact picker opens (seed suppliers have no number) → choose the judge's chat → send.
 6. Judge taps the link → evidence page with the pulsing highlighted line and the signed bon.
 7. Owner: Settle → Nota kredit. Supplier page **Pay now rolls RM962.00 → RM872.00**. Home "Selesai" ticks up.
 

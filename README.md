@@ -19,7 +19,7 @@
 ## Tests
 ```bash
 npm install
-npm test            # 78 tests: rules, ledger (property-based), messages, Gemini fallback, fixture reconciliation
+npm test            # 82 tests: rules, ledger (property-based), messages, Gemini fallback, fixture reconciliation
 npm run typecheck:core
 ```
 
