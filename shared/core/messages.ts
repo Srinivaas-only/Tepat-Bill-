@@ -21,13 +21,13 @@ export interface MessageInput {
 
 const T = {
   ms: {
-    hello: (s: string, shop: string) => `Salam ${s}, ini ${shop}.`,
-    ref: (inv: string, d: string, po?: string) => `Untuk invois ${inv} bertarikh ${d}${po ? ` (pesanan ${po})` : ''}:`,
-    short: (l: MessageLine) => `• ${l.item}: dibil ${l.billedQty}, diterima ${l.receivedQty}. Kurang ${l.missingQty} unit = ${formatRM(l.amountSen)}.`,
-    price: (l: MessageLine) => `• ${l.item}: harga invois ${formatRM(l.invoiceUnitSen!)}/unit, harga dipersetujui ${formatRM(l.agreedUnitSen!)}/unit, untuk ${l.pricedQty} unit = beza ${formatRM(l.amountSen)}.`,
+    hello: (s: string, shop: string) => `Salam sejahtera ${s}, ini ${shop}.`,
+    ref: (inv: string, d: string, po?: string) => `Merujuk invois ${inv} bertarikh ${d}${po ? ` (pesanan ${po})` : ''}:`,
+    short: (l: MessageLine) => `• ${l.item}: dalam invois ${l.billedQty}, diterima ${l.receivedQty}. Kurang ${l.missingQty} unit = ${formatRM(l.amountSen)}.`,
+    price: (l: MessageLine) => `• ${l.item}: harga invois ${formatRM(l.invoiceUnitSen!)}/unit, harga yang dipersetujui ${formatRM(l.agreedUnitSen!)}/unit, untuk ${l.pricedQty} unit = perbezaan ${formatRM(l.amountSen)}.`,
     notOrdered: (l: MessageLine) => `• ${l.item}: ${l.qty} unit (${formatRM(l.amountSen)}) tiada dalam pesanan kami.`,
     req: { send_missing: 'Mohon hantar baki barang yang kurang.', deduct: 'Mohon tolak jumlah ini daripada invois.',
-      collect_back: 'Mohon ambil semula barang ini dan jangan caj.', agreed_price: 'Mohon caj mengikut harga dipersetujui.' },
+      collect_back: 'Mohon ambil semula barang ini dan keluarkan daripada invois.', agreed_price: 'Mohon caj mengikut harga yang dipersetujui.' },
     total: (s: string) => `Jumlah: ${s}.`,
     evidence: (u: string) => `Bukti (gambar & dokumen): ${u}`,
     thanks: 'Terima kasih.',
@@ -39,7 +39,7 @@ const T = {
     price: (l: MessageLine) => `• ${l.item}: invoice price ${formatRM(l.invoiceUnitSen!)}/unit, agreed price ${formatRM(l.agreedUnitSen!)}/unit, for ${l.pricedQty} units = difference ${formatRM(l.amountSen)}.`,
     notOrdered: (l: MessageLine) => `• ${l.item}: ${l.qty} units (${formatRM(l.amountSen)}) were not in our order.`,
     req: { send_missing: 'Please send the missing items.', deduct: 'Please deduct this amount from the invoice.',
-      collect_back: 'Please collect these items and do not charge them.', agreed_price: 'Please charge the agreed price.' },
+      collect_back: 'Please collect these items and remove them from the invoice.', agreed_price: 'Please charge the agreed price.' },
     total: (s: string) => `Total: ${s}.`,
     evidence: (u: string) => `Evidence (photos & documents): ${u}`,
     thanks: 'Thank you.',

@@ -89,7 +89,9 @@ export interface LineCheckInput {
   supplierId: string;
   po: PoLine[];
   invoice: InvLine[];
-  received: Record<string /*sku*/, number>; // staff count, keyed by matched sku
+  /** Staff counts. Key `line:<lineId>` = count for that invoice line (preferred; survives re-matching after a substitution link).
+   *  Key `<sku>` = count for a PO sku (used for PO lines the invoice didn't bill, and as a fallback). */
+  received: Record<string, number>;
   priceList: PriceList;                       // the supplier's list BEFORE this invoice
   aliases: AliasTable;
 }
@@ -115,7 +117,7 @@ export function detectFlags(i: LineCheckInput): DetectedFlag[] {
     const m = matchLine(i.supplierId, line, i.po, i.aliases);
     if (!m) { unmatched.push(line); continue; }
     matched.add(m.sku);
-    const rec = assertQty(i.received[m.sku] ?? 0, 'received qty');
+    const rec = assertQty(i.received[`line:${line.lineId}`] ?? i.received[m.sku] ?? 0, 'received qty');
     const missing = line.qty - rec;
     if (missing > 0) out.push({ type: 'short_qty', sku: m.sku, invoiceLineId: line.lineId, missingQty: missing,
       invoiceUnitSen: line.unitPriceSen, amountSen: missing * line.unitPriceSen });

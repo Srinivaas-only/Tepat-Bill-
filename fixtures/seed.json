@@ -1,16 +1,16 @@
 {
-  "_readme": "Synthetic demo data. All times are daysAgo relative to the moment the seed runs, so reminders and 'this month' always look right on demo day. Money is integer sen (MYR). INV-2291 (Borong Ali) and Kilang Roti Sinar bill 0118 are NOT seeded: they are uploaded live in the demo from fixtures/docs.",
+  "_readme": "Synthetic demo data. Supplier WhatsApp numbers are deliberately null: in the demo WhatsApp opens its contact picker and you pick the judge's chat (never message a real stranger). The seed must set settings po_seq:<YYMM of now> to the highest seeded PO sequence for that month. All times are daysAgo relative to the moment the seed runs, so reminders and 'this month' always look right on demo day. Money is integer sen (MYR). INV-2291 (Borong Ali) and Kilang Roti Sinar bill 0118 are NOT seeded: they are uploaded live in the demo from fixtures/docs.",
   "shop": {
     "name": "Kedai Runcit Maju", "ownerName": "Rahman", "address": "No. 12, Jalan Bendahara, 30200 Ipoh, Perak",
     "tin": "IG12345678901", "brn": "202601000123", "msic": "47111",
     "pins": { "owner": "1234", "staff": "5678", "_note": "dev defaults; production reads OWNER_PIN / STAFF_PIN secrets" }
   },
   "suppliers": [
-    { "id": "sup_ali", "name": "Syarikat Borong Ali Sdn. Bhd.", "whatsapp": "012-345 6789", "isForeign": false, "country": "MY",
+    { "id": "sup_ali", "name": "Syarikat Borong Ali Sdn. Bhd.", "whatsapp": null, "isForeign": false, "country": "MY",
       "policyNote": "Barang kurang: tuntut dalam 7 hari dengan gambar bon bertandatangan. Nota kredit diberi pada invois seterusnya." },
-    { "id": "sup_sinar", "name": "Kilang Roti Sinar", "whatsapp": "016-552 0198", "isForeign": false, "country": "MY",
+    { "id": "sup_sinar", "name": "Kilang Roti Sinar", "whatsapp": null, "isForeign": false, "country": "MY",
       "policyNote": "Roti salah/rosak boleh tukar esok pagi." },
-    { "id": "sup_lim", "name": "Lim Brothers Trading", "whatsapp": "017-880 2231", "isForeign": false, "country": "MY", "policyNote": null },
+    { "id": "sup_lim", "name": "Lim Brothers Trading", "whatsapp": null, "isForeign": false, "country": "MY", "policyNote": null },
     { "id": "sup_gz", "name": "Guangzhou Hengda Snacks Trading Co., Ltd.", "whatsapp": null, "isForeign": true, "country": "CN", "policyNote": "T/T 30 days. Claims by email within 14 days." }
   ],
   "priceList": {
@@ -90,6 +90,7 @@
     { "daysAgo": 16, "role": "owner", "action": "flag.approve", "ref": "flg_l1" },
     { "daysAgo": 16, "role": "owner", "action": "flag.approve", "ref": "flg_l2" },
     { "daysAgo": 15, "role": "owner", "action": "flag.send_whatsapp", "ref": "flg_l1" },
+    { "daysAgo": 15, "role": "owner", "action": "flag.send_whatsapp", "ref": "flg_l2" },
     { "daysAgo": 12, "role": "owner", "action": "flag.dispute", "ref": "flg_l2" }
   ],
   "demo": {

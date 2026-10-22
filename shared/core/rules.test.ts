@@ -125,6 +125,23 @@ describe('substitution guard', () => {
       received: { BERAS10: 10, MILO1: 0 } }));
     expect(f).toEqual([expect.objectContaining({ type: 'not_ordered', invoiceLineId: 'L2', amountSen: 6500, possibleSubstituteFor: 'MILO1' })]);
   });
+  it('after Pautkan (alias), the line count follows the line: no short flag, no price flag at the same price', () => {
+    const inp = base({
+      po: [{ sku: 'roti-putih-besar', description: 'Roti putih besar', orderedQty: 20 }, { sku: 'roti-kaya', description: 'Roti kaya', orderedQty: 10 }],
+      invoice: [{ lineId: 'L1', description: 'Roti putih besar', qty: 20, unitPriceSen: 190 },
+                { lineId: 'L2', description: 'Roti mentega jagung', qty: 10, unitPriceSen: 210 }],
+      received: { 'line:L1': 20, 'line:L2': 10, 'roti-kaya': 0 },
+      priceList: { 'roti-putih-besar': { lastInvoiceSen: 190 }, 'roti-kaya': { lastInvoiceSen: 210 } } });
+    expect(detectFlags(inp)).toEqual([expect.objectContaining({ type: 'not_ordered', amountSen: 2100, possibleSubstituteFor: 'roti-kaya' })]);
+    const linked = { ...inp, aliases: learnAlias({}, 'S1', 'Roti mentega jagung', 'roti-kaya') };
+    expect(detectFlags(linked)).toEqual([]);
+    // linked substitute at a higher price -> only a price-change flag
+    const dearer = { ...linked, invoice: [inp.invoice[0], { ...inp.invoice[1], unitPriceSen: 240 }] };
+    expect(detectFlags(dearer)).toEqual([expect.objectContaining({ type: 'price_change', amountSen: 300 })]);
+  });
+  it('line-keyed count wins over sku-keyed count', () => {
+    expect(detectFlags(base({ received: { 'line:L1': 8, BERAS10: 10 } }))[0]).toMatchObject({ type: 'short_qty', amountSen: 9000 });
+  });
   it('no candidate when every PO line was billed', () => {
     const f = detectFlags(base({ invoice: [{ lineId: 'L1', description: 'Beras 10kg', qty: 10, unitPriceSen: 4500 },
       { lineId: 'L2', description: 'Nestum 500g', qty: 1, unitPriceSen: 1300 }] }));

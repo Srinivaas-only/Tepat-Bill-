@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { supplierLedger, transition, needsReminder, markSent, orderState, canMarkCorrect, monthSummary, type Flag, type Invoice } from './ledger';
+import { supplierLedger, transition, needsReminder, markSent, orderState, canMarkCorrect, monthSummary, last30Days, type Flag, type Invoice } from './ledger';
 import { can, ACTIONS } from './roles';
 import { prepareSelfBilled, approveDraft, releaseDraft, type DraftStatus } from './einvoice';
 import { buildEvidence, type Db } from './evidence';
@@ -106,6 +106,12 @@ describe('month summary', () => {
     const old = transition(flag('D', 'I1', 7000), 'open', last);
     const prop = flag('E', 'I1', 100);
     expect(monthSummary([a, b, c, old, prop], 2026, 9)).toEqual({ flaggedSen: 11_500, settledSen: 2000, openSen: 9500 });
+  });
+  it('last 30 days (Home hero): includes flags approved 29 days ago, excludes 31', () => {
+    const now = 100 * DAY;
+    const in29 = transition(flag('A', 'I1', 1000), 'open', now - 29 * DAY);
+    const out31 = transition(flag('B', 'I1', 5000), 'open', now - 31 * DAY);
+    expect(last30Days([in29, out31], now)).toEqual({ flaggedSen: 1000, settledSen: 0, openSen: 1000 });
   });
 });
 

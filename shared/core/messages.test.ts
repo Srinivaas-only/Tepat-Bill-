@@ -10,9 +10,9 @@ const base: MessageInput = {
 describe('draftMessage', () => {
   it('BM shortage message carries PO, invoice, date, item, qty, RM, request and evidence link', () => {
     expect(draftMessage(base)).toBe([
-      'Salam Borong Ali, ini Kedai Runcit Maju.',
-      'Untuk invois INV-2291 bertarikh 20/10/2026 (pesanan PO-2610-004):',
-      '• Milo 1kg: dibil 10, diterima 8. Kurang 2 unit = RM90.00.',
+      'Salam sejahtera Borong Ali, ini Kedai Runcit Maju.',
+      'Merujuk invois INV-2291 bertarikh 20/10/2026 (pesanan PO-2610-004):',
+      '• Milo 1kg: dalam invois 10, diterima 8. Kurang 2 unit = RM90.00.',
       'Mohon tolak jumlah ini daripada invois.',
       'Bukti (gambar & dokumen): https://tepat.example/e/abc123',
       'Terima kasih.',

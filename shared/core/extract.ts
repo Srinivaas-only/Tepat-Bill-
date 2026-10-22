@@ -1,5 +1,5 @@
 // Gemini document reader (server-side only). AI READS; it never computes flags or money.
-// Primary gemini-3.8-flash -> fallback gemini-3.5-flash-lite on 429/5xx -> manual entry. maxRetries: 0 so we control fallback.
+// Primary gemini-3.8-flash -> fallback gemini-3.5-flash-lite on 429/404/5xx -> manual entry. maxRetries: 0 so we control fallback.
 import { generateText, Output, APICallError, RetryError, type LanguageModel } from 'ai';
 import { createGoogle, type GoogleLanguageModelOptions } from '@ai-sdk/google';
 import { z } from 'zod';
@@ -52,9 +52,11 @@ export const geminiOptions = {
 /** Cache key: same bytes -> same read, zero extra Gemini requests (spec). */
 export const cacheKey = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
-function quotaOrServer(e: unknown): boolean {
+/** Fall back on quota (429), unknown/retired model (404) or server errors (5xx). Anything else -> manual entry. */
+function shouldFallback(e: unknown): boolean {
   const inner = RetryError.isInstance(e) ? e.lastError : e;
-  return APICallError.isInstance(inner) && inner.statusCode !== undefined && (inner.statusCode === 429 || inner.statusCode >= 500);
+  const c = APICallError.isInstance(inner) ? inner.statusCode : undefined;
+  return c !== undefined && (c === 429 || c === 404 || c >= 500);
 }
 
 async function extractOnce(model: LanguageModel, bytes: Uint8Array, mediaType: string) {
@@ -77,7 +79,7 @@ export async function extractWithFallback(primary: LanguageModel, fallback: Lang
   try {
     return { ok: true, model: 'primary', doc: await extractOnce(primary, bytes, mediaType) };
   } catch (e) {
-    if (!quotaOrServer(e)) return { ok: false, needsManualEntry: true, reason: `primary: ${(e as Error).name}` };
+    if (!shouldFallback(e)) return { ok: false, needsManualEntry: true, reason: `primary: ${(e as Error).name}` };
     try {
       return { ok: true, model: 'fallback', doc: await extractOnce(fallback, bytes, mediaType) };
     } catch (e2) {

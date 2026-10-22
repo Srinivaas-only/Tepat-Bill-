@@ -35,6 +35,10 @@ describe('extractWithFallback (offline)', () => {
     const r = await extractWithFallback(failing(503), failing(429), bytes, 'image/jpeg');
     expect(r).toMatchObject({ ok: false, needsManualEntry: true });
   });
+  it('primary 404 (unknown/retired model id) -> fallback', async () => {
+    const r = await extractWithFallback(failing(404), ok(), bytes, 'image/jpeg');
+    expect(r).toMatchObject({ ok: true, model: 'fallback' });
+  });
   it('primary 400 -> manual entry without burning fallback', async () => {
     const f = ok();
     const r = await extractWithFallback(failing(400), f, bytes, 'image/jpeg');

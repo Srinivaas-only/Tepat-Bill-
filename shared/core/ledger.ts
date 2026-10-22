@@ -128,6 +128,17 @@ export function orderState(invoiceId: string, flags: Flag[], ownerMarkedCorrect:
 export const canMarkCorrect = (invoiceId: string, flags: Flag[]) => !flags.some(f => f.invoiceId === invoiceId && unresolved(f));
 
 // ---------- home summary ----------
+/** RM flagged / settled / open for flags approved in [from, to). Home uses the last 30 days (robust on any demo date). */
+export function rangeSummary(flags: Flag[], from: number, to: number) {
+  const counted = flags.filter(f => f.status !== 'proposed' && f.status !== 'dismissed' && f.openedAt !== undefined && f.openedAt >= from && f.openedAt < to);
+  const sum = (xs: Flag[]) => xs.reduce((s, f) => s + f.amountSen, 0);
+  return {
+    flaggedSen: sum(counted),
+    settledSen: sum(counted.filter(f => f.status === 'settled')),
+    openSen: sum(counted.filter(f => f.status === 'open' || f.status === 'disputed')),
+  };
+}
+export const last30Days = (flags: Flag[], now: number) => rangeSummary(flags, now - 30 * DAY, now + 1);
 /** This month's RM flagged / settled / open. A flag counts in the month it was approved (openedAt). */
 export function monthSummary(flags: Flag[], year: number, month0: number) {
   const inMonth = (t?: number) => t !== undefined && new Date(t).getFullYear() === year && new Date(t).getMonth() === month0;
