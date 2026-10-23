@@ -1,6 +1,6 @@
 // Renders the synthetic demo documents to PNG and writes their expected extraction JSON
 // (same shape as shared/core/extract.ts ExtractedDoc) with TRUE box_2d taken from the rendered layout.
-// Run: node fixtures/_generator/generate.mjs   (needs Playwright + Chromium; not needed on Replit)
+// Run: node fixtures/_generator/generate.mjs [file ...]   (needs Playwright + Chromium; not needed on Replit)
 import { chromium } from 'playwright';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -10,8 +10,9 @@ import { DOCS } from './docs.mjs';
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..');
 mkdirSync(join(OUT, 'docs'), { recursive: true });
 
+const only = process.argv.slice(2); // optional: render only these file names (keeps other fixtures byte-identical)
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
-for (const d of DOCS) {
+for (const d of DOCS.filter(x => !only.length || only.includes(x.file))) {
   const page = await browser.newPage({ viewport: { width: d.width, height: d.height }, deviceScaleFactor: 1 });
   await page.setContent(d.html, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);

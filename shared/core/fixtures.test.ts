@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { ExtractedDoc, linesToSen } from './extract';
 import { detectFlags, normalise, type PoLine, type PriceList } from './rules';
 import { supplierLedger, transition, needsReminder, type Flag, type Invoice } from './ledger';
+import { checkDelivery, receivedFromDelivery, readyToPay, claimableSen } from './delivery';
 
 const FX = join(__dirname, '..', '..', 'fixtures');
 const seed = JSON.parse(readFileSync(join(FX, 'seed.json'), 'utf8'));
@@ -21,13 +22,13 @@ function seedLedgerInputs() {
 
 describe('fixture documents', () => {
   it.each(['po_notebook_borong_ali', 'invoice_borong_ali_INV-2291', 'bon_signed_DO-5512', 'po_whatsapp_kilang_roti_sinar',
-    'invoice_kilang_roti_sinar_0118', 'invoice_foreign_GZ-2026-088'])('%s matches the extraction schema with boxes on every line', f => {
+    'invoice_kilang_roti_sinar_0118', 'invoice_foreign_GZ-2026-088', 'do_lim_brothers_DO-LB-0901', 'invoice_lim_brothers_LB-7810'])('%s matches the extraction schema with boxes on every line', f => {
     const d = expected(f);
     expect(d.lines.length).toBeGreaterThan(0);
     for (const l of d.lines) { expect(l.box_2d).toBeDefined(); const [y0, x0, y1, x1] = l.box_2d!; expect(y1).toBeGreaterThan(y0); expect(x1).toBeGreaterThan(x0); }
   });
   it('invoice totals add up', () => {
-    for (const f of ['invoice_borong_ali_INV-2291', 'invoice_kilang_roti_sinar_0118', 'invoice_foreign_GZ-2026-088']) {
+    for (const f of ['invoice_borong_ali_INV-2291', 'invoice_kilang_roti_sinar_0118', 'invoice_foreign_GZ-2026-088', 'invoice_lim_brothers_LB-7810']) {
       const d = expected(f);
       const sum = linesToSen(d).reduce((s, l) => s + l.qty * l.unitPriceSen!, 0);
       expect(sum).toBe(Math.round(Number(d.totalAmount) * 100));
@@ -83,5 +84,48 @@ describe('seed consistency', () => {
   });
   it('aliases use the normalised key', () => {
     for (const t of Object.values(seed.aliases) as Record<string, string>[]) for (const k of Object.keys(t)) expect(normalise(k)).toBe(k);
+  });
+});
+
+describe('the four deck scenarios (slides 4-5)', () => {
+  const sc = seed.demo.scenarios;
+  const poLines = (id: string): PoLine[] => seed.purchaseOrders.find((p: any) => p.id === id).lines;
+  const delivery = (f: string) => linesToSen(expected(f)).map(l => ({ lineId: l.lineId, description: l.description, qty: l.qty, box: l.box }));
+  const invoice = (f: string) => linesToSen(expected(f)).map(l => ({ ...l, unitPriceSen: l.unitPriceSen! }));
+  const file = (p: string) => p.replace('docs/', '').replace('.png', '');
+
+  it('1 correct delivery: Lim DO-LB-0901 vs PO-2610-006 -> no flags', () => {
+    const s = sc['1_correct_delivery'];
+    expect(checkDelivery({ supplierId: s.supplierId, po: poLines(s.poId), lines: delivery(file(s.delivery)), received: s.counts,
+      priceList: seed.priceList[s.supplierId], aliases: seed.aliases })).toEqual([]);
+  });
+  it('2 wrong delivery: DO-5512 with Maggi 8 -> one short flag, estimate RM90.00', () => {
+    const s = sc['2_wrong_delivery'];
+    const f = checkDelivery({ supplierId: s.supplierId, po: poLines(s.poId), lines: delivery(file(s.delivery)), received: s.counts,
+      priceList: seed.priceList[s.supplierId], aliases: seed.aliases });
+    expect(f).toEqual([expect.objectContaining({ type: 'short_qty', sku: 'maggi-kari', missingQty: 2, amountSen: 9000 })]);
+  });
+  it('3 correct invoice: LB-7810 compared with the scenario-1 delivery -> ready to pay RM285.60', () => {
+    const s = sc['3_correct_invoice_pay'], d = sc['1_correct_delivery'];
+    const inv = invoice(file(s.invoice));
+    const received = receivedFromDelivery({ supplierId: s.supplierId, po: poLines(s.poId), deliveryLines: delivery(file(d.delivery)),
+      deliveryReceived: d.counts, invoiceLines: inv, aliases: seed.aliases });
+    const flags = detectFlags({ supplierId: s.supplierId, po: poLines(s.poId), invoice: inv, received, priceList: seed.priceList[s.supplierId], aliases: seed.aliases });
+    expect(flags).toEqual([]);
+    expect(readyToPay(flags)).toBe(true);
+    expect(inv.reduce((t, l) => t + l.qty * l.unitPriceSen, 0)).toBe(s.totalSen);
+  });
+  it('4 wrong invoice: INV-2291 compared with the scenario-2 delivery -> RM90 short + RM20 price = RM110.00', () => {
+    const s = sc['4_wrong_invoice_flagged'], d = sc['2_wrong_delivery'];
+    const inv = invoice(file(s.invoice));
+    const received = receivedFromDelivery({ supplierId: s.supplierId, po: poLines(s.poId), deliveryLines: delivery(file(d.delivery)),
+      deliveryReceived: d.counts, invoiceLines: inv, aliases: seed.aliases });
+    const flags = detectFlags({ supplierId: s.supplierId, po: poLines(s.poId), invoice: inv, received, priceList: seed.priceList[s.supplierId], aliases: seed.aliases });
+    expect(flags.map(f => [f.type, f.sku, f.amountSen])).toEqual([['short_qty', 'maggi-kari', 9000], ['price_change', 'gula-pasir-1kg', 2000]]);
+    expect(claimableSen(flags)).toBe(11000);
+  });
+  it('seed: PO-2610-006 exists for Lim and is unlinked', () => {
+    expect(poLines('po_006')).toHaveLength(2);
+    expect(seed.invoices.some((i: any) => i.poId === 'po_006')).toBe(false);
   });
 });

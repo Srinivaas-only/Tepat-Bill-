@@ -41,7 +41,11 @@
     { "id": "po_005", "poNo": "PO-2610-005", "supplierId": "sup_sinar", "daysAgo": 3, "source": "whatsapp",
       "fixture": "docs/po_whatsapp_kilang_roti_sinar.png", "_demo": "optional second demo: substitution (kaya ordered, mentega jagung delivered)", "lines": [
       { "sku": "roti-putih-besar", "description": "Roti putih besar", "orderedQty": 20 },
-      { "sku": "roti-kaya", "description": "Roti kaya", "orderedQty": 10 } ] }
+      { "sku": "roti-kaya", "description": "Roti kaya", "orderedQty": 10 } ] },
+    { "id": "po_006", "poNo": "PO-2610-006", "supplierId": "sup_lim", "daysAgo": 2, "source": "whatsapp",
+      "_demo": "scenarios 1 + 3: the order the clean Lim Brothers delivery DO-LB-0901 and invoice LB-7810 are checked against", "lines": [
+      { "sku": "kicap-manis-cap-kipas-udang", "description": "Kicap manis Cap Kipas Udang", "orderedQty": 24 },
+      { "sku": "sardin-ayam-brand-425g", "description": "Sardin Ayam Brand 425g", "orderedQty": 24 } ] }
   ],
   "invoices": [
     { "id": "inv_2207", "invoiceNo": "INV-2207", "supplierId": "sup_ali", "poId": "po_001", "daysAgo": 28,
@@ -102,6 +106,17 @@
       { "type": "short_qty", "sku": "maggi-kari", "amountSen": 9000, "rm": "RM90.00" },
       { "type": "price_change", "sku": "gula-pasir-1kg", "amountSen": 2000, "rm": "RM20.00", "baselineSource": "last_invoice" } ],
     "expectedBorongAliOwedAfterUpload": { "owedSen": 96200, "creditAppliedSen": 3190, "_calc": "993.90 - 31.90 supplier credit" },
-    "expectedBorongAliOwedAfterDeductSettled": { "owedSen": 87200, "_calc": "962.00 - 90.00" }
+    "expectedBorongAliOwedAfterDeductSettled": { "owedSen": 87200, "_calc": "962.00 - 90.00" },
+    "scenarios": {
+      "_readme": "The four deck scenarios (slides 4-5), asserted in shared/core/fixtures.test.ts. Delivery-stage amounts are estimates and never enter the ledger.",
+      "1_correct_delivery": { "supplierId": "sup_lim", "poId": "po_006", "delivery": "docs/do_lim_brothers_DO-LB-0901.png", "counts": {},
+        "expect": "no flags -> 'Penghantaran tepat' -> owner 'Sahkan tepat'" },
+      "2_wrong_delivery": { "supplierId": "sup_ali", "poId": "po_004", "delivery": "docs/bon_signed_DO-5512.png", "counts": { "line:L1": 8 },
+        "expect": "one delivery-stage short_qty flag on Maggi: missing 2, estimate 9000 sen (Anggaran RM90.00)" },
+      "3_correct_invoice_pay": { "supplierId": "sup_lim", "poId": "po_006", "invoice": "docs/invoice_lim_brothers_LB-7810.png", "linkTo": "1_correct_delivery",
+        "expect": "no flags -> 'Invois tepat · Sedia untuk dibayar' RM285.60 -> owner 'Tandakan sudah dibayar'", "totalSen": 28560 },
+      "4_wrong_invoice_flagged": { "supplierId": "sup_ali", "poId": "po_004", "invoice": "docs/invoice_borong_ali_INV-2291.png", "linkTo": "2_wrong_delivery",
+        "expect": "no recount; Maggi billed 10 vs received 8 = 9000 sen + Gula +RM0.40 x 50 = 2000 sen -> '2 perbezaan · RM110.00'; the scenario-2 delivery flag is superseded ('Dibawa ke invois')" }
+    }
   }
 }

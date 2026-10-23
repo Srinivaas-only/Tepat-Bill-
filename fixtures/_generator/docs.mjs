@@ -170,6 +170,58 @@ const delivery = {
   expected: null,
 };
 
-export const DOCS = [poNotebook, invoiceA, bon, waOrder, cashBill, foreign, delivery].map(d => ({
+// ---------- 8. Lim Brothers delivery order: CORRECT delivery (scenario 1) ----------
+const limRows = [['KICAP MANIS KIPAS UDANG 320ML', 24, 'BTL', '5.00', '120.00'], ['SARDIN AYAM BRAND 425G', 24, 'TIN', '6.90', '165.60']];
+const limDo = {
+  file: 'do_lim_brothers_DO-LB-0901', width: 860, height: 900,
+  html: page(`<div id="doc"><div class="slip">
+    <div class="co">LIM BROTHERS TRADING</div><div class="ad">No. 21, Jalan Sultan Iskandar, 30000 Ipoh · 05-241 9930</div>
+    <div class="t">DELIVERY ORDER &nbsp; No. DO-LB-0901</div>
+    <div class="m">Kepada: Kedai Runcit Maju &nbsp;·&nbsp; Tarikh: 24/10/2026 &nbsp;·&nbsp; Ruj: PO-2610-006</div>
+    <table><tr><th>Perkara</th><th>Kuantiti</th></tr>
+    ${limRows.map((r, i) => `<tr data-line="${i}"><td>${r[0]}</td><td>${r[1]} ${r[2]}<span class="pen">✓ ${r[1]}</span></td></tr>`).join('')}
+    </table>
+    <div class="recv">Diterima dalam keadaan baik:<span class="pen sign">Rahman &nbsp; 24/10/26</span></div>
+  </div></div>`, `
+  #doc{width:860px;height:900px;background:#c9c3b6;padding:50px}
+  .slip{background:#f4f9ff;height:100%;padding:40px;transform:rotate(-0.9deg);box-shadow:0 10px 26px rgba(0,0,0,.3);font-family:'IBM Plex Mono',monospace;color:#1e2a3a}
+  .co{font-weight:600;font-size:22px}.ad{font-size:12px;margin-top:4px}.t{font-size:20px;font-weight:600;margin:18px 0 8px}.m{font-size:13px;margin-bottom:26px}
+  table{width:100%;border-collapse:collapse;font-size:16px}th{text-align:left;border-bottom:2px solid #1e2a3a;padding:8px}
+  td{padding:20px 8px;border-bottom:1px dashed #8a99ad}
+  .pen{font-family:Kalam,cursive;color:#1238b8;font-size:26px;margin-left:26px;display:inline-block;transform:rotate(-3deg)}
+  .recv{margin-top:70px;font-size:15px}.sign{font-size:32px;margin-left:16px}`),
+  expected: { docType: 'delivery_note', supplierName: 'Lim Brothers Trading', docNo: 'DO-LB-0901', docDate: '2026-10-24',
+    lines: limRows.map(r => ({ description: r[0], qty: r[1], unit: r[2] })) },
+};
+
+// ---------- 9. Lim Brothers invoice: CORRECT invoice -> ready to pay (scenario 3) ----------
+const limInvoice = {
+  file: 'invoice_lim_brothers_LB-7810', width: 900, height: 1080,
+  html: page(`<div id="doc">
+    <div class="top"><div><div class="co">LIM BROTHERS TRADING</div>
+      <div class="sm">(002345678-K) · No. 21, Jalan Sultan Iskandar, 30000 Ipoh · Tel 05-241 9930</div></div>
+      <div class="ttl">INVOIS</div></div>
+    <div class="meta"><div><b>Kepada</b><br>KEDAI RUNCIT MAJU<br>No. 12, Jalan Bendahara, 30200 Ipoh</div>
+      <div><b>No.</b> LB-7810<br><b>Tarikh:</b> 25/10/2026<br><b>DO:</b> DO-LB-0901<br><b>Terma:</b> 90 hari</div></div>
+    <table><thead><tr><th>Perkara</th><th>Kuantiti</th><th>Unit</th><th>Harga (RM)</th><th>Jumlah (RM)</th></tr></thead><tbody>
+    ${limRows.map((r, i) => `<tr data-line="${i}"><td>${r[0]}</td><td class="n">${r[1]}</td><td>${r[2]}</td><td class="n">${r[3]}</td><td class="n">${r[4]}</td></tr>`).join('')}
+    </tbody></table>
+    <div class="tot"><div>JUMLAH &nbsp; RM 285.60</div></div>
+    <div class="foot">Terima kasih atas sokongan anda.</div>
+  </div>`, `
+  #doc{width:900px;height:1080px;padding:56px 60px;font-family:'DM Sans',sans-serif;color:#1b1b1b;background:#fff}
+  .top{display:flex;justify-content:space-between;border-bottom:3px solid #0f6b4f;padding-bottom:18px}
+  .co{font-size:26px;font-weight:700;color:#0f6b4f}.sm{font-size:13px;color:#555;margin-top:6px}.ttl{font-size:30px;font-weight:700}
+  .meta{display:flex;justify-content:space-between;margin:26px 0;font-size:15px;line-height:1.6}
+  table{width:100%;border-collapse:collapse;font-size:15px}th{background:#e9f4ef;text-align:left;padding:10px;font-size:13px}
+  td{padding:14px 10px;border-bottom:1px solid #ddd}.n{text-align:right;font-family:'IBM Plex Mono',monospace}
+  .tot{display:flex;justify-content:flex-end;margin-top:22px}.tot div{font-weight:700;font-size:20px;border-top:2px solid #111;padding-top:10px}
+  .foot{margin-top:60px;font-size:12px;color:#666}`),
+  expected: { docType: 'invoice', supplierName: 'Lim Brothers Trading', docNo: 'LB-7810', docDate: '2026-10-25',
+    currency: 'MYR', supplierCountry: 'MY', totalAmount: '285.60',
+    lines: limRows.map(r => ({ description: r[0], qty: r[1], unit: r[2], unitPrice: r[3], lineTotal: r[4] })) },
+};
+
+export const DOCS = [poNotebook, invoiceA, bon, waOrder, cashBill, foreign, delivery, limDo, limInvoice].map(d => ({
   ...d, expected: d.expected ?? { docType: 'other', supplierName: '', lines: [] },
 }));
