@@ -3,7 +3,7 @@ import { and, eq, inArray, ne } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { randomBytes } from 'node:crypto';
 import * as S from '../shared/schema';
-import { autofillPriceList, detectFlags, matchLine, normalise, type DetectedFlag, type InvLine, type PoLine, type PriceList } from '../shared/core';
+import { autofillPriceList, baseline, detectFlags, matchLine, normalise, type DetectedFlag, type InvLine, type PoLine, type PriceList } from '../shared/core';
 import type { Db } from './db';
 import { aliasTableFromRows, cleanPriceList, detectedToRow, invLineRowToCore, nearSku, poLineRowToCore, priceListFromRows, slug } from './core-adapters';
 
@@ -119,6 +119,7 @@ export async function firstSaveAutofill(db: Conn, c: InvoiceContext, detected: D
   for (const o of open) if (o.sku) skip.add(o.sku);
   const lines = c.invLines.flatMap(l => {
     const m = matchLine(c.inv.supplierId, l, c.po, c.aliases);
+    if (m) { const b = baseline(c.priceNow[m.sku], m); if (b && l.unitPriceSen > b.sen) skip.add(m.sku); }   // a rise is never adopted silently, even when nothing was received (so no flag was raised)
     return m ? [{ sku: m.sku, unitPriceSen: l.unitPriceSen }] : [];
   });
   const next = cleanPriceList(autofillPriceList(c.priceNow, lines, skip));

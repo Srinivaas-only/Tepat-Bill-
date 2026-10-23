@@ -42,8 +42,16 @@ export interface PoLine { sku: string; description: string; orderedQty: number; 
 export interface InvLine { lineId: string; description: string; qty: number; unitPriceSen: Sen; box?: [number, number, number, number] }
 
 export const MATCH_THRESHOLD = 0.6;
-/** Pack-size tokens ("5kg", "500g", "1l", "600ml"). Two descriptions that BOTH state a size must state the same one. */
-const sizeTokens = (s: string) => new Set(normalise(s).split(' ').filter(t => /^\d+(kg|g|ml|l)$/.test(t)));
+/** Pack sizes in canonical units (grams / millilitres), read from the raw text so decimals survive: "1.5kg" = "1500g", "1L" = "1000ml". */
+const sizeTokens = (s: string) => {
+  const out = new Set<string>();
+  for (const m of s.toLowerCase().matchAll(/(\d+(?:\.\d+)?)\s*(kg|gm|g|ml|l)\b/g)) {
+    const v = parseFloat(m[1]), u = m[2];
+    out.add(u === 'kg' ? `w${Math.round(v * 1000)}` : u === 'l' ? `v${Math.round(v * 1000)}` : u === 'ml' ? `v${Math.round(v)}` : `w${Math.round(v)}`);
+  }
+  return out;
+};
+/** Two descriptions that BOTH state a pack size must state the same one ("Minyak 5kg" is not "Minyak 1kg" or "1.5kg"). */
 export function sameSize(a: string, b: string): boolean {
   const A = sizeTokens(a), B = sizeTokens(b);
   if (!A.size || !B.size) return true;
@@ -167,7 +175,7 @@ export function supplierOverlap(a: string, b: string): number {
   const A = core(a), B = core(b);
   if (!A.size || !B.size) return tokenOverlap(a, b);
   let inter = 0; for (const t of A) if (B.has(t)) inter++;
-  return inter / Math.min(A.size, B.size);
+  return inter / Math.max(A.size, B.size); // a name that is only a part of another business name is not a match
 }
 export interface PoCandidate { id: string; supplierName: string; orderedAt: number; lines: PoLine[] }
 /** Suggest the PO an invoice belongs to: supplier name 0.5 + item overlap 0.4 + date closeness 0.1. Highest first. */

@@ -107,7 +107,7 @@ async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: b
     await db.insert(S.invoiceLines).values(i.lines.map((l: any, n: number) => ({
       id: `${i.id}_${l.lineId}`, invoiceId: i.id, lineId: l.lineId, sku: l.sku, description: l.description, qty: l.qty, unit: null,
       unitPriceSen: l.foreignUnitMinor !== undefined && bp ? toMyrSen(l.foreignUnitMinor, bp) : l.unitPriceSen,
-      unitPriceForeignMinor: l.foreignUnitMinor ?? null, lineTotalSen: l.qty * l.unitPriceSen,
+      unitPriceForeignMinor: l.foreignUnitMinor ?? null, lineTotalSen: l.foreignUnitMinor !== undefined && bp ? toMyrSen(l.qty * l.foreignUnitMinor, bp) : l.qty * l.unitPriceSen,
       box: expected?.lines?.[n]?.box_2d ?? null, position: n })));
     await db.insert(S.receivedCounts).values(Object.entries(i.received as Record<string, number>).map(([key, qty]) => ({
       invoiceId: i.id, key, qty, recordedByRole: 'staff', recordedAt: issuedAt })));

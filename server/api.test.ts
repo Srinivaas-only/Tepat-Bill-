@@ -117,6 +117,20 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
     expect(d.json.invoice?.totalSen ?? d.json.totalSen).toBe(138600);
   });
 
+  it('a price rise on a line with nothing received never becomes the new baseline', async () => {
+    const po = await call('POST', '/api/pos', ownerCookie, { newSupplier: { name: 'Zeta Noodles Sdn Bhd' }, source: 'typed', lines: [{ description: 'Mee Segera', qty: 10 }] });
+    expect(po.status).toBe(201);
+    const supId = (await call('GET', '/api/suppliers', ownerCookie)).json.suppliers.find((x: any) => x.name === 'Zeta Noodles Sdn Bhd').id;
+    const inv1 = await call('POST', '/api/invoices', ownerCookie, { supplierId: supId, poId: po.json.id, invoiceNo: 'ZN-1', lines: [{ description: 'Mee Segera', qty: 10, unitPriceSen: 500 }], totalSen: 5000 });
+    await call('PUT', `/api/invoices/${inv1.json.id}/counts`, ownerCookie, { counts: {} });
+    const lastInv = async () => (await pool.query(`select last_invoice_sen as n from test.price_list where supplier_id = $1 and sku = 'mee-segera'`, [supId])).rows[0]?.n;
+    expect(await lastInv()).toBe(500);
+    const inv2 = await call('POST', '/api/invoices', ownerCookie, { supplierId: supId, poId: po.json.id, invoiceNo: 'ZN-2', lines: [{ description: 'Mee Segera', qty: 10, unitPriceSen: 800 }], totalSen: 8000 });
+    const put = await call('PUT', `/api/invoices/${inv2.json.id}/counts`, ownerCookie, { counts: { 'line:L1': 0 } });
+    expect(put.json.flags.map((f: any) => f.type)).toEqual(['short_qty']);      // nothing received: only the shortage is claimed
+    expect(await lastInv()).toBe(500);                                           // ...and RM8.00 is NOT adopted as the normal price
+  });
+
   it('no PO: a different product (Gula perang) does not map to gula-pasir-1kg', async () => {
     const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'NOPO-GULA', lines: [{ description: 'Gula perang 1kg', qty: 3, unitPriceSen: 400 }], totalSen: 1200 });
     const put = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: {} });

@@ -1,6 +1,6 @@
 // Regression tests for the independent core audit (Round 5+). Each block pins one real defect found with a concrete input.
 import { describe, it, expect } from 'vitest';
-import { detectFlags, matchLine, normalise, autofillPriceList, baseline, acceptPrice, looksForeign, supplierOverlap, rankPoCandidates,
+import { detectFlags, matchLine, normalise, sameSize, autofillPriceList, baseline, acceptPrice, looksForeign, supplierOverlap, rankPoCandidates,
   type PoLine } from './rules';
 import { receivedFromDelivery } from './delivery';
 import { draftMessage, toMsisdn, type MessageInput } from './messages';
@@ -154,5 +154,26 @@ describe('C12 a stale alias falls back to matching instead of a false not_ordere
   it('alias points to a sku that is not on this PO', () => {
     const m = matchLine('S', line('Roti Kaya'), [{ sku: 'roti-kaya-2', description: 'Roti Kaya', orderedQty: 1 }], { S: { [normalise('Roti Kaya')]: 'roti-kaya' } });
     expect(m?.sku).toBe('roti-kaya-2');
+  });
+});
+
+describe('review round: decimal and converted pack sizes', () => {
+  const po = (d: string): PoLine[] => [{ sku: 'x', description: d, orderedQty: 1 }];
+  it.each([['Minyak Masak 1.5kg', 'Minyak Masak 5kg'], ['Air Mineral 1.5L', 'Air Mineral 5L'], ['Beras 2.5kg', 'Beras 5kg'], ['Susu 1L', 'Susu 1.5L']])(
+    '%s does not match %s', (inv, p) => expect(matchLine('S', line(inv), po(p), {})).toBeUndefined());
+  it.each([['Air 1L', 'Air 1000ml'], ['Gula 1kg', 'Gula 1000g'], ['Susu 200ml', 'Susu 0.2L'], ['Beras 1.5kg', 'Beras 1500g'], ['Gula 1 KG', 'Gula 1kg'], ['Tepung 500 gm', 'Tepung 500g']])(
+    'sameSize: %s = %s (same pack, different notation)', (a, b) => expect(sameSize(a, b)).toBe(true));
+  it.each([['Minyak 1.5kg', 'Minyak 5kg'], ['Air 1L', 'Air 1.5L'], ['Tepung 1kg', 'Tepung 500g']])('sameSize: %s != %s', (a, b) => expect(sameSize(a, b)).toBe(false));
+  it('no size on either side never blocks', () => expect(sameSize('Maggi Kari', "MAGGI KARI 5'S (CTN 8 PEK)")).toBe(true));
+});
+describe('review round: supplier subset names', () => {
+  it('a name that is only a part of another is not a full match', () => {
+    expect(supplierOverlap('Maju', 'Maju Jaya Trading')).toBeLessThan(0.6);
+    expect(supplierOverlap('Ali Sdn Bhd', 'Ali Abu Sdn Bhd')).toBeLessThan(0.6);
+  });
+  it('real variants of one business still match', () => {
+    expect(supplierOverlap('Syarikat Borong Ali Sdn. Bhd.', 'Borong Ali')).toBe(1);
+    expect(supplierOverlap('LIM BROTHERS TRADING', 'Lim Brothers Trading Co')).toBe(1);
+    expect(supplierOverlap('Kilang Roti Sinar', 'Roti Sinar Enterprise')).toBeGreaterThanOrEqual(0.6);
   });
 });
