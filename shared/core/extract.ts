@@ -1,6 +1,6 @@
 // Gemini document reader (server-side only). AI READS; it never computes flags or money.
 // Primary gemini-3.8-flash -> fallback gemini-3.5-flash-lite on 429/404/5xx -> manual entry. maxRetries: 0 so we control fallback.
-import { generateText, Output, APICallError, RetryError, type LanguageModel } from 'ai';
+import { generateText, Output, APICallError, RetryError, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import { createGoogle, type GoogleLanguageModelOptions } from '@ai-sdk/google';
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
@@ -9,7 +9,9 @@ import { parseRM } from './rules';
 export const MODELS = { primary: 'gemini-3.8-flash', fallback: 'gemini-3.5-flash-lite' } as const;
 
 const Money = z.string().regex(/^\d+(\.\d{1,2})?$/); // "45.00": AI returns strings; parseRM converts to integer sen
-const Box = z.tuple([z.number().int(), z.number().int(), z.number().int(), z.number().int()]); // [ymin,xmin,ymax,xmax] 0-1000
+// [ymin,xmin,ymax,xmax] 0-1000. A plain array, NOT z.tuple: the AI SDK emits draft-7 JSON Schema and a tuple becomes
+// `items: [...]`, which Gemini rejects with 400 on every call. Fractional values are rounded in linesToSen.
+const Box = z.array(z.number()).length(4) as unknown as z.ZodType<[number, number, number, number]>;
 /** Keep this schema FLAT: deep/large schemas make Gemini return 400 "invalid argument". */
 export const ExtractedDoc = z.object({
   docType: z.enum(['purchase_order', 'invoice', 'delivery_note', 'other']),
@@ -52,8 +54,9 @@ export const geminiOptions = {
 /** Cache key: same bytes -> same read, zero extra Gemini requests (spec). */
 export const cacheKey = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
-/** Fall back on quota (429), unknown/retired model (404) or server errors (5xx). Anything else -> manual entry. */
+/** Fall back on quota (429), unknown/retired model (404), server errors (5xx) or unparseable/invalid output. Anything else -> manual entry. */
 function shouldFallback(e: unknown): boolean {
+  if (NoObjectGeneratedError.isInstance(e)) return true;
   const inner = RetryError.isInstance(e) ? e.lastError : e;
   const c = APICallError.isInstance(inner) ? inner.statusCode : undefined;
   return c !== undefined && (c === 429 || c === 404 || c >= 500);
@@ -92,5 +95,5 @@ export async function extractWithFallback(primary: LanguageModel, fallback: Lang
 export const linesToSen = (doc: ExtractedDoc) => doc.lines.map((l, i) => ({
   lineId: `L${i + 1}`, description: l.description, qty: l.qty, unit: l.unit,
   unitPriceSen: l.unitPrice === undefined ? undefined : parseRM(l.unitPrice),
-  box: l.box_2d,
+  box: l.box_2d && (l.box_2d.map(v => Math.max(0, Math.min(1000, Math.round(v)))) as [number, number, number, number]),
 }));

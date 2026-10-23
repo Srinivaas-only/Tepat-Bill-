@@ -44,9 +44,19 @@ describe('extractWithFallback (offline)', () => {
     const r = await extractWithFallback(failing(400), f, bytes, 'image/jpeg');
     expect(r).toMatchObject({ needsManualEntry: true }); expect(f.doGenerateCalls).toHaveLength(0);
   });
-  it('schema-invalid (2.5 qty) -> manual entry', async () => {
-    const r = await extractWithFallback(ok({ ...canned, lines: [{ ...canned.lines[0], qty: 2.5 }] }), ok(), bytes, 'image/jpeg');
-    expect(r).toMatchObject({ needsManualEntry: true });
+  it('schema-invalid output (2.5 qty) -> fallback; both invalid -> manual entry', async () => {
+    const bad = () => ok({ ...canned, lines: [{ ...canned.lines[0], qty: 2.5 }] });
+    expect(await extractWithFallback(bad(), ok(), bytes, 'image/jpeg')).toMatchObject({ ok: true, model: 'fallback' });
+    expect(await extractWithFallback(bad(), bad(), bytes, 'image/jpeg')).toMatchObject({ needsManualEntry: true });
+  });
+  it('wire schema has no tuple `items: [...]` (Gemini rejects it) and boxes are rounded/clamped', async () => {
+    const { z } = await import('zod');
+    const { ExtractedDoc } = await import('./extract');
+    const json = JSON.stringify(z.toJSONSchema(ExtractedDoc, { target: 'draft-7', io: 'input' }));
+    expect(json).not.toContain('"items":[');
+    expect(json).not.toContain('prefixItems');
+    expect(linesToSen({ docType: 'invoice', supplierName: 'x', lines: [{ description: 'a', qty: 1, box_2d: [10.4, -3, 500.6, 1200] }] })[0].box)
+      .toEqual([10, 0, 501, 1000]);
   });
   it('PDF file part reaches the mock prompt intact; providerOptions forwarded', async () => {
     const p = ok();
