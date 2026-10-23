@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { motion } from 'motion/react';
-import { Clock, Copy, ExternalLink } from 'lucide-react';
+import { Check, ChevronRight, Clock, Copy, ExternalLink } from 'lucide-react';
 import { can } from '@shared/core';
 import { api, ApiError } from '@/lib/api';
 import { fmtDate } from '@/lib/dates';
@@ -12,6 +11,7 @@ import { useI18n } from '@/i18n';
 import type { Key } from '@/i18n/ms';
 import { formatMoney, toSen } from '@/lib/money-input';
 import { Button } from '@/components/ui/button';
+import { FixedBar } from '@/components/fixed-bar';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { RadioRow } from '@/components/radio-row';
@@ -59,6 +59,8 @@ export default function FlagDetail() {
   const title = useFlagTitle();
   const q = useQuery({ queryKey: ['flag', id], refetchOnWindowFocus: true, queryFn: () => api.get<Detail>(`/flags/${id}`) });
   const [justStamped, setJustStamped] = useState(false);
+  const navTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(navTimer.current), []);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeNote, setDisputeNote] = useState('');
   const [request, setRequest] = useState<string | null>(null);
@@ -85,6 +87,8 @@ export default function FlagDetail() {
   const act = useMutation({
     mutationFn: ({ path, body }: { path: string; body?: unknown }) => api.post<{ dismissed?: boolean }>(`/flags/${id}/${path}`, body ?? {}),
     onMutate: async v => {
+      // stamp first: it must already be armed when the status flips and the Stamp remounts (otherwise the thunk never plays)
+      if (v.path === 'approve' || v.path === 'settle' || v.path === 'dispute') { setJustStamped(true); buzz(12); }
       const optimistic: Record<string, string> = { approve: 'open', settle: 'settled' };
       if (!optimistic[v.path]) return { prev: undefined };
       await qc.cancelQueries({ queryKey: ['flag', id] });
@@ -93,22 +97,22 @@ export default function FlagDetail() {
       return { prev };
     },
     onSuccess: async (r, v) => {
-      if (v.path === 'approve' || v.path === 'settle') buzz(12);
       await done();
       setSettleOpen(false); setDisputeOpen(false);
       if (v.path === 'report-price' && r.dismissed) { toast.success(t('flag.priceSame')); nav('/flags', { replace: true }); return; }
       if (v.path === 'dismiss' || v.path === 'link-substitute') nav('/flags', { replace: true });
-      else if (v.path === 'settle') { window.scrollTo({ top: 0, behavior: 'smooth' }); setJustStamped(true); if (sid) setTimeout(() => nav(`/suppliers/${sid}`), 900); }
-      else if (v.path === 'approve' || v.path === 'dispute') { window.scrollTo({ top: 0, behavior: 'smooth' }); setJustStamped(true); }
+      else if (v.path === 'settle') { window.scrollTo({ top: 0, behavior: 'smooth' }); if (sid) navTimer.current = setTimeout(() => nav(`/suppliers/${sid}`), 900); }
+      else if (v.path === 'approve' || v.path === 'dispute') window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     onError: (e, _v, ctx) => {
+      setJustStamped(false);
       if (ctx?.prev) qc.setQueryData(['flag', id], ctx.prev);
       if (e instanceof ApiError && e.status === 409) { void q.refetch(); void qc.invalidateQueries({ queryKey: ['flags'] }); toast.error(t('flag.alreadyDone'), { position: 'top-center' }); }
       else toast.error(t('common.error'), { position: 'top-center' });
     },
   });
   const copyLink = async () => { try { await navigator.clipboard.writeText(`${location.origin}/e/${q.data!.evidenceToken}`); toast.success(t('flag.linkCopied'), { position: 'top-center' }); } catch { toast.error(t('common.error')); } };
-  const evLabel = (a: string) => { const k = `act.${a}` as Key; const x = t(k); return x === k ? a : x; };
+  const evLabel = (a: string) => { const k = `act.${a}` as Key; const x = t(k); return x === k ? t('act.unknown') : x; };
   const d = q.data;
   const f = d?.flag;
   const owner = !!role && can(role, 'approve_flag');
@@ -123,26 +127,30 @@ export default function FlagDetail() {
       {q.isError ? <ErrorState notFound onRetry={() => void q.refetch()} /> : !d || !f ? <div className="space-y-3"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-[220px] w-full" /></div> : (
         <div className="space-y-4">
           <div>
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <motion.span layoutId={`flag-chip-${f.id}`}><Stamp key={f.status} status={f.status} thunk={justStamped} /></motion.span>
-              {f.supersededBy && <Badge tone="neutral">{t('flag.broughtToInvoice')}</Badge>}
+            <div className="mb-1 flex items-start justify-between gap-3">
+              <div className="min-w-0 text-sm text-ink-2">
+                <Link href={`/suppliers/${f.supplierId}`} className="flex min-h-11 items-center truncate font-semibold text-brand">{f.supplierName}</Link>
+                <div className="-mt-1 flex flex-wrap items-center">
+                  <Link href={f.stage === 'delivery' && f.deliveryId ? `/deliveries/${f.deliveryId}/count` : `/invoices/${f.invoiceId}`} className="num inline-flex min-h-11 items-center font-medium text-brand">{f.invoiceNo}</Link>
+                  {f.poNo && <><span aria-hidden className="mx-2">·</span><Link href={f.poId ? `/orders/po/${f.poId}` : '/orders'} className="num inline-flex min-h-11 items-center font-medium text-brand">{f.poNo}</Link></>}
+                </div>
+              </div>
+              {f.supersededBy ? <Badge tone="neutral" className="mt-3 shrink-0">{t('flag.broughtToInvoice')}</Badge> : <span className="mt-3 shrink-0"><Stamp key={f.status} status={f.status} thunk={justStamped} /></span>}
             </div>
-            <div className="mb-2 flex flex-wrap items-center gap-x-4 text-sm text-ink-2">
-              <Link href={`/suppliers/${f.supplierId}`} className="inline-flex min-h-11 items-center font-medium text-brand">{f.supplierName}</Link>
-              <Link href={f.stage === 'delivery' && f.deliveryId ? `/deliveries/${f.deliveryId}/count` : `/invoices/${f.invoiceId}`} className="num inline-flex min-h-11 items-center font-medium text-brand">{f.invoiceNo}</Link>
-              {f.poNo && <Link href={f.poId ? `/orders/po/${f.poId}` : '/orders'} className="num inline-flex min-h-11 items-center font-medium text-brand">{f.poNo}</Link>}
-            </div>
-            <h1 className="text-2xl font-semibold leading-8">{title(f)} · {f.lineDescription}</h1>
+            {f.supersededBy && (
+              <Link href={`/flags/${f.supersededBy}`} className="press mb-3 flex min-h-11 items-center justify-between rounded-card border border-dashed border-line-strong/60 px-4 text-sm font-semibold text-brand">{t('flag.viewReplacing')}<ChevronRight size={16} aria-hidden /></Link>
+            )}
+            <h1 className="text-2xl font-semibold leading-8 tracking-tight">{title(f)} · {f.lineDescription}</h1>
             <p className="mt-2 text-sm text-ink-2">{f.stage === 'delivery' ? t('flag.estimate', { rm: '' }).trim() : t('flag.amount')}</p>
-            <motion.div layoutId={`flag-amt-${f.id}`} className="inline-block"><span className="inline-block border-b-[3px] border-double border-ink pb-1"><Money sen={f.amountSen} className="text-[40px] font-semibold leading-[48px]" /></span></motion.div>
+            <div className="inline-block"><span className="inline-block border-b-[3px] border-double border-ink pb-1"><Money sen={f.amountSen} className="text-[40px] font-semibold leading-[48px]" /></span></div>
           </div>
 
           {d.invoiceDoc && <LineCrop src={`/api/documents/${d.invoiceDoc.id}/file`} width={d.invoiceDoc.width || 900} height={d.invoiceDoc.height || 1180} box={d.line?.box ?? null} onOpen={() => setViewer(`/api/documents/${d.invoiceDoc!.id}/file`)} label={t('flag.zoomHint')} />}
 
           <Card className="px-4 py-2"><dl className="divide-y divide-dashed divide-line">
             {f.type === 'short_qty' && d.line && <>
-              <Fact k={t('flag.billed')} v={String(d.line.qty)} /><Fact k={t('flag.received')} v={String(d.receivedQty ?? 0)} /><Fact k={t('flag.missing')} v={String(f.missingQty ?? 0)} />
-              <Fact k={t('flag.invoicePrice')} v={formatMoney(d.line.unitPriceSen, 'MYR')} />
+              <Fact k={t(f.stage === 'delivery' ? 'flag.onBon' : 'flag.billed')} v={String(d.line.qty)} /><Fact k={t('flag.received')} v={String(d.receivedQty ?? 0)} /><Fact k={t('flag.missing')} v={String(f.missingQty ?? 0)} />
+              {f.stage !== 'delivery' && <Fact k={t('flag.invoicePrice')} v={formatMoney(d.line.unitPriceSen, 'MYR')} />}
             </>}
             {f.type === 'price_change' && <>
               <Fact k={t('flag.invoicePrice')} v={formatMoney(f.invoiceUnitSen ?? 0, 'MYR')} />
@@ -166,8 +174,8 @@ export default function FlagDetail() {
           {d.events.length > 0 && (
             <section>
               <SectionLabel>{t('flag.history')}</SectionLabel>
-              <ol className="space-y-2 border-l border-line pl-4">{d.events.map(e => (
-                <li key={e.id} className="relative text-sm"><span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-line" aria-hidden />
+              <ol className="space-y-3 border-l border-line-strong/40 pl-5">{d.events.map(e => (
+                <li key={e.id} className="relative text-sm"><span className="absolute -left-[31px] top-0 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-ok-bg text-ok ring-4 ring-bg" aria-hidden><Check size={11} strokeWidth={3} /></span>
                   <span className="font-medium">{evLabel(e.action)}</span> <span className="num text-xs text-ink-2">{`${fmtDate(e.at, lang)} ${new Date(e.at).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur' })}`}</span></li>))}</ol>
             </section>
           )}
@@ -203,7 +211,7 @@ export default function FlagDetail() {
               )}
               {decrease ? <p className="rounded-card bg-surface-2 px-4 py-3 text-ink-2">{t('flag.decrease')}</p> : (
                 <div><p className="mb-2 font-medium">{t('flag.requestLabel')}</p>
-                  <div role="radiogroup" aria-label={t('flag.requestLabel')} className="overflow-hidden rounded-card border border-line bg-surface">{d.allowedRequests.map(r => (
+                  <div role="radiogroup" aria-label={t('flag.requestLabel')} className="overflow-hidden rounded-card bg-surface shadow-card">{d.allowedRequests.map(r => (
                     <RadioRow key={r} checked={chosen === r} onClick={() => setRequest(r)}><span className="font-medium">{t(reqKey[r])}</span></RadioRow>))}</div></div>
               )}
             </div>
@@ -211,8 +219,8 @@ export default function FlagDetail() {
         </div>
       )}
       {d && f && owner && !f.supersededBy && (proposed || f.status === 'open' || f.status === 'disputed') && (
-        <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pt-3" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
-          <div className={`mx-auto max-w-[480px] gap-2 border-t border-line px-5 pt-3 ${proposed ? "flex" : "grid grid-cols-2"}`}>
+        <FixedBar className={`gap-2 ${proposed ? "flex" : "grid grid-cols-2"}`}>
+          <>
             {proposed ? <>
               {!decrease && <Button className="flex-1" disabled={act.isPending} onClick={() => act.mutate({ path: 'approve', body: { request: chosen } })}>{t('flag.approve')}</Button>}
               <Button variant="secondary" className="flex-1" disabled={act.isPending} onClick={() => setDismissOpen(true)}>{t('flag.dismissFull')}</Button>
@@ -223,8 +231,8 @@ export default function FlagDetail() {
                 : <Button variant="secondary" disabled={act.isPending} onClick={() => act.mutate({ path: 'reopen' })}>{t('flag.reopen')}</Button>}
               <Button variant="secondary" onClick={() => setSettleOpen(true)}>{t('flag.settle')}</Button>
             </>}
-          </div>
-        </div>
+          </>
+        </FixedBar>
       )}
       {f && (
         <Sheet open={settleOpen} onOpenChange={setSettleOpen}>

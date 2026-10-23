@@ -29,29 +29,29 @@ export default function Orders() {
   const q = tab === 'po' ? pos : tab === 'invoice' ? invs : dels;
   const list = (tab === 'po' ? pos.data?.pos : tab === 'invoice' ? invs.data?.invoices : dels.data?.deliveries) ?? [];
   return (
-    <Page title={t('more.orders')}>
+    <Page band title={t('more.orders')}>
       <Tabs value={tab} onValueChange={v => setTab(v as Tab)} className="mb-4">
         <TabsList><TabsTrigger value="invoice">{t('orders.invoice')}</TabsTrigger><TabsTrigger value="po">{t('orders.po')}</TabsTrigger><TabsTrigger value="delivery">{t('orders.tab.deliveries')}</TabsTrigger></TabsList>
       </Tabs>
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} /> : q.isLoading ? <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-[64px] w-full" />)}</div> : list.length === 0 ? (
         <EmptyState text={t('orders.empty')}><Button asChild><Link href="/scan">{t('orders.scanCta')}</Link></Button></EmptyState>
       ) : (
-        <div className="overflow-hidden rounded-card border border-line bg-surface">
+        <div className="overflow-hidden rounded-card bg-surface shadow-card">
           {tab === 'po' && pos.data?.pos.map(p => (
             <Link key={p.id} href={`/orders/po/${p.id}`} className={row}>
-              <div className="min-w-0"><p className="num font-semibold">{p.poNo}</p><p className="truncate text-sm text-ink-2">{p.supplierName} · <span className="num">{fmtDate(p.orderedAt, lang)}</span></p></div>
+              <div className="min-w-0"><p className="num font-semibold">{p.poNo}</p><p className="truncate text-sm text-ink-2">{p.supplierName}</p><p className="num text-xs text-ink-2">{fmtDate(p.orderedAt, lang)}</p></div>
               <p className="num shrink-0 text-sm text-ink-2">{t('orders.lines', { n: p.lineCount })}</p>
             </Link>
           ))}
           {tab === 'invoice' && invs.data?.invoices.map(v => (
             <Link key={v.id} href={`/invoices/${v.id}`} className={row}>
-              <div className="min-w-0"><p className="num font-semibold">{v.invoiceNo}</p><p className="truncate text-sm text-ink-2">{v.supplierName} · <span className="num">{fmtDate(v.issuedAt, lang)}</span> · {t(v.payment === 'paid' ? 'orders.paid' : 'orders.unpaid')}</p></div>
+              <div className="min-w-0"><p className="num font-semibold">{v.invoiceNo}</p><p className="truncate text-sm text-ink-2">{v.supplierName}</p><p className="text-xs text-ink-2"><span className="num">{fmtDate(v.issuedAt, lang)}</span> · {t(v.payment === 'paid' ? 'orders.paid' : 'orders.unpaid')}</p></div>
               <div className="flex shrink-0 flex-col items-end gap-1"><Money sen={v.totalSen} className="font-semibold" /><Badge tone={stateTone[v.state as keyof typeof stateTone] ?? 'neutral'}>{t(`orders.state.${v.state}` as Key)}</Badge></div>
             </Link>
           ))}
           {tab === 'delivery' && dels.data?.deliveries.map(v => (
             <Link key={v.id} href={`/deliveries/${v.id}/count`} className={row}>
-              <div className="min-w-0"><p className="num font-semibold">{v.doNo}</p><p className="truncate text-sm text-ink-2">{v.supplierName} · <span className="num">{fmtDate(v.receivedAt, lang)}</span></p></div>
+              <div className="min-w-0"><p className="num font-semibold">{v.doNo}</p><p className="truncate text-sm text-ink-2">{v.supplierName}</p><p className="num text-xs text-ink-2">{fmtDate(v.receivedAt, lang)}</p></div>
               <Badge tone={delTone[v.state]} className="shrink-0">{v.state === 'billed' ? t('flag.broughtToInvoice') : t(`deliveries.state.${v.state}` as Key)}</Badge>
             </Link>
           ))}

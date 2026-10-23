@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
-import { Route, Switch, useLocation } from 'wouter';
+import { Redirect, Route, Switch, useLocation } from 'wouter';
+import { motion } from 'motion/react';
 import { useI18n } from '@/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { BottomNav } from '@/components/bottom-nav';
@@ -48,18 +49,21 @@ function OfflineBanner() {
     window.addEventListener('online', on); window.addEventListener('offline', off);
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
-  return online ? null : <div role="status" className="fixed inset-x-0 top-0 z-[70] bg-dispute px-4 py-2 text-center text-sm font-medium text-white">{t('common.offline')}</div>;
+  return online ? null : <div role="status" className="pointer-events-none fixed inset-x-0 top-0 z-[70]"><div className="mx-auto max-w-[480px] bg-dispute px-4 pb-2 pt-[calc(8px+var(--safe-top))] text-center text-sm font-medium text-white">{t('common.offline')}</div></div>;
 }
 
 function AppShell() {
   const { role, loading } = useAuth();
+  const [loc] = useLocation();
   if (loading) return <Fallback />;
   if (!role) return <Suspense fallback={<Fallback />}><Login /></Suspense>;
   return (
-    <div className="mx-auto min-h-dvh max-w-[480px] bg-bg pb-24 md:border-x md:border-line">
+    <div className="mx-auto min-h-dvh max-w-[480px] bg-bg pb-28 md:shadow-[0_0_0_1px_rgba(19,37,74,.08),0_40px_100px_-30px_rgba(19,37,74,.3)]">
       <OfflineBanner />
       <Suspense fallback={<Fallback />}>
+        <motion.div key={loc} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}>
         <Switch>
+          <Route path="/login"><Redirect to="/" /></Route>
           <Route path="/" component={Home} />
           <Route path="/flags" component={Flags} />
           <Route path="/flags/:id" component={FlagDetail} />
@@ -81,6 +85,7 @@ function AppShell() {
           <Route path="/settings" component={Settings} />
           <Route><More /></Route>
         </Switch>
+        </motion.div>
       </Suspense>
       <NavGate />
     </div>

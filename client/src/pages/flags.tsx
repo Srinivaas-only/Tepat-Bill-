@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Flag, ScanLine } from 'lucide-react';
@@ -20,11 +20,18 @@ export default function Flags() {
   const all = q.data?.flags ?? [];
   // superseded delivery flags (brought to the invoice) live under Selesai, never in the open tabs
   const inTab = (k: Tab) => (f: FlagView) => k === 'done' ? (groups.done as readonly string[]).includes(f.status) || !!f.supersededBy : !f.supersededBy && (groups[k] as readonly string[]).includes(f.status);
+  const picked = useRef(false);
+  useEffect(() => {   // open on the first tab that has something in it (once, after the first load)
+    if (picked.current || !q.data) return; picked.current = true;
+    const first = (Object.keys(groups) as Tab[]).find(k => all.some(inTab(k)));
+    if (first) setTab(first);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.data]);
   const flags = all.filter(inTab(tab));
   const n = (k: Tab) => all.filter(inTab(k)).length;
   const label = (k: Tab) => ({ review: t('flags.tab.review'), open: t('flags.tab.open'), disputed: t('status.disputed'), done: t('flags.tab.done') })[k];
   return (
-    <Page title={t('nav.flags')}>
+    <Page band title={t('nav.flags')}>
       <Tabs value={tab} onValueChange={v => setTab(v as Tab)} className="mb-4">
         <TabsList>
           {(Object.keys(groups) as Tab[]).map(k => <TabsTrigger key={k} value={k} aria-label={`${label(k)} ${n(k)}`} className="min-h-14 whitespace-nowrap flex-col gap-0 px-1 py-1.5 text-[11px] leading-[13px]"><span className="num text-base font-semibold leading-5">{n(k)}</span><span>{label(k)}</span></TabsTrigger>)}

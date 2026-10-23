@@ -15,7 +15,7 @@ const kinds: { id: ScanKind; key: Key; hint: Key; icon: typeof FileText }[] = [
   { id: 'po', key: 'scan.po', hint: 'scan.po.hint', icon: FileText },
   { id: 'invoice', key: 'scan.invoice', hint: 'scan.invoice.hint', icon: ReceiptText },
   { id: 'delivery', key: 'scan.delivery.new', hint: 'scan.bon.hint', icon: Truck },
-  { id: 'bon', key: 'scan.delivery.attach', hint: 'scan.bon.hint', icon: Paperclip },
+  { id: 'bon', key: 'scan.delivery.attach', hint: 'scan.attach.hint', icon: Paperclip },
 ];
 
 export default function Scan() {
@@ -54,17 +54,17 @@ export default function Scan() {
     <Page title={kind ? t(kinds.find(k => k.id === kind)!.key) : t('nav.scan')}>
       <Sheet open={!kind} onOpenChange={o => { if (!o) nav('/'); }}>
         <SheetContent title={t('scan.what')}>
-          <div className="overflow-hidden rounded-card border border-line bg-surface">
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
             {kinds.map(k => (
-              <button key={k.id} type="button" onClick={() => choose(k.id)} className="flex min-h-16 w-full items-center gap-4 border-t border-dashed border-line px-4 py-3 text-left first:border-t-0">
-                <k.icon size={24} strokeWidth={1.5} className="shrink-0 text-brand" aria-hidden />
+              <button key={k.id} type="button" onClick={() => choose(k.id)} className="press flex min-h-16 w-full items-center gap-4 border-t border-dashed border-line px-4 py-3 text-left first:border-t-0 [@media(hover:hover)]:hover:bg-surface-2/60">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-brand/10 text-brand" aria-hidden><k.icon size={22} strokeWidth={1.75} /></span>
                 <span className="min-w-0"><span className="block text-base font-medium leading-5">{t(k.key)}</span><span className="block text-sm text-ink-2">{t(k.hint)}</span></span>
               </button>
             ))}
           </div>
-          <div className="mt-3 flex flex-wrap gap-x-4">
+          <div className="mt-2 flex flex-wrap gap-x-4 border-t border-line pt-1">
             {(['po', 'invoice', 'delivery'] as const).map(k => (
-              <button key={k} type="button" onClick={() => nav(`/review/${k}/new`)} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand"><PenLine size={14} aria-hidden />{t('scan.manual')} · {t(kinds.find(x => x.id === k)!.key)}</button>
+              <button key={k} type="button" onClick={() => nav(`/review/${k}/new`)} className="press inline-flex min-h-11 items-center gap-1 text-sm font-medium text-ink-2"><PenLine size={14} aria-hidden />{t('scan.manual')} · {t(kinds.find(x => x.id === k)!.key)}</button>
             ))}
           </div>
         </SheetContent>
@@ -72,7 +72,7 @@ export default function Scan() {
 
       {kind && (
         <div className="flex flex-col gap-4">
-          {thumb && <div className="mx-auto aspect-[3/4] w-full max-w-[320px] overflow-hidden rounded-card border border-line bg-surface"><img src={thumb} alt={t(kinds.find(k => k.id === kind)!.key)} className="h-full w-full object-contain" /></div>}
+          {thumb && <div className="mx-auto aspect-[3/4] w-full max-w-[320px] overflow-hidden rounded-card bg-surface shadow-card"><img src={thumb} alt={t(kinds.find(k => k.id === kind)!.key)} className="h-full w-full object-contain" /></div>}
           {busy && (
             <div className="flex items-center gap-3 text-ink-2" aria-live="polite">
               {phase === 'uploading' ? <ProgressRing pct={pct} /> : null}

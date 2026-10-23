@@ -19,10 +19,10 @@ export default function Suppliers() {
   const q = useQuery({ queryKey: ['ledgers'], refetchOnMount: 'always', queryFn: () => api.get<{ suppliers: Row[] }>('/suppliers/ledgers') });
   const rows = q.data?.suppliers ?? [];
   return (
-    <Page title={t('nav.suppliers')}>
+    <Page band title={t('nav.suppliers')}>
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} /> : q.isLoading ? <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-24 w-full" />)}</div>
         : rows.length === 0 ? <EmptyState text={t('sup.none')}><Button asChild size="sm"><Link href="/scan"><ScanLine size={18} aria-hidden />{t('sup.scanCta')}</Link></Button></EmptyState>
-        : <div className="overflow-hidden rounded-card border border-line bg-surface">{rows.map(s => (
+        : <div className="overflow-hidden rounded-card bg-surface shadow-card">{rows.map(s => (
           <Link key={s.id} href={`/suppliers/${s.id}`} className="flex min-h-[72px] items-center gap-3 border-t border-dashed border-line p-4 first:border-t-0">
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{s.name}</p>

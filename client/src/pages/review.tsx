@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams, Link } from 'wouter';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Globe2, Link2, ChevronDown, AlertTriangle, Truck } from 'lucide-react';
+import { Plus, Trash2, Link2, ChevronDown, AlertTriangle, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { can, looksForeign, supplierOverlap } from '@shared/core';
 import type { ExtractedDoc } from '@shared/core/extract';
@@ -11,6 +11,7 @@ import { useI18n } from '@/i18n';
 import { formatMoney, isMoney, toBp, toSen } from '@/lib/money-input';
 import { buzz } from '@/lib/haptics';
 import { Button } from '@/components/ui/button';
+import { FixedBar } from '@/components/fixed-bar';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -207,7 +208,7 @@ export default function Review() {
       <h1 className="mb-3 text-[28px] font-semibold leading-[34px]">{t(title)}</h1>
       {docId && meta.data && (
         <div className="sticky top-0 z-10 -mx-5 mb-4 bg-bg px-5 pb-2 pt-1"><DocImage src={`/api/documents/${docId}/file`} width={meta.data.width || 900} height={meta.data.height || 1180} alt={t(docAlt)}
-          layoutId={`doc-image-${docId}`} boxes={boxes} activeIndex={active} onBoxClick={pickRow} maxHeight="28dvh" /></div>
+          boxes={boxes} activeIndex={active} onBoxClick={pickRow} maxHeight="28dvh" /></div>
       )}
       {(isNew || (read.data && read.data.status === 'manual')) && <p className="mb-4 rounded-card bg-surface-2 px-4 py-3 text-sm text-ink-2">{t('review.manualNote')}</p>}
 
@@ -216,13 +217,13 @@ export default function Review() {
       ) : (
         <div className="space-y-4">
           <Card className="p-4">
-            <span className={label}>{t('review.supplier')}</span>
-            <button type="button" onClick={() => setSupplierSheet(true)} className="flex min-h-12 w-full items-center justify-between rounded-btn border border-line bg-surface px-4 text-left font-medium">
+            <label htmlFor="rv-sup" className={label}>{t('review.supplier')}</label>
+            <button id="rv-sup" type="button" onClick={() => setSupplierSheet(true)} className="flex min-h-12 w-full items-center justify-between rounded-btn border border-line bg-surface px-4 text-left font-medium">
               <span className="truncate">{supplier?.name || newName || t('review.pickSupplier')}</span>
               <ChevronDown size={18} className="shrink-0 text-ink-2" aria-hidden />
             </button>
             {!supplier && newName !== undefined && supplierId === null && (
-              <div className="mt-3"><span className={label}>{t('review.newSupplier')}</span><Input value={newName} onChange={e => setNewName(e.target.value)} placeholder={t('review.supplierName')} aria-invalid={touched && !supplierOk} /></div>
+              <div className="mt-3"><label htmlFor="rv1" className={label}>{t('review.newSupplier')}</label><Input id="rv1" value={newName} onChange={e => setNewName(e.target.value)} placeholder={t('review.supplierName')} aria-invalid={touched && !supplierOk} /></div>
             )}
             {kind === 'po' && docId && (
               <div className="mt-3"><span className={label}>{t('review.source')}</span>
@@ -233,21 +234,21 @@ export default function Review() {
 
           {kind !== 'po' && (
             <Card className="space-y-3 p-4">
-              <div><span className={label}>{t(noLabel)}</span><Input value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} aria-invalid={touched && !invoiceNo.trim()} /></div>
+              <div><label htmlFor="rv2" className={label}>{t(noLabel)}</label><Input id="rv2" value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} aria-invalid={touched && !invoiceNo.trim()} /></div>
               <div className={kind === 'invoice' ? 'grid grid-cols-2 gap-3' : ''}>
-                <div><span className={label}>{t('review.date')}</span><Input type="date" value={docDate} onChange={e => setDocDate(e.target.value)} /></div>
-                {kind === 'invoice' && <div><span className={label}>{t('review.currency')}</span><Input value={currency} maxLength={3} onChange={e => setCurrency(e.target.value.toUpperCase())} /></div>}
+                <div><label htmlFor="rv3" className={label}>{t('review.date')}</label><Input id="rv3" type="date" value={docDate} onChange={e => setDocDate(e.target.value)} /></div>
+                {kind === 'invoice' && <div><label htmlFor="rv4" className={label}>{t('review.currency')}</label><Input id="rv4" value={currency} maxLength={3} onChange={e => setCurrency(e.target.value.toUpperCase())} /></div>}
               </div>
               {foreignInvoice && (
-                <div><span className={label}>{t('review.rate')}</span><Input inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} placeholder="4.20" aria-invalid={touched && !rateOk} className="num" /></div>
+                <div><label htmlFor="rv5" className={label}>{t('review.rate')}</label><Input id="rv5" inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} placeholder="4.20" aria-invalid={touched && !rateOk} className="num" /></div>
               )}
-              {kind === 'invoice' && <div><span className={label}>{t('review.printedTotal')} ({currency})</span><Input inputMode="decimal" value={printed} onChange={e => setPrinted(e.target.value)} className="num" /></div>}
+              {kind === 'invoice' && <div><label htmlFor="rv6" className={label}>{t('review.printedTotal')} ({currency})</label><Input id="rv6" inputMode="decimal" value={printed} onChange={e => setPrinted(e.target.value)} className="num" /></div>}
             </Card>
           )}
 
           {offerForeign && (
-            <Card className="border-price/30 bg-price-bg p-4">
-              <div className="flex items-start gap-3"><Globe2 size={22} className="mt-0.5 shrink-0 text-price" aria-hidden />
+            <Card className="border-l-[3px] border-l-price p-4">
+              <div className="flex items-start gap-3">
                 <div className="flex-1"><p className="font-semibold text-price">{t('review.foreignQ')}</p><p className="text-sm text-ink-2">{t('review.foreignBody')}</p>
                   {role && can(role, 'edit_supplier') ? <Button size="sm" className="mt-3" onClick={() => setForeignOk(true)}>{t('review.foreignConfirm')}</Button> : <p className="mt-2 text-sm font-medium text-price">{t('owner.only')}</p>}
                 </div></div>
@@ -273,7 +274,7 @@ export default function Review() {
           )}
 
           <section aria-label={t('review.lines')}>
-            <div className="overflow-hidden rounded-card border border-line bg-surface">
+            <div className="overflow-hidden rounded-card bg-surface shadow-card">
               <p className="border-b border-dashed border-line px-5 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2">{t(showPrice ? 'ledger.head.price' : 'ledger.head.qty')}</p>
               {rows.map((r, i) => (
                 <div key={r.key} id={`row-${i}`} className="relative scroll-mt-[32dvh] space-y-3 border-t border-dashed border-line py-4 pl-5 pr-4 first:border-t-0">
@@ -281,12 +282,12 @@ export default function Review() {
                   <div className="flex items-start gap-2">
                     <span className="num mt-3 w-6 shrink-0 text-xs text-ink-2">{String(i + 1).padStart(2, '0')}</span>
                     <Input value={r.description} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { description: e.target.value })} placeholder={t('review.item')} aria-label={t('review.item')} aria-invalid={touched && !r.description.trim()} />
-                    <Button variant="ghost" size="icon" aria-label={t('review.removeLine')} disabled={rows.length === 1} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}><Trash2 size={20} strokeWidth={1.5} /></Button>
+                    <Button variant="ghost" size="icon" className="shrink-0" aria-label={t('review.removeLine')} disabled={rows.length === 1} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}><Trash2 size={20} strokeWidth={1.5} /></Button>
                   </div>
-                  <div className={`grid gap-2 pl-8 ${showPrice ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                    <div><span className="mb-1 block text-xs text-ink-2">{t('review.qty')}</span><Input inputMode="numeric" value={r.qty} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { qty: e.target.value.replace(/\D/g, '') })} className="num" aria-invalid={touched && !/^\d+$/.test(r.qty)} /></div>
-                    <div><span className="mb-1 block text-xs text-ink-2">{t('review.unit')}</span><Input value={r.unit} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { unit: e.target.value })} /></div>
-                    {showPrice && <div><span className="mb-1 block text-xs text-ink-2">{t('review.price')}</span><Input inputMode="decimal" value={r.price} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { price: e.target.value })} className="num" aria-invalid={touched && !priceOk(r)} /></div>}
+                  <div className={`grid gap-2 pl-8 [&_input]:px-2.5 ${showPrice ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                    <div><span className="mb-1 block text-xs text-ink-2">{t('review.qty')}</span><Input aria-label={`${t('review.qty')} ${i + 1}`} inputMode="numeric" value={r.qty} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { qty: e.target.value.replace(/\D/g, '') })} className="num" aria-invalid={touched && !/^\d+$/.test(r.qty)} /></div>
+                    <div><span className="mb-1 block text-xs text-ink-2">{t('review.unit')}</span><Input aria-label={`${t('review.unit')} ${i + 1}`} value={r.unit} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { unit: e.target.value })} /></div>
+                    {showPrice && <div><span className="mb-1 block text-xs text-ink-2">{t('review.price')}</span><Input aria-label={`${t('review.price')} ${i + 1}`} inputMode="decimal" value={r.price} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { price: e.target.value })} className="num" aria-invalid={touched && !priceOk(r)} /></div>}
                   </div>
                 </div>
               ))}
@@ -295,21 +296,18 @@ export default function Review() {
           </section>
 
           {mismatch && (
-            <div className="flex items-start gap-3 rounded-card bg-short-bg p-4 text-short" role="alert">
-              <AlertTriangle size={20} className="mt-0.5 shrink-0" aria-hidden />
-              <p className="num text-sm font-medium">{t('review.totalMismatch', { sum: formatMoney(sum, currency), printed: formatMoney(printedMinor!, currency) })}</p>
+            <div className="rounded-card border-l-[3px] border-l-short bg-surface p-4 shadow-card" role="alert">
+              <p className="num text-sm font-medium text-short">{t('review.totalMismatch', { sum: formatMoney(sum, currency), printed: formatMoney(printedMinor!, currency) })}</p>
             </div>
           )}
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pt-3" style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}>
-        <div className="mx-auto max-w-[480px] border-t border-line px-5 pt-3"><Button block disabled={save.isPending || loading || suggLoading || deliveryLoading} onClick={trySave}>{save.isPending ? t('review.saving') : t(saveLabel)}</Button></div>
-      </div>
+      <FixedBar><Button block disabled={save.isPending || loading || suggLoading || deliveryLoading} onClick={trySave}>{save.isPending ? t('review.saving') : t(saveLabel)}</Button></FixedBar>
 
       <Sheet open={supplierSheet} onOpenChange={setSupplierSheet}>
         <SheetContent title={t('review.pickSupplier')}>
-          <div role="radiogroup" aria-label={t('review.pickSupplier')} className="max-h-[50dvh] overflow-y-auto rounded-card border border-line bg-surface">
+          <div role="radiogroup" aria-label={t('review.pickSupplier')} className="max-h-[50dvh] overflow-y-auto rounded-card bg-surface shadow-card">
             {suppliers.data?.suppliers.map(s => (
               <RadioRow key={s.id} checked={s.id === supplierId} onClick={() => { setSupplierId(s.id); setSupplierSheet(false); setPoPick(undefined); setDeliveryPick(undefined); }}><span className="font-medium">{s.name}</span></RadioRow>
             ))}
@@ -320,7 +318,7 @@ export default function Review() {
 
       <Sheet open={poSheet} onOpenChange={setPoSheet}>
         <SheetContent title={t('review.pickPo')}>
-          <div role="radiogroup" aria-label={t('review.pickPo')} className="max-h-[50dvh] overflow-y-auto rounded-card border border-line bg-surface">
+          <div role="radiogroup" aria-label={t('review.pickPo')} className="max-h-[50dvh] overflow-y-auto rounded-card bg-surface shadow-card">
             {cands.map(c => (
               <RadioRow key={c.id} checked={c.id === effectivePoId} onClick={() => { setPoPick(c.id); setDeliveryPick(undefined); setPoSheet(false); }}>
                 <span className="flex items-center justify-between gap-2"><span><span className="num block font-medium">{c.poNo}</span><span className="block text-xs text-ink-2">{c.supplierName}</span></span>
@@ -334,7 +332,7 @@ export default function Review() {
 
       <Sheet open={deliverySheet} onOpenChange={setDeliverySheet}>
         <SheetContent title={t('review.pickDelivery')}>
-          <div role="radiogroup" aria-label={t('review.pickDelivery')} className="max-h-[50dvh] overflow-y-auto rounded-card border border-line bg-surface">
+          <div role="radiogroup" aria-label={t('review.pickDelivery')} className="max-h-[50dvh] overflow-y-auto rounded-card bg-surface shadow-card">
             {dcands.map(c => (
               <RadioRow key={c.id} checked={c.id === effectiveDeliveryId} onClick={() => { setDeliveryPick(c.id); setDeliverySheet(false); }}>
                 <span className="num block font-medium">{c.doNo}</span><span className="num block text-xs text-ink-2">{dmyOf(c.docDate, c.receivedAt)}</span>

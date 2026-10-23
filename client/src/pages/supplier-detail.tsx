@@ -65,25 +65,25 @@ export default function SupplierDetail() {
       <BackButton fallback="/suppliers" />
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} /> : !d ? <div className="space-y-3"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-32 w-full" /></div> : (
         <div className="space-y-5">
-          <h1 className="text-2xl font-semibold">{d.supplier.name}</h1>
-          <Card className="p-5">
-            <p className="text-sm text-ink-2">{t('supplier.payNow')}</p>
-            <span className="inline-block border-b-[3px] border-double border-ink pb-1"><Money sen={d.ledger.payNowSen} animate className="text-[40px] font-bold leading-[44px]" /></span>
-            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-3 text-sm">
-              <div><p className="min-h-8 text-xs leading-4 text-ink-2">{t('supplier.disputed')}</p><Money sen={d.ledger.disputedSen} animate className="font-semibold" /></div>
-              <div><p className="min-h-8 text-xs leading-4 text-ink-2">{t('supplier.creditLabel')}</p><Money sen={d.ledger.creditCarrySen} animate className="font-semibold" /></div>
-              <div><p className="min-h-8 text-xs leading-4 text-ink-2">{t('supplier.statement')}</p><Money sen={d.ledger.owedSen} animate className="font-semibold" /></div>
+          <h1 className="text-2xl font-semibold leading-8 tracking-tight">{d.supplier.name}</h1>
+          <div className="on-dark rounded-[20px] p-5 text-white shadow-[0_18px_40px_-18px_rgba(19,37,74,.6)]" style={{ background: 'var(--grad-band)' }}>
+            <p className="text-[11px] font-medium uppercase tracking-[.14em] text-white/70">{t('supplier.payNow')}</p>
+            <span className="inline-block border-b-[3px] border-double border-white/30 pb-1"><Money sen={d.ledger.payNowSen} animate className="text-[44px] font-bold leading-[48px] tracking-tight" /></span>
+            <div className="mt-4 grid grid-cols-3 items-end gap-2 border-t border-white/15 pt-3 text-sm">
+              <div><p className="mb-1 text-[11px] leading-4 text-white/70">{t('supplier.disputed')}</p><Money sen={d.ledger.disputedSen} animate className="font-semibold" /></div>
+              <div><p className="mb-1 text-[11px] leading-4 text-white/70">{t('supplier.creditLabel')}</p><Money sen={d.ledger.creditCarrySen} animate className="font-semibold" /></div>
+              <div><p className="mb-1 text-[11px] leading-4 text-white/70">{t('supplier.statement')}</p><Money sen={d.ledger.owedSen} animate className="font-semibold" /></div>
             </div>
-            {d.ledger.creditCarrySen > 0 && <p className="mt-2 text-sm font-medium text-ok">{t('supplier.credit', { rm: formatMoney(d.ledger.creditCarrySen, 'MYR') })}</p>}
-            <p className="mt-2 text-xs text-ink-2">{t('sup.statementHelp')}</p>
-          </Card>
+            {d.ledger.creditCarrySen > 0 && <p className="mt-2 text-sm font-medium text-[#A7F3D0]">{t('supplier.credit', { rm: formatMoney(d.ledger.creditCarrySen, 'MYR') })}</p>}
+            <p className="mt-2 text-xs text-white/70">{t('sup.statementHelp')}</p>
+          </div>
           <section>
             <SectionLabel>{t('sup.invoices')}</SectionLabel>
             {d.invoices.length === 0 ? <p className="text-ink-2">{t('sup.noInvoices')}</p> : (
-              <div className="overflow-hidden rounded-card border border-line bg-surface">{d.invoices.map(i => (
+              <div className="overflow-hidden rounded-card bg-surface shadow-card">{d.invoices.map(i => (
                 <div key={i.id} className="space-y-2 border-t border-dashed border-line p-4 first:border-t-0">
                   <div className="flex items-start justify-between gap-3">
-                    <div><Link href={`/invoices/${i.id}`} className="num font-semibold text-brand">{i.invoiceNo}</Link><p className="text-xs text-ink-2">{date(i.issuedAt)} · {i.payment === 'paid' ? t('sup.paid') : t('sup.due', { date: date(i.dueAt) })}</p></div>
+                    <div><Link href={`/invoices/${i.id}`} className="num inline-flex min-h-11 items-center font-semibold text-brand">{i.invoiceNo}</Link><p className="text-xs text-ink-2">{date(i.issuedAt)} · {i.payment === 'paid' ? t('sup.paid') : t('sup.due', { date: date(i.dueAt) })}</p></div>
                     <div className="text-right"><Money sen={i.totalSen} className="font-semibold" /><div className="mt-1 flex justify-end"><Badge tone={tone[i.state]}>{t(`sup.state.${i.state}` as Key)}</Badge></div></div>
                   </div>
                   {i.payment === 'on_credit' && i.ledger && (i.ledger.reductionSen > 0 || i.ledger.creditAppliedSen > 0) && (
@@ -95,7 +95,7 @@ export default function SupplierDetail() {
                   {owner && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Button size="sm" variant="secondary" disabled={act.isPending} onClick={() => act.mutate({ invId: i.id, kind: i.payment === 'paid' ? 'unpay' : 'pay' })}>{t(i.payment === 'paid' ? 'sup.markUnpaid' : 'sup.markPaid')}</Button>
-                      {i.payment !== 'paid' && <label className="inline-flex min-h-9 items-center gap-2 text-xs text-ink-2">{t('sup.dueDate')}<input type="date" aria-label={t('sup.dueDate')} defaultValue={new Date(i.dueAt + 8 * 3600e3).toISOString().slice(0, 10)} onChange={e => { const v = e.target.valueAsNumber; if (Number.isFinite(v)) setDue.mutate({ invId: i.id, dueAt: v + 8 * 3600e3 }); }} className="num rounded-btn border border-line bg-surface px-2 py-1 text-sm text-ink" /></label>}
+                      {i.payment !== 'paid' && <label className="inline-flex min-h-11 items-center gap-2 text-xs text-ink-2">{t('sup.dueDate')}<input type="date" aria-label={t('sup.dueDate')} defaultValue={new Date(i.dueAt + 8 * 3600e3).toISOString().slice(0, 10)} onChange={e => { const v = e.target.valueAsNumber; if (Number.isFinite(v)) setDue.mutate({ invId: i.id, dueAt: v + 8 * 3600e3 }); }} className="num rounded-btn border border-line bg-surface px-2 py-1 text-sm text-ink" /></label>}
                       {i.state !== 'correct' && i.canMarkCorrect && <Button size="sm" variant="ghost" disabled={act.isPending} onClick={() => act.mutate({ invId: i.id, kind: 'correct' })}>{t('sup.markCorrect')}</Button>}
                     </div>)}
                 </div>))}</div>
@@ -109,7 +109,7 @@ export default function SupplierDetail() {
             <SectionLabel>{t('sup.settings')}</SectionLabel>
             <Card className="space-y-3 p-4">
               <div><label htmlFor="pn" className="mb-1 block text-sm font-medium text-ink-2">{t('sup.policyNote')}</label>
-                <textarea id="pn" value={note} readOnly={!owner} onChange={e => setNote(e.target.value)} rows={3} maxLength={500} className="w-full rounded-btn border border-line bg-surface p-3 text-base read-only:bg-surface-2" /></div>
+                <textarea id="pn" value={note} readOnly={!owner} onChange={e => setNote(e.target.value)} rows={3} maxLength={500} className="w-full rounded-btn border border-line-strong bg-surface p-3 text-base read-only:bg-surface-2" /></div>
               <div><label htmlFor="wa" className="mb-1 block text-sm font-medium text-ink-2">{t('sup.whatsapp')}</label>
                 <Input id="wa" inputMode="tel" value={wa} readOnly={!owner} onChange={e => setWa(e.target.value)} className="num" />
                 {wa.trim() && <p className={`mt-1 text-xs ${msisdn ? 'text-ok' : 'text-notord'}`}>{msisdn ? t('sup.waOk', { n: msisdn }) : t('sup.waBad')}</p>}</div>

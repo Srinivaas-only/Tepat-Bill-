@@ -13,6 +13,7 @@ import { useI18n } from '@/i18n';
 import { prepareFile, uploadDocument } from '@/lib/image';
 import { buzz } from '@/lib/haptics';
 import { Button } from '@/components/ui/button';
+import { FixedBar } from '@/components/fixed-bar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Money } from '@/components/ui/money';
@@ -56,10 +57,10 @@ function Stepper({ value, onChange, max = 100000, decLabel, incLabel, hand, labe
   });
   return (
     <div className="flex items-center gap-2">
-      <Button variant="secondary" size="icon" className="h-14 w-14 rounded-full" aria-label={decLabel} disabled={value <= 0} {...press(-1)}><Minus size={22} /></Button>
+      <Button variant="secondary" size="icon" className="h-12 w-12 rounded-full" aria-label={decLabel} disabled={value <= 0} {...press(-1)}><Minus size={22} /></Button>
       <input inputMode="numeric" aria-label={label} value={value} onFocus={e => e.currentTarget.select()} onChange={e => onChange(clamp(Number(e.target.value.replace(/\D/g, '')) || 0))}
-        className={`h-14 w-16 bg-transparent text-center ${hand ? 'rounded-none border-0 border-b-2 border-brand/40 text-[32px] font-normal text-brand' : 'num rounded-btn border border-line bg-surface text-[28px] font-semibold'}`} style={hand ? { fontFamily: "'Kalam', cursive" } : undefined} />
-      <Button variant="secondary" size="icon" className="h-14 w-14 rounded-full" aria-label={incLabel} {...press(1)}><Plus size={22} /></Button>
+        className={`h-12 w-14 bg-transparent text-center ${hand ? 'rounded-none border-0 border-b-2 border-brand/40 text-[30px] font-normal text-brand' : 'num rounded-btn border border-line-strong/70 bg-surface text-[26px] font-semibold'}`} style={hand ? { fontFamily: "'Kalam', cursive" } : undefined} />
+      <Button variant="secondary" size="icon" className="h-12 w-12 rounded-full" aria-label={incLabel} {...press(1)}><Plus size={22} /></Button>
     </div>
   );
 }
@@ -135,8 +136,8 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
       {d && <p className="mb-5 mt-1 text-ink-2"><span className="num">{d.ref}</span> · {d.supplierName}{d.poNo ? ` · ${d.poNo}` : ''}</p>}
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} notFound={q.error instanceof ApiError && q.error.status === 404} /> : !d ? <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-[112px] w-full" />)}</div> : (
         <div className="space-y-3">
-          <div className="overflow-hidden rounded-card border border-line bg-surface">
-            <p className="border-b border-dashed border-line px-5 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2">{t('ledger.head.count')}</p>
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
+            <p className="flex items-center justify-between border-b border-dashed border-line px-5 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2"><span>{t('ledger.head.count')}</span>{d.lines.some(l => (counts[`line:${l.lineId}`] ?? l.qty) !== l.qty) && <span className="num normal-case tracking-normal text-short">{t('count.summary', { n: d.lines.filter(l => (counts[`line:${l.lineId}`] ?? l.qty) !== l.qty).length, m: d.lines.length })}</span>}</p>
             {d.lines.map((l, i) => {
               const key = `line:${l.lineId}`; const v = counts[key] ?? l.qty; const diff = l.qty - v;
               return (
@@ -146,8 +147,8 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
                     <p className="flex gap-2 font-medium leading-5"><span className="num w-6 shrink-0 text-xs leading-5 text-ink-2">{String(i + 1).padStart(2, '0')}</span><span>{l.description}</span></p>
                     {diff !== 0 && <Badge tone="short" className="num shrink-0">{diff > 0 ? '−' : '+'}{Math.abs(diff)}</Badge>}
                   </div>
-                  <p className="mt-1 pl-8 text-sm text-ink-2">{billedLabel} <span className="num">{l.qty}{l.unit ? ` ${l.unit}` : ''}</span></p>
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                    <p className="pl-8 text-sm text-ink-2">{billedLabel} <span className="num">{l.qty}{l.unit ? ` ${l.unit}` : ''}</span></p>
                     <Stepper hand={diff !== 0} value={v} onChange={n => set(key, n)} label={`${t('review.qty')} · ${l.description}`} decLabel={t('count.dec')} incLabel={t('count.inc')} />
                   </div>
                 </div>
@@ -171,7 +172,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
                 <div key={kind}>
                   <input ref={ref} type="file" accept="image/*" {...(kind === 'delivery' ? { capture: 'environment' as const } : {})} className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) photo.mutate({ file: f, photoKind: kind }); }} />
                   <Button variant="secondary" block className="h-auto flex-col gap-1 whitespace-normal px-3 py-4 text-center leading-5" disabled={photo.isPending} onClick={() => ref.current?.click()}>
-                    {done && thumb(kind) ? <img src={`/api/documents/${thumb(kind)}/file`} alt={t(key)} className="h-10 w-10 rounded-lg object-cover" /> : done ? <Check size={22} className="text-ok" aria-hidden /> : <Icon size={22} strokeWidth={1.5} aria-hidden />}<span className="text-sm">{t(key)}</span>
+                    {done && thumb(kind) ? <img src={`/api/documents/${thumb(kind)}/file`} alt={t(key)} className="h-10 w-10 rounded-[10px] object-cover" /> : done ? <Check size={22} className="text-ok" aria-hidden /> : <Icon size={22} strokeWidth={1.5} aria-hidden />}<span className="text-sm">{t(key)}</span>
                   </Button>
                 </div>
               ))}
@@ -180,9 +181,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pt-3" style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}>
-        <div className="mx-auto max-w-[480px] border-t border-line px-5 pt-3"><Button block disabled={!d || save.isPending || photo.isPending} onClick={() => save.mutate()}>{save.isPending ? t('count.saving') : t('count.save')}</Button></div>
-      </div>
+      <FixedBar><Button block disabled={!d || save.isPending || photo.isPending} onClick={() => save.mutate()}>{save.isPending ? t('count.saving') : t('count.save')}</Button></FixedBar>
 
       <Sheet open={!!result} onOpenChange={() => undefined}>
         <SheetContent title={t('count.resultTitle')} onInteractOutside={e => e.preventDefault()} onEscapeKeyDown={e => e.preventDefault()}>

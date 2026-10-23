@@ -13,10 +13,10 @@ const rows: { to: string; key: Key; icon: typeof Settings }[] = [
 export default function More() {
   const { t } = useI18n();
   return (
-    <Page title={t('more.title')}>
+    <Page band title={t('more.title')}>
       <Card className="divide-y divide-line overflow-hidden">
         {rows.map(r => (
-          <Link key={r.to} href={r.to} className="flex min-h-14 items-center gap-3 px-4 font-medium">
+          <Link key={r.to} href={r.to} className="press flex min-h-14 items-center gap-3 px-4 font-medium">
             <r.icon size={22} strokeWidth={1.5} className="text-brand" aria-hidden />
             <span className="flex-1">{t(r.key)}</span>
             <ChevronRight size={20} className="text-ink-2" aria-hidden />

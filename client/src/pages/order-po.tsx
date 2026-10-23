@@ -20,7 +20,7 @@ export default function OrderPo() {
         <>
           <h1 className="num text-[28px] font-semibold leading-[34px]">{d.po.poNo}</h1>
           <p className="mb-5 mt-1 text-ink-2">{d.po.supplierName} · <span className="num">{new Date(d.po.orderedAt).toLocaleDateString(lang === 'en' ? 'en-GB' : 'ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' })}</span></p>
-          <div className="overflow-hidden rounded-card border border-line bg-surface">
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
             <p className="border-b border-dashed border-line px-4 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2">{t('ledger.head.price')}</p>
             {d.lines.map((l, i) => (
               <div key={l.id} className="flex items-center gap-3 border-t border-dashed border-line px-4 py-3 first:border-t-0">

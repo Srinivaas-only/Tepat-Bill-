@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion, useAnimationControls } from 'motion/react';
+import { motion } from 'motion/react';
 import { Delete } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
@@ -12,8 +12,8 @@ export default function Login() {
   const { t, lang, setLang } = useI18n();
   const [pin, setPin] = useState('');
   const [msg, setMsg] = useState('');
+  const [bad, setBad] = useState(false);
   const [busy, setBusy] = useState(false);
-  const shake = useAnimationControls();
 
   const submit = async (p: string) => {
     setBusy(true);
@@ -21,8 +21,9 @@ export default function Login() {
     catch (e) {
       buzz(12);
       setMsg(e instanceof ApiError && e.status === 429 ? t('login.limited') : t('login.wrong'));
-      await shake.start({ x: [0, -10, 10, -8, 8, -4, 4, 0], transition: { duration: 0.4 } });
-      setPin('');
+      setBad(true);                                   // dots flash red (no shake), then clear
+      await new Promise(r => setTimeout(r, 420));
+      setBad(false); setPin('');
     } finally { setBusy(false); }
   };
   const press = (d: string) => {
@@ -43,17 +44,21 @@ export default function Login() {
     return () => window.removeEventListener('keydown', on);
   });
   return (
-    <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center px-5 pb-8 pt-14">
+    <div className="relative mx-auto flex min-h-dvh max-w-[480px] flex-col items-center px-5 pb-8 pt-[calc(48px+var(--safe-top))]">
+      <button className="press absolute right-4 top-[calc(12px+var(--safe-top))] inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold text-ink-2 ring-1 ring-ink/15 [@media(hover:hover)]:hover:bg-surface-2" onClick={() => setLang(lang === 'ms' ? 'en' : 'ms')}>
+        {lang === 'ms' ? 'English' : 'BM'}
+      </button>
       <Logo />
-      <h1 className="mt-4 text-[28px] font-semibold leading-[34px]">{t('app.name')}</h1>
+      <h1 className="mt-4 text-[28px] font-semibold leading-[34px] tracking-tight">{t('app.name')}</h1>
       <p className="mt-1 text-center text-ink-2">{t('app.tagline')}</p>
       <h2 className="mt-10 text-xl font-semibold">{t('login.title')}</h2>
       <p className="text-sm text-ink-2">{t('login.sub')}</p>
-      <motion.div animate={shake} className="mt-6 flex gap-4" role="status" aria-label={`${pin.length}/4`}>
+      <div className="mt-6 flex gap-5" role="status" aria-label={`${pin.length}/4`}>
         {[0, 1, 2, 3].map(i => (
-          <span key={i} className={`h-[14px] w-[14px] rounded-full border-2 transition-colors ${i < pin.length ? 'border-brand bg-brand' : 'border-line bg-surface'}`} />
+          <motion.span key={i} animate={{ scale: i < pin.length ? 1 : 0.85 }} transition={{ type: 'spring', stiffness: 600, damping: 26 }}
+            className={`h-4 w-4 rounded-full border-2 transition-colors duration-150 ${bad ? 'border-notord bg-notord' : i < pin.length ? 'border-brand bg-brand' : 'border-line-strong/60 bg-surface'}`} />
         ))}
-      </motion.div>
+      </div>
       <p className="mt-3 h-6 text-sm font-medium text-notord" aria-live="polite">{msg}</p>
       <div className="mt-4 grid grid-cols-3 gap-x-5 gap-y-4">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => <Key key={d} onClick={() => press(d)}>{d}</Key>)}
@@ -61,9 +66,6 @@ export default function Login() {
         <Key onClick={() => press('0')}>0</Key>
         <Key onClick={() => { setPin(p => p.slice(0, -1)); setMsg(''); }} aria-label={t('login.backspace')}><Delete size={26} strokeWidth={1.5} /></Key>
       </div>
-      <button className="mt-auto min-h-11 pt-6 text-sm font-medium text-ink-2" onClick={() => setLang(lang === 'ms' ? 'en' : 'ms')}>
-        {lang === 'ms' ? 'English' : 'Bahasa Melayu'}
-      </button>
     </div>
   );
 }
@@ -71,7 +73,7 @@ export default function Login() {
 function Key({ children, onClick, ...p }: { children: React.ReactNode; onClick: () => void } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button type="button" onClick={onClick}
-      className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-surface-2 text-[28px] font-semibold text-ink" {...(p as object)}>
+      className="press flex h-[76px] w-[76px] items-center justify-center rounded-full bg-surface text-[28px] font-semibold text-ink shadow-card transition-colors [@media(hover:hover)]:hover:bg-surface-2 active:bg-surface-2 active:!scale-[.94]" {...(p as object)}>
       {children}
     </button>
   );

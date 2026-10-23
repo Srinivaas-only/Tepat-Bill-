@@ -13,16 +13,16 @@ export default function Activity() {
   const loc = lang === 'ms' ? 'ms-MY' : 'en-GB';
   const q = useQuery({ queryKey: ['activity'], refetchOnMount: 'always', queryFn: () => api.get<{ events: Ev[] }>('/activity') });
   const events = q.data?.events ?? [];
-  const label = (a: string) => { const k = `act.${a}` as Key; const s = t(k); return s === k ? a : s; };
+  const label = (a: string) => { const k = `act.${a}` as Key; const s = t(k); return s === k ? t('act.unknown') : s; };
   const groups = [...events.reduce((m, e) => { const k = new Date(e.at).toLocaleDateString(loc, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' }); m.set(k, [...(m.get(k) ?? []), e]); return m; }, new Map<string, Ev[]>())];
   return (
-    <Page title={t('activity.title')} back="/">
+    <Page band title={t('activity.title')}>
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} /> : q.isLoading ? <div className="space-y-3">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
         : events.length === 0 ? <EmptyState text={t('activity.empty')} />
         : <div className="space-y-4">{groups.map(([day, evs]) => (
           <section key={day}>
             <h2 className="sticky top-0 z-10 bg-bg py-2 text-[11px] font-medium uppercase tracking-[.12em] text-ink-2">{day}</h2>
-            <div className="overflow-hidden rounded-card border border-line bg-surface">{evs.map(e => {
+            <div className="overflow-hidden rounded-card bg-surface shadow-card">{evs.map(e => {
               const body = (
                 <div className="relative flex min-h-14 items-center gap-3 border-t border-dashed border-line px-4 py-2 pl-5">
                   <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${e.role === 'owner' ? 'bg-ink' : 'bg-line'}`} />

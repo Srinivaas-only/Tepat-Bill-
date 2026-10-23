@@ -22,7 +22,7 @@ export default function SettingsPage() {
     try { await api.post('/dev/reset', {}); toast.success(t('settings.resetDone')); setTimeout(() => window.location.assign('/'), 600); } catch { toast.error(t('common.error')); }
   };
   return (
-    <Page title={t('more.settings')}>
+    <Page band title={t('more.settings')}>
       <Card className="space-y-4 p-4">
         <div>
           <p className="mb-2 text-sm font-medium text-ink-2">{t('settings.language')}</p>

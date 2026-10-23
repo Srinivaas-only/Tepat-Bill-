@@ -8,6 +8,7 @@ import type { ExtractedDoc } from '@shared/core/extract';
 import { api } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { Button } from '@/components/ui/button';
+import { FixedBar } from '@/components/fixed-bar';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -103,7 +104,7 @@ export default function Read() {
       {meta.data ? (
         <div className="relative">
           <DocImage src={imgSrc} width={meta.data.width || 900} height={meta.data.height || 1180} alt={t(kind === 'po' ? 'scan.po' : kind === 'delivery' ? 'scan.bon' : 'scan.invoice')}
-            layoutId={`doc-image-${id}`} boxes={boxes} drawFrom={doc ? 0 : undefined} maxHeight="52dvh" />
+            boxes={boxes} drawFrom={doc ? 0 : undefined} maxHeight="52dvh" />
           {beamOn && !reduce && <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-card"><ScanBeam fading={!reading} /></div>}
         </div>
       ) : <Skeleton className="aspect-[3/4] w-full rounded-card" />}
@@ -123,7 +124,7 @@ export default function Read() {
       )}
 
       {doc && (
-        <div className="mt-4 overflow-hidden rounded-card border border-line bg-surface">
+        <div className="mt-4 overflow-hidden rounded-card bg-surface shadow-card">
           <p className="border-b border-dashed border-line px-4 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2">{t(kind === 'delivery' ? 'ledger.head.qty' : 'ledger.head.price')}</p>
           {lines.length === 0 && <p className="px-4 py-3 text-ink-2">{t('read.noLines')}</p>}
           {lines.map((l, i) => (
@@ -142,7 +143,7 @@ export default function Read() {
       )}
 
       {result?.status === 'manual' && (
-        <div className="mt-4 space-y-3 rounded-card border border-line bg-surface p-4">
+        <div className="mt-4 space-y-3 rounded-card bg-surface shadow-card p-4">
           <p className="font-medium">{t('review.manualNote')}</p>
           <Button block onClick={() => nav(`/review/${kind}/new?doc=${id}`, { replace: true })}><PenLine size={18} aria-hidden />{t('read.manual')}</Button>
           {demo.data && <Button variant="secondary" block onClick={() => setPicker(true)}><FlaskConical size={18} aria-hidden />{t('read.useDemo')}</Button>}
@@ -151,9 +152,8 @@ export default function Read() {
 
       <AnimatePresence>
         {doc && ready && (
-          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-            className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface px-5 pt-3" style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}>
-            <div className="mx-auto max-w-[480px]"><Button block onClick={goReview}>{t('read.review')}</Button></div>
+          <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 34 }}>
+            <FixedBar><Button block onClick={goReview}>{t('read.review')}</Button></FixedBar>
           </motion.div>
         )}
       </AnimatePresence>

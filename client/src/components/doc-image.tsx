@@ -10,7 +10,7 @@ export function DocImage({ src, width, height, alt, boxes = [], drawFrom, stagge
   const reduce = useReducedMotion();
   const sw = Math.max(2, width / 190);
   return (
-    <motion.div layoutId={layoutId} className={`relative overflow-hidden rounded-card bg-surface-2 ${className ?? ''}`} style={{ aspectRatio: `${width} / ${height}`, ...(maxHeight ? { width: `min(100%, calc(${maxHeight} * ${width / height}))`, marginInline: 'auto' } : {}) }}>
+    <motion.div className={`relative overflow-hidden rounded-card bg-surface-2 ${className ?? ''}`} style={{ aspectRatio: `${width} / ${height}`, ...(maxHeight ? { width: `min(100%, calc(${maxHeight} * ${width / height}))`, marginInline: 'auto' } : {}) }}>
       <img src={src} alt={alt} width={width} height={height} className="absolute inset-0 h-full w-full object-fill" draggable={false} />
       <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden>
         {boxes.map((b, i) => {
@@ -18,7 +18,7 @@ export function DocImage({ src, width, height, alt, boxes = [], drawFrom, stagge
           const [y1, x1, y2, x2] = b;
           const x = (x1 / 1000) * width, y = (y1 / 1000) * height, w = ((x2 - x1) / 1000) * width, h = ((y2 - y1) / 1000) * height;
           const active = activeIndex === i;
-          const delay = drawFrom === undefined ? 0 : reduce ? drawFrom : drawFrom + i * stagger;
+          const delay = drawFrom ?? 0; void i; void stagger;   // every box draws in together (no stagger)
           return (
             <g key={i} id={`line-${i}`} onClick={() => onBoxClick?.(i)} style={{ cursor: onBoxClick ? 'pointer' : undefined }}>
               <motion.rect x={x} y={y} width={w} height={h} rx={sw * 1.5} fill="var(--brand)" initial={{ fillOpacity: 0 }}
