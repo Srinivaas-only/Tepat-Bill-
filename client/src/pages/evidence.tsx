@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useParams } from 'wouter';
+import { tokenOverlap } from '@shared/core';
 import { useQuery } from '@tanstack/react-query';
 import { Money } from '@/components/ui/money';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/logo';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { useI18n } from '@/i18n';
 import type { Key } from '@/i18n/ms';
@@ -19,7 +21,7 @@ interface Payload {
   photos: { id: string; kind: string; url: string }[];
   highlight: { invoiceLineId: string; box_2d: [number, number, number, number] | null };
   siblings: { type: string; description: string; amountSen: number; status: string }[];
-  shopName: string;
+  shopName: string; supplierName: string; invoiceDocDate: string; invoiceDoc: { width: number; height: number } | null;
 }
 
 async function load(token: string): Promise<Payload> {
@@ -28,11 +30,15 @@ async function load(token: string): Promise<Payload> {
   return r.json();
 }
 
-function Highlighted({ src, box, onOpen }: { src: string; box: [number, number, number, number] | null; onOpen: () => void }) {
+function Highlighted({ src, box, size, alt, onOpen }: { src: string; box: [number, number, number, number] | null; size: { width: number; height: number } | null; alt: string; onOpen: () => void }) {
   return (
-    <button type="button" onClick={onOpen} className="relative block w-full overflow-hidden rounded-card bg-surface-2">
-      <img src={src} alt="" className="block w-full" />
-      {box && <div className="absolute animate-pulse rounded-lg border-2 border-brand bg-brand/10 motion-reduce:animate-none" style={{ left: `${box[1] / 10}%`, top: `${box[0] / 10}%`, width: `${(box[3] - box[1]) / 10}%`, height: `${(box[2] - box[0]) / 10}%` }} />}
+    <button type="button" onClick={onOpen} className="relative block w-full overflow-hidden rounded-card bg-surface-2" style={size ? { aspectRatio: `${size.width} / ${size.height}` } : undefined}>
+      <img src={src} alt={alt} className={size ? 'absolute inset-0 h-full w-full object-fill' : 'block w-full'} />
+      {box && (
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden>
+          <rect className="hl-pulse" x={box[1]} y={box[0]} width={box[3] - box[1]} height={box[2] - box[0]} rx={6} fill="var(--brand)" stroke="var(--brand)" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+        </svg>
+      )}
     </button>
   );
 }
@@ -44,17 +50,21 @@ export default function Evidence() {
   const q = useQuery({ queryKey: ['evidence', token], queryFn: () => load(token), retry: false });
   const d = q.data;
   const line = d?.invoice.lines.find(l => l.lineId === d.highlight.invoiceLineId);
+  const poLine = line && d?.po ? [...d.po.lines].map(l => ({ l, o: tokenOverlap(line.description, l.description) })).sort((a, b) => b.o - a.o).filter(x => x.o >= 0.6)[0]?.l : undefined;
   const invoicePhoto = d?.photos.find(p => p.kind === 'invoice');
   const others = d?.photos.filter(p => p !== invoicePhoto) ?? [];
   return (
     <main className="mx-auto min-h-dvh max-w-[480px] px-5 pb-10 pt-5">
-      <div className="mb-4 flex items-center justify-between"><h1 className="text-xl font-semibold">{t('ev.title')}</h1>
+      <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-3"><Logo size={36} /><h1 className="text-lg font-semibold">{t('ev.header')}</h1></div>
         <Button variant="secondary" size="sm" onClick={() => setLang(lang === 'ms' ? 'en' : 'ms')}>{lang === 'ms' ? 'English' : 'BM'}</Button></div>
       {q.isError ? <p className="rounded-card bg-surface-2 p-5 text-ink-2">{t('ev.notFound')}</p> : !d ? <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-60 w-full" /></div> : (
         <div className="space-y-4">
-          <p className="text-ink-2">{t('ev.from', { shop: d.shopName, no: d.invoice.invoiceNo })}</p>
+          <div className="space-y-1">
+            <p className="text-ink-2">{t('ev.from', { shop: d.shopName, no: d.invoice.invoiceNo })}</p>
+            <p className="text-sm text-ink-2">{d.supplierName} · {t('ev.date')} <span className="tnum">{d.invoiceDocDate.split('-').reverse().join('/')}</span></p>
+          </div>
           <Card className="p-4">
-            <p className="text-sm text-ink-2">{t(`ev.type.${d.flag.type}` as Key)}</p>
+            <div className="flex items-center justify-between gap-2"><p className="text-sm text-ink-2">{t(`ev.type.${d.flag.type}` as Key)}</p><Badge tone={d.flag.status === 'settled' ? 'ok' : d.flag.status === 'disputed' ? 'dispute' : 'price'}>{t(`status.${d.flag.status}` as Key)}</Badge></div>
             <p className="mt-1 font-semibold leading-6">{line?.description}</p>
             <Money sen={d.flag.amountSen} className="mt-2 text-[32px] font-semibold leading-10" />
             <dl className="mt-3 divide-y divide-line text-sm">
@@ -63,7 +73,18 @@ export default function Evidence() {
             </dl>
           </Card>
 
-          {invoicePhoto && <section><h2 className="mb-2 text-lg font-semibold">{t('ev.invoice')} <span className="tnum">{d.invoice.invoiceNo}</span></h2><Highlighted src={invoicePhoto.url} box={d.highlight.box_2d} onOpen={() => setViewer(invoicePhoto.url)} /></section>}
+          {invoicePhoto && <section><h2 className="mb-2 text-lg font-semibold">{t('ev.invoice')} <span className="tnum">{d.invoice.invoiceNo}</span></h2><Highlighted src={invoicePhoto.url} box={d.highlight.box_2d} size={d.invoiceDoc} alt={t('ev.invoiceAlt', { no: d.invoice.invoiceNo })} onOpen={() => setViewer(invoicePhoto.url)} /></section>}
+
+          {line && d.po && (
+            <section><h2 className="mb-2 text-lg font-semibold">{t('ev.compare')}</h2>
+              <Card className="grid grid-cols-2 divide-x divide-line text-sm">
+                <div className="p-3"><p className="text-xs text-ink-2">{t('ev.poCol')}</p>
+                  <p className="font-medium">{poLine?.description ?? t('ev.notInPo')}</p><p className="tnum text-ink-2">{poLine ? `${poLine.orderedQty}` : '—'}</p></div>
+                <div className="p-3"><p className="text-xs text-ink-2">{t('ev.invCol')}</p>
+                  <p className="font-medium">{line.description}</p><p className="tnum text-ink-2">{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</p></div>
+              </Card>
+            </section>
+          )}
 
           {d.po && (
             <section><h2 className="mb-2 text-lg font-semibold">{t('ev.po', { no: d.po.poNo })}</h2>
@@ -85,7 +106,8 @@ export default function Evidence() {
           )}
         </div>
       )}
-      <PhotoViewer src={viewer} onClose={() => setViewer(null)} />
+      {d && <p className="mt-8 text-center text-xs text-ink-2">{t('evidence.readOnly')}</p>}
+      <PhotoViewer src={viewer} onClose={() => setViewer(null)} box={viewer && viewer === invoicePhoto?.url ? d?.highlight.box_2d : null} />
     </main>
   );
 }

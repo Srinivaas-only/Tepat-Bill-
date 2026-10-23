@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 
 export function Page({ title, children, action }: { title?: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 32 }} className="px-5 pb-8 pt-6">
+    <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 32 }} className="px-5 pb-8 pt-[calc(24px+var(--safe-top))]">
       {title && (
         <header className="mb-5 flex items-center justify-between">
           <h1 className="text-[28px] font-semibold leading-[34px]">{title}</h1>

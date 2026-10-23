@@ -1,4 +1,6 @@
-import { inArray } from 'drizzle-orm';
+import { and, eq, gte, inArray } from 'drizzle-orm';
+import { needsReminder } from '../shared/core';
+import { flagRowToCore } from './core-adapters';
 import * as S from '../shared/schema';
 import type { Db } from './db';
 
@@ -9,7 +11,18 @@ export interface FlagView {
   lineDescription: string; supplierId: string; supplierName: string; poId: string | null; poNo: string | null;
   missingQty: number | null; invoiceUnitSen: number | null; baselineUnitSen: number | null; baselineSource: string | null; pricedQty: number | null;
   direction: string | null; possibleSubstituteFor: string | null; request: string | null; settlement: string | null; note: string | null;
-  openedAt: number | null; sentAt: number | null; settledAt: number | null; createdAt: number;
+  reminderDue: boolean; openedAt: number | null; sentAt: number | null; settledAt: number | null; createdAt: number;
+}
+
+const DAY = 86_400_000;
+/** Flags that need a reminder and were not already reminded in the last 14 days. */
+export async function reminderDueIds(db: Pick<Db, 'select'>, rows: FlagRow[], now: number): Promise<Set<string>> {
+  const due = rows.filter(f => needsReminder(flagRowToCore(f), now));
+  if (!due.length) return new Set();
+  const recent = await db.select({ ref: S.events.ref }).from(S.events)
+    .where(and(eq(S.events.action, 'flag.remind'), inArray(S.events.ref, due.map(f => f.id)), gte(S.events.at, new Date(now - 14 * DAY))));
+  const hidden = new Set(recent.map(e => e.ref));
+  return new Set(due.filter(f => !hidden.has(f.id)).map(f => f.id));
 }
 
 /** Joins the display fields (supplier, invoice no, PO no, line description) onto flag rows. */
@@ -20,6 +33,7 @@ export async function toViews(db: Pick<Db, 'select'>, rows: FlagRow[]): Promise<
   const poIds = [...new Set(rows.map(r => r.poId).filter((x): x is string => !!x))];
   const pos = poIds.length ? await db.select().from(S.purchaseOrders).where(inArray(S.purchaseOrders.id, poIds)) : [];
   const lines = await db.select().from(S.invoiceLines).where(inArray(S.invoiceLines.invoiceId, inv.map(i => i.id)));
+  const dueIds = await reminderDueIds(db, rows, Date.now());
   return rows.map(r => ({
     id: r.id, type: r.type, status: r.status, amountSen: r.amountSen, sku: r.sku, invoiceId: r.invoiceId,
     invoiceNo: inv.find(i => i.id === r.invoiceId)?.invoiceNo ?? '', invoiceLineId: r.invoiceLineId,
@@ -27,6 +41,6 @@ export async function toViews(db: Pick<Db, 'select'>, rows: FlagRow[]): Promise<
     supplierId: r.supplierId, supplierName: sup.find(s => s.id === r.supplierId)?.name ?? '', poId: r.poId, poNo: pos.find(p => p.id === r.poId)?.poNo ?? null,
     missingQty: r.missingQty, invoiceUnitSen: r.invoiceUnitSen, baselineUnitSen: r.baselineUnitSen, baselineSource: r.baselineSource, pricedQty: r.pricedQty,
     direction: r.direction, possibleSubstituteFor: r.possibleSubstituteFor, request: r.request, settlement: r.settlement, note: r.note,
-    openedAt: r.openedAt?.getTime() ?? null, sentAt: r.sentAt?.getTime() ?? null, settledAt: r.settledAt?.getTime() ?? null, createdAt: r.createdAt.getTime(),
+    reminderDue: dueIds.has(r.id), openedAt: r.openedAt?.getTime() ?? null, sentAt: r.sentAt?.getTime() ?? null, settledAt: r.settledAt?.getTime() ?? null, createdAt: r.createdAt.getTime(),
   }));
 }

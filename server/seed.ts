@@ -1,4 +1,4 @@
-// Seed: truncates every table and loads fixtures/seed.json (relative daysAgo times). Idempotent.
+// Seed: truncates every table (except the extractions read cache) and loads fixtures/seed.json (relative daysAgo times). Idempotent.
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -20,12 +20,19 @@ function pngSize(buf: Buffer): { width: number; height: number } {
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
 }
 
-export async function seedDatabase(db: Db, storage: Storage, now = Date.now(), opts: { quiet?: boolean } = {}) {
+export async function seedDatabase(rootDb: Db, storage: Storage, now = Date.now(), opts: { quiet?: boolean } = {}) {
+  await rootDb.transaction(async db => { await seedInTx(db as unknown as Db, storage, now, opts); });
+}
+
+const RATE_BP: Record<string, number> = { USD: 42000 };
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: boolean }) {
   const seed = JSON.parse(readFileSync(path.join(FX(), 'seed.json'), 'utf8'));
   const at = (d?: number) => (d === undefined || d === null ? null : new Date(now - d * DAY));
 
   // 1. truncate in FK-agnostic fashion (no FKs declared; one statement)
-  await db.execute(sql.raw(`TRUNCATE TABLE ${ALL_TABLES.map(t => `"${t}"`).join(', ')} RESTART IDENTITY`));
+  await db.execute(sql.raw(`TRUNCATE TABLE ${ALL_TABLES.filter(t => t !== 'extractions').map(t => `"${t}"`).join(', ')} RESTART IDENTITY`));
 
   // 2. settings
   const nowDate = new Date(now);
@@ -89,10 +96,10 @@ export async function seedDatabase(db: Db, storage: Storage, now = Date.now(), o
     let docId: string | null = null; let expected: any = null;
     if (i.fixture) { const fx = await addDoc(i.fixture, 'invoice', 'invoice'); docId = fx.id; expected = fx.expected; invDocs[i.id] = fx.id; }
     const issuedAt = at(i.daysAgo)!;
-    const bp = i.exchangeRateToMYR ? Math.round(i.exchangeRateToMYR * 10000) : null;
+    const bp = i.exchangeRateToMYR ? RATE_BP[i.currency] ?? null : null;
     const snapshot: PriceList = i.id === 'inv_2207' ? {} : (seed.priceList[i.supplierId] ?? {});
     await db.insert(S.invoices).values({
-      id: i.id, invoiceNo: i.invoiceNo, supplierId: i.supplierId, poId: i.poId, documentId: docId, docDate: issuedAt.toISOString().slice(0, 10),
+      id: i.id, invoiceNo: i.invoiceNo, supplierId: i.supplierId, poId: i.poId, documentId: docId, docDate: ymd(issuedAt),
       currency: i.currency, exchangeRateBp: bp, totalForeignMinor: i.totalForeignMinor ?? null, totalSen: i.totalSen, issuedAt,
       payment: i.payment, paidAt: at(i.paidDaysAgo), dueAt: new Date(defaultDueAt(issuedAt.getTime())),
       ownerMarkedCorrect: !!i.ownerMarkedCorrect, extractionModel: null, priceListSnapshot: snapshot, createdAt: issuedAt,

@@ -48,14 +48,15 @@ export default function SupplierDetail() {
         <div className="space-y-5">
           <h1 className="text-2xl font-semibold">{d.supplier.name}</h1>
           <Card className="p-5">
-            <p className="text-sm text-ink-2">{t('supplier.statement')}</p>
-            <Money sen={d.ledger.owedSen} animate className="text-[40px] font-semibold leading-[48px]" />
-            <p className="mt-1 text-xs text-ink-2">{t('sup.statementHelp')}</p>
-            <dl className="mt-3 divide-y divide-line text-sm">
-              <div className="flex justify-between py-2"><dt className="text-ink-2">{t('supplier.disputed')}</dt><dd className="tnum font-semibold">{formatMoney(d.ledger.disputedSen, 'MYR')}</dd></div>
-              <div className="flex justify-between py-2"><dt className="font-semibold">{t('supplier.payNow')}</dt><dd className="tnum text-lg font-semibold">{formatMoney(d.ledger.payNowSen, 'MYR')}</dd></div>
-            </dl>
+            <p className="text-sm text-ink-2">{t('supplier.payNow')}</p>
+            <Money sen={d.ledger.payNowSen} animate className="text-[40px] font-bold leading-[44px]" />
+            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-3 text-sm">
+              <div><p className="text-xs text-ink-2">{t('supplier.disputed')}</p><Money sen={d.ledger.disputedSen} animate className="font-semibold" /></div>
+              <div><p className="text-xs text-ink-2">{t('supplier.creditLabel')}</p><Money sen={d.ledger.creditCarrySen} animate className="font-semibold" /></div>
+              <div><p className="text-xs text-ink-2">{t('supplier.statement')}</p><Money sen={d.ledger.owedSen} animate className="font-semibold" /></div>
+            </div>
             {d.ledger.creditCarrySen > 0 && <p className="mt-2 text-sm font-medium text-ok">{t('supplier.credit', { rm: formatMoney(d.ledger.creditCarrySen, 'MYR') })}</p>}
+            <p className="mt-2 text-xs text-ink-2">{t('sup.statementHelp')}</p>
           </Card>
           <section>
             <h2 className="mb-2 text-lg font-semibold">{t('sup.invoices')}</h2>

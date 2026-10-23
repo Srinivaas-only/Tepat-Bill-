@@ -33,9 +33,9 @@ function diskStorage(): Storage {
   };
 }
 
-function replitStorage(): Storage {
+function replitClient(): { client: Client; storage: Storage } {
   const c = new Client();
-  return {
+  const storage: Storage = {
     async put(k, b) {
       const r = await c.uploadFromBytes(k, b);
       if (!r.ok) throw new Error(`storage put failed: ${r.error?.message}`);
@@ -54,15 +54,30 @@ function replitStorage(): Storage {
       return e.ok && e.value;
     },
   };
+  return { client: c, storage };
 }
 
+/** Lazy wrapper: `new Client()` never throws, so probe once on first use and fall back to local disk if App Storage is unreachable. */
 export function makeStorage(): Storage {
-  try {
-    return replitStorage();
-  } catch (e) {
-    console.warn('[storage] App Storage unavailable, using local disk:', (e as Error).message);
-    return diskStorage();
-  }
+  if (process.env.STORAGE_DRIVER === 'disk') return diskStorage();
+  let impl: Promise<Storage> | null = null;
+  const pick = () => impl ??= (async () => {
+    try {
+      const r = replitClient();
+      const probe = await r.client.exists('__probe__');
+      if (!probe.ok) throw new Error(probe.error?.message ?? 'probe failed');
+      return r.storage;
+    } catch (e) {
+      console.warn('[storage] App Storage unavailable, using local disk:', (e as Error).message);
+      return diskStorage();
+    }
+  })();
+  return {
+    async put(k, b) { return (await pick()).put(k, b); },
+    async get(k) { return (await pick()).get(k); },
+    async stream(k) { return (await pick()).stream(k); },
+    async exists(k) { return (await pick()).exists(k); },
+  };
 }
 
 export const docExt = (mime: string) => (mime === 'image/png' ? 'png' : mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'bin');

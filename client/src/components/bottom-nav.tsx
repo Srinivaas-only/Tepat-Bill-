@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'wouter';
 import { Home, Flag, Users, Menu, ScanLine } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { Key } from '@/i18n/ms';
@@ -12,7 +14,9 @@ const items: { to: string; key: Key; icon: typeof Home; match: (p: string) => bo
   { to: '/more', key: 'nav.more', icon: Menu, match: p => ['/more', '/orders', '/activity', '/settings'].some(x => p.startsWith(x)) },
 ];
 
-export function BottomNav({ flagBadge = 0 }: { flagBadge?: number }) {
+export function BottomNav() {
+  const home = useQuery({ queryKey: ['home'], refetchOnMount: 'always', queryFn: () => api.get<{ needsActionCount: number; followUpCount: number }>('/home') });
+  const flagBadge = (home.data?.needsActionCount ?? 0) + (home.data?.followUpCount ?? 0);
   const [loc] = useLocation();
   const { t } = useI18n();
   const tab = (i: (typeof items)[number]) => {

@@ -60,13 +60,20 @@ export function createApp(deps: AppDeps): Express {
 export function mountErrorHandlers(app: Express) {
   app.use('/api', stubRouter());
   app.use('/api', (_req, res) => { res.status(404).json({ error: { code: 'not_found', message: 'Not found' } }); });
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) { next(err); return; }
     if (err instanceof ApiError) {
       res.status(err.status).json({ error: { code: err.code, message: err.message, ...err.extra } });
       return;
     }
     if (err && typeof err === 'object' && (err as { name?: string }).name === 'MulterError') {
-      res.status(413).json({ error: { code: 'too_large', message: 'Fail terlalu besar' } });
+      if ((err as { code?: string }).code === 'LIMIT_FILE_SIZE') res.status(413).json({ error: { code: 'too_large', message: 'Fail terlalu besar' } });
+      else res.status(400).json({ error: { code: 'bad_request', message: 'Muat naik tidak sah' } });
+      return;
+    }
+    const st = (err as { status?: number; statusCode?: number } | null)?.status ?? (err as { statusCode?: number } | null)?.statusCode;
+    if (typeof st === 'number' && st >= 400 && st <= 499) {
+      res.status(st).json({ error: { code: 'bad_request', message: 'Permintaan tidak sah' } });
       return;
     }
     console.error('[error]', err);

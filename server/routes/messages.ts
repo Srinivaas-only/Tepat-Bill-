@@ -56,8 +56,10 @@ export function messagesRouter(deps: AppDeps) {
   r.post('/flags/sent', requireCan('send_message'), async (req, res) => {
     const body = z.object({ flagIds: z.array(z.string()).min(1) }).safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Data tidak sah');
-    const rows = await db.select().from(S.flags).where(inArray(S.flags.id, body.data.flagIds));
-    if (rows.length !== body.data.flagIds.length) throw new ApiError(404, 'not_found', 'Aduan tiada');
+    const ids = [...new Set(body.data.flagIds)];
+    const rows = await db.select().from(S.flags).where(inArray(S.flags.id, ids));
+    if (rows.length !== ids.length) throw new ApiError(404, 'not_found', 'Aduan tiada');
+    if (new Set(rows.map(x => x.invoiceId)).size > 1) throw new ApiError(400, 'bad_request', 'Aduan mesti dari invois yang sama');
     const at = Date.now();
     await db.transaction(async tx => {
       for (const row of rows) {

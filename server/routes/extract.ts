@@ -3,15 +3,17 @@ import { z } from 'zod';
 import { eq, sql } from 'drizzle-orm';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { cacheKey, makeGemini, MODELS, type ExtractedDoc } from '../../shared/core/extract';
+import { cacheKey, extractWithFallback, makeGemini, MODELS, type ExtractedDoc, type ExtractResult } from '../../shared/core/extract';
 import * as S from '../../shared/schema';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth } from '../auth';
 import { logEvent } from '../events';
-import { readDocument } from '../gemini';
 
-const EXTRACT_TIMEOUT_MS = Number(process.env.EXTRACT_TIMEOUT_MS ?? 45_000);
+const envTimeout = Number(process.env.EXTRACT_TIMEOUT_MS ?? 45_000);
+const EXTRACT_TIMEOUT_MS = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 45_000;
+/** One Gemini call per file even when the same bytes are extracted concurrently. */
+const inflight = new Map<string, Promise<ExtractResult | { ok: false; needsManualEntry: true; reason: string }>>();
 const DOC_TYPE: Record<string, ExtractedDoc['docType']> = { po: 'purchase_order', invoice: 'invoice', delivery_note: 'delivery_note' };
 const fixturesDir = () => path.resolve(process.cwd(), 'fixtures', 'docs');
 const demoOn = () => process.env.DEMO_FIXTURES === '1';
@@ -55,14 +57,16 @@ export function extractRouter(deps: AppDeps) {
     const bytes = await deps.storage.get(doc.storageKey);
     if (!bytes) throw new ApiError(404, 'not_found', 'Fail tiada');
     const role = req.role!;
-    const work = (async () => {
+    const existing = inflight.get(doc.sha256);
+    const work = existing ?? (async () => {
       let models;
       try { models = deps.gemini ? deps.gemini() : makeGemini(process.env.GEMINI_API_KEY); }
       catch (e) { return { ok: false as const, needsManualEntry: true as const, reason: `setup: ${(e as Error).name}` }; }
-      const out = await readDocument(models.primary, models.fallback, bytes, doc.mime);
+      const out = await extractWithFallback(models.primary, models.fallback, bytes, doc.mime);
       if (out.ok) await record(doc.sha256, MODELS[out.model], out.doc, doc.id, role);
       return out;
     })();
+    if (!existing) { inflight.set(doc.sha256, work); void work.finally(() => inflight.delete(doc.sha256)).catch(() => {}); }
     work.catch(e => console.error('[extract] late failure', e));
     const timeout = new Promise<'timeout'>(resolve => setTimeout(() => resolve('timeout'), EXTRACT_TIMEOUT_MS).unref?.());
     const out = await Promise.race([work, timeout]);

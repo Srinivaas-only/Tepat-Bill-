@@ -79,7 +79,10 @@ export function countsRouter(deps: AppDeps) {
       await logEvent(tx, req.role!, 'delivery.record_counts', id, { flags: detected.length });
       return await tx.select().from(S.flags).where(eq(S.flags.invoiceId, id));
     });
-    res.json({ flags: await toViews(db, out) });
+    const flags = await toViews(db, out);
+    // claimable = everything except price decreases (those are good news, nothing to claim)
+    const totalSen = flags.filter(f => f.status === 'proposed' && !(f.type === 'price_change' && f.direction === 'down')).reduce((a, f) => a + f.amountSen, 0);
+    res.json({ flags, totalSen });
   });
 
   r.get('/flags', async (req, res) => {

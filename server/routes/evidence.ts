@@ -40,8 +40,10 @@ export function evidenceRouter(deps: AppDeps) {
     const siblings = sibRows.filter(s => s.sentAt?.getTime() === row.sentAt!.getTime())
       .map(s => ({ type: s.type, description: lines.find(l => l.lineId === s.invoiceLineId)?.description ?? '', amountSen: s.amountSen, status: s.status }));
     const [shop] = await db.select().from(S.settings).where(eq(S.settings.key, 'shop'));
+    const [idoc] = inv.documentId ? await db.select({ width: S.documents.width, height: S.documents.height }).from(S.documents).where(eq(S.documents.id, inv.documentId)) : [];
     const [sup] = await db.select({ name: S.suppliers.name }).from(S.suppliers).where(eq(S.suppliers.id, row.supplierId));
-    res.json({ ...payload, siblings, shopName: (shop?.value as { name?: string } | undefined)?.name ?? '', supplierName: sup?.name ?? '' });
+    res.json({ ...payload, siblings, shopName: (shop?.value as { name?: string } | undefined)?.name ?? '', supplierName: sup?.name ?? '',
+      invoiceDocDate: inv.docDate ?? inv.issuedAt.toISOString().slice(0, 10), invoiceDoc: idoc ? { width: idoc.width, height: idoc.height } : null });
   });
 
   r.get('/public/evidence/:token/photo/:documentId', async (req, res) => {
@@ -51,7 +53,7 @@ export function evidenceRouter(deps: AppDeps) {
     const [doc] = await db.select().from(S.documents).where(eq(S.documents.id, link.documentId));
     const stream = doc ? await deps.storage.stream(doc.storageKey) : null;
     if (!doc || !stream) throw new ApiError(404, 'not_found', 'Tiada');
-    res.set({ 'Content-Type': doc.mime, 'Cache-Control': 'private, max-age=3600' });
+    res.set({ 'Content-Type': doc.mime, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
     stream.on('error', () => res.destroy());
     stream.pipe(res);
   });

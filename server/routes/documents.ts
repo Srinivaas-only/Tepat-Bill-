@@ -30,6 +30,11 @@ export function documentsRouter(deps: AppDeps) {
   r.post('/documents', upload.single('file'), async (req, res) => {
     if (!req.file) throw new ApiError(400, 'bad_request', 'Tiada fail');
     if (!ALLOWED.has(req.file.mimetype)) throw new ApiError(422, 'unsupported_type', 'Jenis fail tidak disokong');
+    const b0 = req.file.buffer;
+    const magicOk = req.file.mimetype === 'image/png' ? b0.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+      : req.file.mimetype === 'image/jpeg' ? b0.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))
+      : b0.subarray(0, 4).toString('latin1') === 'RIFF' && b0.subarray(8, 12).toString('latin1') === 'WEBP';
+    if (!magicOk) throw new ApiError(415, 'unsupported_type', 'Fail bukan imej yang sah');
     const body = Body.safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Data tidak sah');
     const sha256 = cacheKey(req.file.buffer);
@@ -50,7 +55,7 @@ export function documentsRouter(deps: AppDeps) {
     if (!doc) throw new ApiError(404, 'not_found', 'Dokumen tiada');
     const stream = await deps.storage.stream(doc.storageKey);
     if (!stream) throw new ApiError(404, 'not_found', 'Fail tiada');
-    res.set({ 'Content-Type': doc.mime, 'Cache-Control': 'private, max-age=3600' });
+    res.set({ 'Content-Type': doc.mime, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
     stream.on('error', () => res.destroy());
     stream.pipe(res);
   });

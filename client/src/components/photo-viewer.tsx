@@ -4,7 +4,8 @@ import { X } from 'lucide-react';
 import { useI18n } from '@/i18n';
 
 /** Full-screen pinch/zoom viewer. */
-export function PhotoViewer({ src, onClose }: { src: string | null; onClose: () => void }) {
+/** `box` = [ymin,xmin,ymax,xmax] in 0-1000, drawn over the zoomed image. */
+export function PhotoViewer({ src, onClose, box }: { src: string | null; onClose: () => void; box?: [number, number, number, number] | null }) {
   const { t } = useI18n();
   return (
     <D.Root open={!!src} onOpenChange={o => !o && onClose()}>
@@ -15,7 +16,14 @@ export function PhotoViewer({ src, onClose }: { src: string | null; onClose: () 
           {src && (
             <TransformWrapper minScale={1} maxScale={5} doubleClick={{ mode: 'zoomIn' }}>
               <TransformComponent wrapperStyle={{ width: '100vw', height: '100dvh' }} contentStyle={{ width: '100vw', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src={src} alt="" className="max-h-full max-w-full object-contain" draggable={false} />
+                <div className="relative inline-block">
+                  <img src={src} alt="" className="block max-h-[100dvh] max-w-[100vw] object-contain" draggable={false} />
+                  {box && (
+                    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden>
+                      <rect className="hl-pulse" x={box[1]} y={box[0]} width={box[3] - box[1]} height={box[2] - box[0]} rx={6} fill="var(--brand)" stroke="var(--brand)" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+                    </svg>
+                  )}
+                </div>
               </TransformComponent>
             </TransformWrapper>
           )}

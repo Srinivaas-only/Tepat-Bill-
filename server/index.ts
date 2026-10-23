@@ -6,8 +6,17 @@ import { createApp, mountErrorHandlers } from './app';
 import { getDb } from './db';
 import { makeStorage } from './storage';
 import { seedIfEmpty } from './seed';
+import { getPins } from './auth';
+
+function assertProductionConfig() {
+  if (process.env.NODE_ENV !== 'production') return;
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) { console.error('[config] SESSION_SECRET must be set and at least 32 characters in production'); process.exit(1); }
+  try { getPins(); } catch (e) { console.error(`[config] ${(e as Error).message}`); process.exit(1); }
+}
 
 async function main() {
+  assertProductionConfig();
   const { db } = getDb();
   const storage = makeStorage();
   if (process.env.SEED_ON_BOOT === '1') await seedIfEmpty(db, storage);

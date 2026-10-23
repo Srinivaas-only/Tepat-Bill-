@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Copy } from 'lucide-react';
 import { toast } from 'sonner';
+import { waLink } from '@shared/core';
 import { api } from '@/lib/api';
 import { useI18n } from '@/i18n';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -19,14 +20,20 @@ export function MessageSheet({ flagId, open, onOpenChange, reminder }: { flagId:
   const { t, lang: uiLang } = useI18n();
   const qc = useQueryClient();
   const [lang, setLang] = useState<'ms' | 'en'>(uiLang === 'en' ? 'en' : 'ms');
-  const q = useQuery({ queryKey: ['message', flagId, lang, reminder], enabled: open, gcTime: 0,
-    queryFn: () => api.get<Msg>(`/flags/${flagId}/message?lang=${lang}${reminder ? '&reminder=1' : ''}`) });
+  // capture `reminder` once per opening: a refetch after "sent" must not flip an in-flight first send into a reminder
+  const [rem, setRem] = useState(reminder);
+  useEffect(() => { if (open) setRem(reminder); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open]);
+  const q = useQuery({ queryKey: ['message', flagId, lang, rem], enabled: open, gcTime: 0,
+    queryFn: () => api.get<Msg>(`/flags/${flagId}/message?lang=${lang}${rem ? '&reminder=1' : ''}`) });
   const sent = useMutation({
     mutationFn: (ids: string[]) => api.post('/flags/sent', { flagIds: ids }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['flag', flagId] }); void qc.invalidateQueries({ queryKey: ['flags'] }); },
   });
   const m = q.data;
-  const copy = async () => { if (!m) return; try { await navigator.clipboard.writeText(m.text); toast.success(t('flag.copied')); } catch { toast.error(t('common.error')); } };
+  const [text, setText] = useState('');
+  useEffect(() => { if (m) setText(m.text); }, [m?.text]);
+  const now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const copy = async () => { if (!m) return; try { await navigator.clipboard.writeText(text); toast.success(t('flag.copied')); } catch { toast.error(t('common.error')); } };
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent title={t('flag.msgTitle')}>
@@ -34,10 +41,16 @@ export function MessageSheet({ flagId, open, onOpenChange, reminder }: { flagId:
           <Tabs value={lang} onValueChange={v => setLang(v as 'ms' | 'en')}><TabsList><TabsTrigger value="ms">{t('flag.langMs')}</TabsTrigger><TabsTrigger value="en">{t('flag.langEn')}</TabsTrigger></TabsList></Tabs>
           {!m ? <Skeleton className="h-56 w-full" /> : (
             <>
-              <pre className="max-h-[40dvh] overflow-y-auto whitespace-pre-wrap break-words rounded-2xl bg-surface-2 p-4 font-sans text-sm leading-5">{m.text}</pre>
+              <div className="rounded-2xl bg-surface-2 p-3">
+                <div className="relative ml-auto max-w-[94%] rounded-2xl rounded-tr-sm bg-white p-3 shadow-card">
+                  <textarea aria-label={t('flag.msgTitle')} value={text} onChange={e => setText(e.target.value)} rows={9}
+                    className="max-h-[36dvh] w-full resize-none bg-transparent font-sans text-sm leading-5 outline-none" />
+                  <span className="tnum block text-right text-[11px] text-ink-2">{now}</span>
+                </div>
+              </div>
               {!m.phone && <p className="text-sm text-ink-2">{t('flag.noNumber')}</p>}
               <Button variant="wa" block asChild>
-                <a href={m.link} target="_blank" rel="noopener noreferrer" onClick={() => sent.mutate(m.flagIds)}><WaGlyph />{t('flag.openWa')}</a>
+                <a href={waLink(text, m.phone ?? undefined)} target="_blank" rel="noopener noreferrer" onClick={() => { sent.mutate(m.flagIds); onOpenChange(false); }}><WaGlyph />{t('flag.openWa')}</a>
               </Button>
               <Button variant="secondary" block onClick={copy}><Copy size={18} aria-hidden />{t('flag.copy')}</Button>
             </>

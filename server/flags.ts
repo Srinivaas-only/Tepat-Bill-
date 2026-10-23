@@ -3,7 +3,7 @@ import { and, eq, inArray, ne } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { randomBytes } from 'node:crypto';
 import * as S from '../shared/schema';
-import { autofillPriceList, detectFlags, matchLine, type DetectedFlag, type InvLine, type PoLine, type PriceList } from '../shared/core';
+import { autofillPriceList, detectFlags, matchLine, normalise, tokenOverlap, type DetectedFlag, type InvLine, type PoLine, type PriceList } from '../shared/core';
 import type { Db } from './db';
 import { aliasTableFromRows, cleanPriceList, detectedToRow, invLineRowToCore, poLineRowToCore, priceListFromRows, slug } from './core-adapters';
 
@@ -33,9 +33,17 @@ export async function loadContext(db: Conn, invoiceId: string): Promise<InvoiceC
   }
   const implicit = !inv.poId;
   // no PO ("Tiada PO"): implicit PO built from the invoice lines so not_ordered cannot fire for the whole bill (notes 17)
-  if (implicit) po = invLines.map(l => ({ sku: slug(l.description), description: l.description, orderedQty: l.qty }));
   const aliases = aliasTableFromRows(await db.select().from(S.aliases).where(eq(S.aliases.supplierId, inv.supplierId)));
   const priceNow = priceListFromRows(await db.select().from(S.priceList).where(eq(S.priceList.supplierId, inv.supplierId)));
+  if (implicit) {
+    const known = Object.keys(priceNow);
+    const skuDesc = new Map(known.map(sku => [sku, sku.replace(/[-_]/g, ' ')]));
+    po = invLines.map(l => {
+      const aliased = aliases[inv.supplierId]?.[normalise(l.description)];
+      const near = known.find(sku => tokenOverlap(l.description, skuDesc.get(sku)!) >= 0.6);
+      return { sku: aliased ?? near ?? slug(l.description), description: l.description, orderedQty: l.qty };
+    });
+  }
   const savedRows = await db.select().from(S.receivedCounts).where(eq(S.receivedCounts.invoiceId, invoiceId));
   return { inv, lines, invLines, po, implicitPo: implicit, poRow, aliases, priceNow, saved: Object.fromEntries(savedRows.map(r => [r.key, r.qty])) };
 }
@@ -58,21 +66,35 @@ export function runDetection(c: InvoiceContext, counts: Record<string, number>, 
   return detectFlags({ supplierId: c.inv.supplierId, po: c.po, invoice: c.invLines, received: counts, priceList: snapshot, aliases: c.aliases });
 }
 
-/** Replace proposed flags with the new detection; keep flags whose (line,type) already exists with status != proposed. Attach photos. */
+/**
+ * Sync proposed flags with the new detection. A proposed row with the same (line, type) is UPDATED in place so its id and evidence token
+ * stay stable (open /flags/:id pages keep working); new ones are inserted; proposed rows that no longer match are deleted.
+ * Flags with status != proposed are untouched. Attach photos.
+ */
 export async function replaceProposedFlags(db: Conn, c: InvoiceContext, detected: DetectedFlag[]) {
   const existing = await db.select().from(S.flags).where(eq(S.flags.invoiceId, c.inv.id));
-  const kept = new Set(existing.filter(f => f.status !== 'proposed').map(f => `${f.invoiceLineId}:${f.type}`));
-  const proposedIds = existing.filter(f => f.status === 'proposed').map(f => f.id);
-  if (proposedIds.length) {
-    await db.delete(S.flagPhotos).where(inArray(S.flagPhotos.flagId, proposedIds));
-    await db.delete(S.flags).where(inArray(S.flags.id, proposedIds));
+  const keyOf = (line: string, type: string) => `${line}:${type}`;
+  const kept = new Set(existing.filter(f => f.status !== 'proposed').map(f => keyOf(f.invoiceLineId, f.type)));
+  const proposed = new Map(existing.filter(f => f.status === 'proposed').map(f => [keyOf(f.invoiceLineId, f.type), f]));
+  const inserts: ReturnType<typeof detectedToRow>[] = [];
+  const matched = new Set<string>();
+  for (const d of detected) {
+    const k = keyOf(d.invoiceLineId, d.type);
+    if (kept.has(k)) continue;
+    const row = detectedToRow(d, { id: `flg_${nanoid(10)}`, token: randomBytes(16).toString('hex'), supplierId: c.inv.supplierId, invoiceId: c.inv.id, poId: c.inv.poId });
+    const old = proposed.get(k);
+    if (old) {
+      matched.add(k);
+      const { id: _i, evidenceToken: _t, supplierId: _s, invoiceId: _v, ...patch } = row;
+      await db.update(S.flags).set(patch).where(eq(S.flags.id, old.id));
+    } else inserts.push(row);
   }
-  const fresh = detected.filter(d => !kept.has(`${d.invoiceLineId}:${d.type}`));
-  if (fresh.length) {
-    await db.insert(S.flags).values(fresh.map(d => detectedToRow(d, {
-      id: `flg_${nanoid(10)}`, token: randomBytes(16).toString('hex'), supplierId: c.inv.supplierId, invoiceId: c.inv.id, poId: c.inv.poId,
-    })));
+  const staleIds = [...proposed.entries()].filter(([k]) => !matched.has(k)).map(([, f]) => f.id);
+  if (staleIds.length) {
+    await db.delete(S.flagPhotos).where(inArray(S.flagPhotos.flagId, staleIds));
+    await db.delete(S.flags).where(inArray(S.flags.id, staleIds));
   }
+  if (inserts.length) await db.insert(S.flags).values(inserts);
   await attachPhotos(db, c);
 }
 
@@ -89,7 +111,7 @@ export async function attachPhotos(db: Conn, c: Pick<InvoiceContext, 'inv' | 'po
 
 /** First save only: autofill last_invoice prices from the matched lines, skipping skus with an upward price flag (core rule). */
 export async function firstSaveAutofill(db: Conn, c: InvoiceContext, detected: DetectedFlag[]) {
-  const skip = new Set(detected.filter(d => d.type === 'price_change' && d.direction === 'up' && d.sku).map(d => d.sku!));
+  const skip = new Set(detected.filter(d => d.type === 'price_change' && d.sku).map(d => d.sku!));
   const lines = c.invLines.flatMap(l => {
     const m = matchLine(c.inv.supplierId, l, c.po, c.aliases);
     return m ? [{ sku: m.sku, unitPriceSen: l.unitPriceSen }] : [];

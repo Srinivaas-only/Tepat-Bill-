@@ -52,7 +52,7 @@ export function ordersRouter(deps: AppDeps) {
       name: z.string().trim().min(1).max(120).optional(), whatsapp: z.string().trim().max(30).nullable().optional(),
       isForeign: z.boolean().optional(), country: z.string().trim().max(4).nullable().optional(), policyNote: z.string().trim().max(500).nullable().optional(),
     }).safeParse(req.body);
-    if (!body.success) throw new ApiError(400, 'bad_request', 'Data tidak sah');
+    if (!body.success || Object.keys(body.data).length === 0) throw new ApiError(400, 'bad_request', 'Data tidak sah');
     const id = String(req.params.id);
     const [s] = await db.update(S.suppliers).set(body.data).where(eq(S.suppliers.id, id)).returning();
     if (!s) throw new ApiError(404, 'not_found', 'Pembekal tiada');
@@ -77,6 +77,8 @@ export function ordersRouter(deps: AppDeps) {
       if (b.documentId) {
         const [doc] = await tx.select().from(S.documents).where(eq(S.documents.id, b.documentId));
         if (!doc || doc.kind !== 'po') throw new ApiError(422, 'bad_document', 'Dokumen tidak sah');
+        const [used] = await tx.select({ id: S.purchaseOrders.id }).from(S.purchaseOrders).where(eq(S.purchaseOrders.documentId, b.documentId));
+        if (used) throw new ApiError(409, 'duplicate_document', 'Dokumen ini sudah digunakan untuk pesanan lain');
       }
       const poNo = poNumber(orderedAt, seqRow.seq);
       const existing = await tx.select({ sku: S.priceList.sku }).from(S.priceList).where(eq(S.priceList.supplierId, supplierId));

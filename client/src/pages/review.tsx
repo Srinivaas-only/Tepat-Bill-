@@ -31,6 +31,9 @@ let rowKey = 0;
 const blankRow = (): Row => ({ key: ++rowKey, description: '', qty: '1', unit: '', price: '', box: null });
 const label = 'mb-1 block text-sm font-medium text-ink-2';
 
+/** The AI often returns 'RM' (or nothing) for ringgit; the API only knows ISO codes. */
+const normCur = (c?: string | null) => { const u = (c ?? '').trim().toUpperCase(); return !u || u === 'RM' ? 'MYR' : u; };
+
 export default function Review() {
   const params = useParams<{ kind: string; id: string }>();
   const kind: 'po' | 'invoice' = params.kind === 'po' ? 'po' : 'invoice';
@@ -76,18 +79,19 @@ export default function Review() {
     if (read.data.status !== 'ok') return;
     const d = read.data.doc;
     setRows(d.lines.length ? d.lines.map(l => ({ key: ++rowKey, description: l.description, qty: String(l.qty), unit: l.unit ?? '', price: l.unitPrice ?? '', box: (l.box_2d ?? null) as Box | null })) : [blankRow()]);
-    setInvoiceNo(d.docNo ?? ''); setDocDate(d.docDate ?? ''); setCurrency((d.currency ?? 'MYR').toUpperCase());
+    setInvoiceNo(d.docNo ?? ''); setDocDate(d.docDate ?? ''); setCurrency(normCur(d.currency));
     setPrinted(d.totalAmount ?? ''); setCountry(d.supplierCountry);
-    if ((d.currency ?? '').toUpperCase() === 'USD') setRate('4.20');
+    if (normCur(d.currency) === 'USD') setRate('4.20');
     const best = suppliers.data.suppliers.map(s => ({ s, o: tokenOverlap(d.supplierName, s.name) })).sort((a, b) => b.o - a.o)[0];
     if (best && best.o >= 0.6) setSupplierId(best.s.id); else setNewName(d.supplierName);
   }, [read.data, suppliers.data, isNew]);
 
   const supplier = suppliers.data?.suppliers.find(s => s.id === supplierId);
   const supplierName = supplier?.name ?? newName;
-  const foreignInvoice = kind === 'invoice' && currency.toUpperCase() !== 'MYR';
+  const cur = normCur(currency);
+  const foreignInvoice = kind === 'invoice' && cur !== 'MYR';
   const boxes = useMemo(() => rows.map(r => r.box), [rows]);
-  const offerForeign = kind === 'invoice' && !foreignOk && !supplier?.isForeign && looksForeign(currency, country);
+  const offerForeign = kind === 'invoice' && !foreignOk && !supplier?.isForeign && looksForeign(cur, country);
 
   // ---- PO suggestion (invoice only)
   const sugg = useQuery({
@@ -118,7 +122,7 @@ export default function Review() {
           lines: rows.map(r => ({ description: r.description.trim(), qty: Number(r.qty), unit: r.unit.trim() || undefined, unitPriceSen: r.price ? unitOf(r) : null, box: r.box })) }) };
       }
       const bp = toBp(rate);
-      return { inv: await api.post<{ id: string }>('/invoices', { ...sup, documentId: docId ?? undefined, poId: effectivePoId, invoiceNo: invoiceNo.trim(), docDate: docDate || undefined, currency,
+      return { inv: await api.post<{ id: string }>('/invoices', { ...sup, documentId: docId ?? undefined, poId: effectivePoId, invoiceNo: invoiceNo.trim(), docDate: /^\d{4}-\d{2}-\d{2}$/.test(docDate) ? docDate : undefined, currency: cur,
         ...(foreignInvoice ? { exchangeRateBp: bp, totalForeignMinor: printedMinor } : { totalSen: printedMinor }),
         lines: rows.map(r => ({ description: r.description.trim(), qty: Number(r.qty), unit: r.unit.trim() || undefined, box: r.box,
           ...(foreignInvoice ? { unitPriceForeignMinor: unitOf(r) } : { unitPriceSen: unitOf(r) }) })) }) };
@@ -130,7 +134,11 @@ export default function Review() {
       else nav(`/invoices/${r.inv!.id}/count`, { replace: true });
     },
     onError: e => {
-      if (e instanceof ApiError && e.code === 'duplicate_invoice') setDup(String(e.extra?.invoiceId));
+      if (e instanceof ApiError && e.code === 'duplicate_invoice') {
+        const existing = String(e.extra?.invoiceId);
+        setDup(existing);
+        toast.error(t('review.dupToast'), { action: { label: t('review.openExisting'), onClick: () => nav(`/invoices/${existing}`) } });
+      } else if (e instanceof ApiError && e.code === 'po_supplier_mismatch') toast.error(t('review.poOtherSupplier'));
       else toast.error(t('common.error'));
     },
   });

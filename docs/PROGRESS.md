@@ -31,3 +31,8 @@
 
 ## Demo script status
 - [x] PRD section 12 demo runs end to end with no manual fixes (one tester run; Home 'Selesai' reads RM121.90 because the seed already has RM31.90 settled)
+
+## Fix round 1 (FIX_PROMPT_1)
+Verified: `npm test` 100/100, typecheck ok, build ok, deploy smoke (production build on a spare port: /api/health ok, / returns HTML; production exits with a clear message when SESSION_SECRET is missing). One browser pass at 390px, steps a–h all ok (Pay now RM872.00 after settling; no reminder logged on first send; evidence page works logged out; staff sees no owner buttons).
+Done: items 1–29, 35, and part of 36. Not done (logged in DECISIONS_LOG): 30–34, rest of 36.
+Not verified: the WhatsApp chat picker on a real phone; the evidence-line pulse animation (still screenshots only); Lighthouse speed/accessibility scores; RM962.00 before-value was not sampled in the browser (covered by the API test); deploy smoke used port 5056 not 5055. Demo data was reset afterwards and the workflow restarted with the normal secrets.

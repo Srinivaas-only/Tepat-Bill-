@@ -27,7 +27,7 @@ const Fallback = () => <div className="space-y-3 p-5"><Skeleton className="h-8 w
 
 function NavGate() {
   const [loc] = useLocation();
-  return /^\/(read|review|bon)\b/.test(loc) || /^\/invoices\/[^/]+\/count/.test(loc) ? null : <BottomNav />;
+  return /^\/(read|review|bon)\b/.test(loc) || /^\/invoices\/[^/]+\/count/.test(loc) || /^\/flags\/[^/]+/.test(loc) ? null : <BottomNav />;
 }
 
 function AppShell() {

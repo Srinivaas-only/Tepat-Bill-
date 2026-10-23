@@ -8,6 +8,7 @@ import { makeDb } from './db';
 import { memoryStorage } from './storage';
 import { createApp, mountErrorHandlers } from './app';
 import { seedDatabase } from './seed';
+import { parseRM } from '../shared/core';
 
 const owner = process.env.OWNER_PIN ?? '1234';
 const staff = process.env.STAFF_PIN ?? '5678';
@@ -49,11 +50,12 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
   });
 
   it('PO numbering continues the month sequence and mints skus', async () => {
+    const seq0 = Number((await pool.query("select (value #>> '{}')::int as v from test.settings where key = 'po_seq:' || to_char(now(), 'YYMM')")).rows[0]?.v ?? 0);
     const a = await call('POST', '/api/pos', staffCookie, { supplierId: 'sup_ali', source: 'typed', lines: [{ description: 'Gula pasir 1kg', qty: 5 }, { description: 'Teh Boh', qty: 2, unitPriceSen: 1250 }] });
     expect(a.status).toBe(201);
-    expect(a.json.poNo).toMatch(/^PO-\d{4}-006$/);
+    expect(a.json.poNo).toMatch(new RegExp(`^PO-\\d{4}-${String(seq0 + 1).padStart(3, '0')}$`));
     const b = await call('POST', '/api/pos', staffCookie, { newSupplier: { name: 'Kedai Baru Sdn Bhd' }, source: 'typed', lines: [{ description: 'Roti', qty: 1 }, { description: 'Roti', qty: 1 }] });
-    expect(b.json.poNo).toMatch(/-007$/);
+    expect(b.json.poNo).toMatch(new RegExp(`-${String(seq0 + 2).padStart(3, '0')}$`));
     const detail = await call('GET', `/api/pos/${a.json.id}`, staffCookie);
     expect(detail.json.lines.map((l: any) => l.sku)).toEqual(['gula-pasir-1kg', 'teh-boh']);
     const d2 = await call('GET', `/api/pos/${b.json.id}`, staffCookie);
@@ -79,7 +81,7 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
 
   it('INV-2291: counts {line:L1: 8} give exactly the Maggi short (RM90) and Gula price (RM20) flags', async () => {
     const e = JSON.parse(readFileSync('fixtures/docs/invoice_borong_ali_INV-2291.expected.json', 'utf8'));
-    const lines = e.lines.map((l: any) => ({ description: l.description, qty: l.qty, unitPriceSen: Math.round(parseFloat(l.unitPrice) * 100) }));
+    const lines = e.lines.map((l: any) => ({ description: l.description, qty: l.qty, unitPriceSen: parseRM(l.unitPrice) }));
     const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', poId: 'po_004', invoiceNo: 'INV-2291', currency: 'MYR', lines, totalSen: 99390 });
     expect(inv.status).toBe(201);
     const put = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 8 } });
@@ -95,6 +97,13 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
     // gula baseline did not get overwritten by the disputed new price
     const pl = await pool.query("select last_invoice_sen from test.price_list where supplier_id='sup_ali' and sku='gula-pasir-1kg'");
     expect(pl.rows[0].last_invoice_sen).toBe(280);
+    // the money shot: Pay now drops RM962.00 -> RM872.00 once the Maggi short is approved (deduct) and settled `deducted`
+    const ledger0 = await call('GET', '/api/suppliers/sup_ali/ledger', ownerCookie);
+    expect(ledger0.json.ledger.payNowSen).toBe(96200);
+    const maggi = put.json.flags.find((f: any) => f.type === 'short_qty');
+    expect((await call('POST', `/api/flags/${maggi.id}/approve`, ownerCookie, { request: 'deduct' })).status).toBe(200);
+    expect((await call('POST', `/api/flags/${maggi.id}/settle`, ownerCookie, { settlement: 'deducted' })).status).toBe(200);
+    expect((await call('GET', '/api/suppliers/sup_ali/ledger', ownerCookie)).json.ledger.payNowSen).toBe(87200);
   });
 
   it('no PO: implicit PO means no not_ordered flags', async () => {
@@ -150,14 +159,15 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
       const ev = await call('GET', `/api/public/evidence/${tok}`);
       expect(ev.status).toBe(200);
       expect(ev.headers.get('x-robots-tag')).toContain('noindex');
-      expect(Object.keys(ev.json).sort()).toEqual(['baseline', 'flag', 'highlight', 'invoice', 'photos', 'po', 'shopName', 'siblings', 'supplierName']);
+      expect(Object.keys(ev.json).sort()).toEqual(['baseline', 'flag', 'highlight', 'invoice', 'invoiceDoc', 'invoiceDocDate', 'photos', 'po', 'shopName', 'siblings', 'supplierName']);
       expect(ev.json.flag.amountSen).toBe(9000);
       expect(ev.json.siblings.every((s: any) => Object.keys(s).sort().join() === 'amountSen,description,status,type')).toBe(true);
       expect(JSON.stringify(ev.json)).not.toMatch(/evidenceToken|owed|supplierId/);
       expect((await call('GET', '/api/public/evidence/deadbeef')).status).toBe(404);
       const prop = (await call('GET', `/api/invoices/${invId}`, ownerCookie)).json.flags;
       expect(prop.length).toBeGreaterThan(0);
-      if (ev.json.photos[0]) expect((await fetch(base + ev.json.photos[0].url)).status).toBe(200);
+      expect(ev.json.photos.length).toBeGreaterThan(0);
+      expect((await fetch(base + ev.json.photos[0].url)).status).toBe(200);
       expect((await fetch(base + `/api/public/evidence/${tok}/photo/doc_nope`)).status).toBe(404);
     });
     it('dispute/reopen/settle move the ledger; payment and mark-correct are guarded', async () => {
@@ -227,8 +237,9 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
       expect(reuse.status).toBe(422);
       const pos = (await call('GET', '/api/pos', ownerCookie)).json.pos as { id: string; supplierId: string }[];
       const other = pos.find(x => x.supplierId !== 'sup_ali');
-      if (other) {
-        const mix = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', poId: other.id, invoiceNo: 'MIX-1', lines: [{ description: 'x', qty: 1, unitPriceSen: 100 }] });
+      expect(other).toBeTruthy();
+      {
+        const mix = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', poId: other!.id, invoiceNo: 'MIX-1', lines: [{ description: 'x', qty: 1, unitPriceSen: 100 }] });
         expect(mix.status).toBe(422);
       }
       const po = await call('POST', '/api/pos', staffCookie, { supplierId: 'sup_ali', source: 'typed', documentId: gz.documentId, lines: [{ description: 'x', qty: 1 }] });

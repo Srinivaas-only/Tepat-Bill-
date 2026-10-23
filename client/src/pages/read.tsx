@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -37,6 +37,8 @@ export default function Read() {
   const [statusI, setStatusI] = useState(0);
   const [ready, setReady] = useState(false);
   const [picker, setPicker] = useState(false);
+  const fixtureChosen = useRef(false);
+  const [beamOn, setBeamOn] = useState(true);
 
   const meta = useQuery({ queryKey: ['doc', id, rev], queryFn: () => api.get<DocMeta>(`/documents/${id}`) });
   const demo = useQuery({ queryKey: ['fixtures-on'], queryFn: () => api.get<{ fixtures: Fixture[] }>('/fixtures'), retry: false, staleTime: Infinity });
@@ -47,16 +49,24 @@ export default function Read() {
       const [r] = await Promise.all([api.post<ReadResult>(`/documents/${id}/extract`), sleep(holdMs())]);
       return r;
     },
-    onSuccess: setResult,
-    onError: () => setResult({ status: 'manual', reason: 'network' }),
+    onSuccess: r => { if (!fixtureChosen.current) setResult(r); },
+    onError: () => { if (!fixtureChosen.current) setResult({ status: 'manual', reason: 'network' }); },
   });
   useEffect(() => { extract.mutate(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
 
   useEffect(() => {
     if (result) return;
     const a = setInterval(() => setStatusI(i => (i + 1) % statuses.length), 1800);
-    const b = setTimeout(() => setSlow(true), 12_000);
-    return () => { clearInterval(a); clearTimeout(b); };
+    const b = setTimeout(() => setSlow(true), 7_000);
+    const c = setTimeout(() => setResult(r => r ?? { status: 'manual', reason: 'timeout' }), 45_000);
+    return () => { clearInterval(a); clearTimeout(b); clearTimeout(c); };
+  }, [result]);
+
+  // keep the beam mounted for 200ms (fading) once the result lands
+  useEffect(() => {
+    if (!result) { setBeamOn(true); return; }
+    const tm = setTimeout(() => setBeamOn(false), 200);
+    return () => clearTimeout(tm);
   }, [result]);
 
   const doc = result?.status === 'ok' ? result.doc : null;
@@ -90,7 +100,7 @@ export default function Read() {
         <div className="relative">
           <DocImage src={imgSrc} width={meta.data.width || 900} height={meta.data.height || 1180} alt={t(kind === 'po' ? 'scan.po' : 'scan.invoice')}
             layoutId={`doc-image-${id}`} boxes={boxes} drawFrom={doc ? 0 : undefined} maxHeight="52dvh" />
-          {reading && !reduce && <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-card"><ScanBeam /></div>}
+          {beamOn && !reduce && <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-card"><ScanBeam fading={!reading} /></div>}
         </div>
       ) : <Skeleton className="aspect-[3/4] w-full rounded-card" />}
 
@@ -122,6 +132,9 @@ export default function Read() {
           ))}
         </ul>
       )}
+      {doc && result?.status === 'ok' && result.model !== 'fixture' && demo.data && (
+        <Button variant="secondary" size="sm" className="mt-3" onClick={() => setPicker(true)}><FlaskConical size={16} aria-hidden />{t('read.useDemo')}</Button>
+      )}
 
       {result?.status === 'manual' && (
         <div className="mt-4 space-y-3 rounded-card bg-surface p-4 shadow-card">
@@ -144,7 +157,7 @@ export default function Read() {
         <SheetContent title={t('read.pickFixture')}>
           <div className="space-y-2">
             {fixtures.map(f => (
-              <Button key={f.name} variant="secondary" block className="h-auto justify-start py-3 text-left" disabled={useFixture.isPending} onClick={() => useFixture.mutate(f.name)}>
+              <Button key={f.name} variant="secondary" block className="h-auto justify-start py-3 text-left" disabled={useFixture.isPending} onClick={() => { fixtureChosen.current = true; useFixture.mutate(f.name); }}>
                 <span><span className="block">{f.supplierName}</span><span className="block text-xs font-normal text-ink-2">{f.docNo ?? f.name}</span></span>
               </Button>
             ))}

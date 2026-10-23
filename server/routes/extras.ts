@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import * as S from '../../shared/schema';
-import { approveDraft, prepareSelfBilled, releaseDraft, type Buyer, type SelfBilledDraft } from '../../shared/core';
+import { approveDraft, formatRM, prepareSelfBilled, releaseDraft, type Buyer, type SelfBilledDraft } from '../../shared/core';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
@@ -14,7 +14,7 @@ const csvCell = (v: string | number | null | undefined) => {
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // spreadsheet formula injection guard
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
-const rm = (sen: number) => `${sen < 0 ? '-' : ''}${Math.floor(Math.abs(sen) / 100)}.${String(Math.abs(sen) % 100).padStart(2, '0')}`;
+const rm = (sen: number) => formatRM(sen).replace('RM', '');
 const dmy = (d: Date | null) => (d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` : '');
 
 export function extrasRouter(deps: AppDeps) {
@@ -24,7 +24,7 @@ export function extrasRouter(deps: AppDeps) {
 
   r.get('/checks', async (_req, res) => {
     const [row] = await db.select().from(S.settings).where(eq(S.settings.key, 'checks_left'));
-    res.json({ checksLeft: Number(row?.value ?? 0) });
+    res.json({ checksLeft: Number(row?.value ?? 0), demo: process.env.DEMO_FIXTURES === '1' || process.env.NODE_ENV !== 'production' });
   });
 
   // ----- self-billed e-invoice preview (never submitted anywhere) -----
@@ -100,9 +100,9 @@ export function extrasRouter(deps: AppDeps) {
     res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="tepat-bill-export.csv"' }).send('\ufeff' + out.join('\r\n') + '\r\n');
   });
 
-  // ----- demo reset (dev only) -----
+  // ----- demo reset (dev, or a production deployment running in demo mode with DEMO_FIXTURES=1) -----
   r.post('/dev/reset', requireCan('edit_supplier'), async (req, res) => {
-    if (process.env.NODE_ENV === 'production') throw new ApiError(404, 'not_found', 'Tiada');
+    if (process.env.NODE_ENV === 'production' && process.env.DEMO_FIXTURES !== '1') throw new ApiError(404, 'not_found', 'Tiada');
     await seedDatabase(db, deps.storage, Date.now(), { quiet: true });
     await logEvent(db, req.role!, 'demo.reset', null);
     res.json({ ok: true });

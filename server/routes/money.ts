@@ -42,7 +42,7 @@ export function moneyRouter(deps: AppDeps) {
     const body = z.object({ settlement: z.enum(['redelivered', 'credit_note', 'deducted']) }).safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Data tidak sah');
     const out = await move(String(req.params.id), 'settled', body.data.settlement);
-    await logEvent(db, req.role!, 'flag.settle', out.id, { settlement: body.data.settlement });
+    await logEvent(db, req.role!, `flag.settle.${body.data.settlement}`, out.id, { settlement: body.data.settlement });
     res.json({ flag: (await toViews(db, [out]))[0] });
   });
 
@@ -52,7 +52,7 @@ export function moneyRouter(deps: AppDeps) {
     const [out] = await db.update(S.invoices).set({ payment: body.data.payment, paidAt: body.data.payment === 'paid' ? new Date() : null })
       .where(eq(S.invoices.id, String(req.params.id))).returning();
     if (!out) throw new ApiError(404, 'not_found', 'Invois tiada');
-    await logEvent(db, req.role!, 'invoice.payment', out.id, { payment: out.payment });
+    await logEvent(db, req.role!, out.payment === 'paid' ? 'invoice.mark_paid' : 'invoice.mark_unpaid', out.id, { payment: out.payment });
     res.json({ ok: true, payment: out.payment, paidAt: out.paidAt?.getTime() ?? null });
   });
 

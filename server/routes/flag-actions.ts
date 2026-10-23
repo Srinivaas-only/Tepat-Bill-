@@ -41,7 +41,11 @@ export function flagActionsRouter(deps: AppDeps) {
     const counts = c ? { ...defaultCounts(c), ...c.saved } : {};
     const subFor = row.possibleSubstituteFor ? c?.po.find(p => p.sku === row.possibleSubstituteFor) : undefined;
     const poOnly = c && !c.implicitPo ? c.po.filter(p => !c.invLines.some(l => matchLine(c.inv.supplierId, l, c.po, c.aliases)?.sku === p.sku)) : [];
+    const [sup] = await db.select({ policyNote: S.suppliers.policyNote }).from(S.suppliers).where(eq(S.suppliers.id, row.supplierId));
+    const evs = await db.select().from(S.events).where(eq(S.events.ref, row.id)).orderBy(S.events.at);
     res.json({
+      policyNote: sup?.policyNote ?? null,
+      events: evs.map(e => ({ id: e.id, at: e.at.getTime(), role: e.role, action: e.action })),
       flag: view, evidenceToken: req.role === 'owner' ? row.evidenceToken : undefined,
       line: line ? { lineId: line.lineId, description: line.description, qty: line.qty, unit: line.unit, unitPriceSen: line.unitPriceSen, box: line.box } : null,
       receivedQty: line ? counts[`line:${line.lineId}`] ?? null : null,
@@ -97,7 +101,7 @@ export function flagActionsRouter(deps: AppDeps) {
       await tx.insert(S.priceList).values({ supplierId: c.inv.supplierId, sku: row.sku!, agreedSen: body.data.agreedSen })
         .onConflictDoUpdate({ target: [S.priceList.supplierId, S.priceList.sku], set: { agreedSen: body.data.agreedSen } });
       const detected = runDetection(c, { ...defaultCounts(c), ...c.saved }, snapshot).find(d => d.type === 'price_change' && d.invoiceLineId === row.invoiceLineId);
-      if (!detected) {
+      if (!detected || detected.amountSen === 0) {
         const [o] = await tx.update(S.flags).set(flagCoreToPatch(transition(flagRowToCore(row), 'dismissed', Date.now()))).where(eq(S.flags.id, row.id)).returning();
         return o;
       }
