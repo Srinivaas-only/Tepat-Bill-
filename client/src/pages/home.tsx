@@ -1,5 +1,7 @@
 import { Link } from 'wouter';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useIntroOpen } from '@/lib/intro';
 import { ChevronRight, ClipboardList, History, ScanLine, Users } from 'lucide-react';
 import { can } from '@shared/core';
 import { api } from '@/lib/api';
@@ -45,7 +47,7 @@ function QuickActions() {
     { to: '/suppliers', icon: Users, label: t('nav.suppliers') },
   ];
   return (
-    <nav aria-label={t('home.qa.orders')} className="mt-7 grid grid-cols-4 gap-2">
+    <nav aria-label={t('home.qa.orders')} className="stagger mt-7 grid grid-cols-4 gap-2">
       {items.map(i => (
         <Link key={i.to} href={i.to} className="press group flex flex-col items-center gap-2 text-xs font-medium text-ink">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-ink ring-1 ring-white/15 backdrop-blur [@media(hover:hover)]:group-hover:bg-white/20"><i.icon size={22} strokeWidth={1.75} aria-hidden /></span>
@@ -95,6 +97,10 @@ function OwnerHome() {
   const { t, lang } = useI18n();
   const q = useQuery({ queryKey: ['home'], refetchOnMount: 'always', queryFn: () => api.get<Home>('/home') });
   const d = q.data;
+  // the headline numbers count up from zero once the intro is out of the way
+  const introOpen = useIntroOpen();
+  const [armed, setArmed] = useState(false);
+  useEffect(() => { if (introOpen) return; const id = setTimeout(() => setArmed(true), 150); return () => clearTimeout(id); }, [introOpen]);
   const allZero = !!d && d.summary.flaggedSen === 0 && d.summary.settledSen === 0 && d.summary.openSen === 0;
   return (
     <HeroPage>
@@ -109,12 +115,12 @@ function OwnerHome() {
           <Link href="/flags" className="press mt-10 block text-center" aria-label={`${t('home.flagged')}: ${t('compare.viewFlags')}`}>
             <p className="eyebrow">{t('home.thisMonth')} · {t('home.flagged')}</p>
             {allZero ? <p className="mt-3 text-2xl font-semibold leading-8">{t('home.none')}</p>
-              : <Money sen={d.summary.flaggedSen} animate className="mt-2 block text-display font-semibold tracking-[-0.03em]" />}
+              : <Money sen={armed ? d.summary.flaggedSen : 0} animate className="mt-2 block text-display font-semibold tracking-[-0.03em]" />}
             <span className="mt-4 inline-flex min-h-11 items-center gap-1 rounded-full bg-white/10 px-4 text-sm font-semibold text-ink ring-1 ring-white/15 backdrop-blur">{t('compare.viewFlags')}<ChevronRight size={16} aria-hidden /></span>
           </Link>
           <div className="mx-auto mt-6 grid max-w-[340px] grid-cols-2 divide-x divide-white/10 text-center">
-            <div className="px-3"><p className="text-xs text-ink-2">{t('home.settled')}</p><Money sen={d.summary.settledSen} animate className="text-xl font-semibold" /></div>
-            <div className="px-3"><p className="text-xs text-ink-2">{t('home.open')}</p><Money sen={d.summary.openSen} animate className="text-xl font-semibold" /></div>
+            <div className="px-3"><p className="text-xs text-ink-2">{t('home.settled')}</p><Money sen={armed ? d.summary.settledSen : 0} animate className="text-xl font-semibold" /></div>
+            <div className="px-3"><p className="text-xs text-ink-2">{t('home.open')}</p><Money sen={armed ? d.summary.openSen : 0} animate className="text-xl font-semibold" /></div>
           </div>
           <QuickActions />
           {d.firstRun ? (

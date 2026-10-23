@@ -48,7 +48,7 @@ export default function Login() {
       <button className="press absolute right-4 top-[calc(12px+var(--safe-top))] inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold text-ink-2 ring-1 ring-white/10 [@media(hover:hover)]:hover:bg-surface-2" onClick={() => setLang(lang === 'ms' ? 'en' : 'ms')}>
         {lang === 'ms' ? 'English' : 'BM'}
       </button>
-      <Logo />
+      <Logo size={64} draw />
       <h1 className="mt-4 text-title font-semibold tracking-[-0.02em]">{t('app.name')}</h1>
       <p className="mt-1 text-center text-ink-2">{t('app.tagline')}</p>
       <h2 className="mt-10 text-xl font-semibold">{t('login.title')}</h2>
@@ -73,7 +73,7 @@ export default function Login() {
 function Key({ children, onClick, ...p }: { children: React.ReactNode; onClick: () => void } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button type="button" onClick={onClick}
-      className="press flex h-[76px] w-[76px] items-center justify-center rounded-full bg-surface text-[28px] font-semibold text-ink shadow-card transition-colors [@media(hover:hover)]:hover:bg-surface-2 active:bg-surface-2 active:!scale-[.94]" {...(p as object)}>
+      className="btn press flex h-[76px] w-[76px] items-center justify-center rounded-full bg-surface text-[28px] font-semibold text-ink shadow-card transition-colors [@media(hover:hover)]:hover:bg-surface-2 active:bg-surface-2 active:!scale-[.94]" {...(p as object)}>
       {children}
     </button>
   );

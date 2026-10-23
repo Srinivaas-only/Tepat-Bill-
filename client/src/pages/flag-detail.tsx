@@ -125,7 +125,7 @@ export default function FlagDetail() {
     <main className="px-5 pb-56 pt-[calc(16px+var(--safe-top))]">
       <BackButton fallback="/flags" />
       {q.isError ? <ErrorState notFound onRetry={() => void q.refetch()} /> : !d || !f ? <div className="space-y-3"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-[220px] w-full" /></div> : (
-        <div className="space-y-4">
+        <div className="stagger space-y-4">
           <div>
             <div className="mb-1 flex items-start justify-between gap-3">
               <div className="min-w-0 text-sm text-ink-2">
@@ -140,7 +140,7 @@ export default function FlagDetail() {
             {f.supersededBy && (
               <Link href={`/flags/${f.supersededBy}`} className="press mb-3 flex min-h-11 items-center justify-between rounded-card border border-line-strong/60 px-4 text-sm font-semibold text-brand-text">{t('flag.viewReplacing')}<ChevronRight size={16} aria-hidden /></Link>
             )}
-            <h1 className="text-2xl font-semibold leading-8 tracking-[-0.02em]">{title(f)} · {f.lineDescription}</h1>
+            <h1 className="page-title">{title(f)} · {f.lineDescription}</h1>
             <p className="mt-2 text-sm text-ink-2">{f.stage === 'delivery' ? t('flag.estimate', { rm: '' }).trim() : t('flag.amount')}</p>
             <div className="inline-block"><span className="inline-block"><Money sen={f.amountSen} className="text-[40px] font-semibold leading-[48px]" /></span></div>
           </div>
@@ -193,7 +193,7 @@ export default function FlagDetail() {
           {proposed && !owner && <div className="space-y-2"><span className="inline-flex items-center gap-1.5 rounded-[4px] border border-line px-2 py-1 text-sm font-medium text-ink-2"><Clock size={16} aria-hidden />{t('owner.only')}</span><p className="rounded-card bg-surface-2 px-4 py-3 text-ink-2">{t('flag.ownerReview')}</p></div>}
 
           {proposed && owner && (
-            <div className="space-y-4">
+            <div className="stagger space-y-4">
               {f.type === 'not_ordered' && !d.substituteFor && (d.poOptions?.length ?? 0) > 0 && f.stage !== 'delivery' && (
                 <Card className="space-y-2 p-4"><p className="font-medium">{t('flag.subQ')}</p>
                   <div role="radiogroup" aria-label={t('flag.linkPo')} className="overflow-hidden rounded-card border border-line">{d.poOptions!.map(o => <RadioRow key={o.sku} checked={false} onClick={() => act.mutate({ path: 'link-substitute', body: { sku: o.sku } })}><span className="text-sm font-medium">{o.description}</span></RadioRow>)}</div></Card>

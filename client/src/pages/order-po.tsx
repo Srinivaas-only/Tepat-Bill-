@@ -18,7 +18,7 @@ export default function OrderPo() {
       <BackButton fallback="/orders" />
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} notFound={q.error instanceof ApiError && q.error.status === 404} /> : !d ? <Skeleton className="h-48 w-full" /> : (
         <>
-          <h1 className="num text-title font-semibold tracking-[-0.02em]">{d.po.poNo}</h1>
+          <h1 className="num page-title">{d.po.poNo}</h1>
           <p className="mb-5 mt-1 text-ink-2">{d.po.supplierName} · <span className="num">{new Date(d.po.orderedAt).toLocaleDateString(lang === 'en' ? 'en-GB' : 'ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' })}</span></p>
           <div className="overflow-hidden rounded-card bg-surface shadow-card">
             <p className="border-b border-line px-4 py-2 eyebrow">{t('ledger.head.price')}</p>

@@ -19,7 +19,7 @@ export default function Activity() {
     <Page band title={t('activity.title')}>
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} /> : q.isLoading ? <div className="space-y-3">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
         : events.length === 0 ? <EmptyState text={t('activity.empty')} />
-        : <div className="space-y-4">{groups.map(([day, evs]) => (
+        : <div className="stagger space-y-4">{groups.map(([day, evs]) => (
           <section key={day}>
             <h2 className="sticky top-0 z-10 bg-bg py-2 eyebrow">{day}</h2>
             <div className="overflow-hidden rounded-card bg-surface shadow-card">{evs.map(e => {

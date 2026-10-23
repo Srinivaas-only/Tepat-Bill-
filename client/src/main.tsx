@@ -11,9 +11,11 @@ import { ApiError } from '@/lib/api';
 import { ms } from '@/i18n/ms';
 import { en } from '@/i18n/en';
 import { initSpotlight } from '@/lib/spotlight';
+import { initRipple } from '@/lib/ripple';
 import App from './App';
 
 initSpotlight();
+initRipple();
 
 const onAuthError = (e: unknown) => {
   if (e instanceof ApiError && e.status === 401 && !location.pathname.startsWith('/e/')) qc.setQueryData(['me'], null);

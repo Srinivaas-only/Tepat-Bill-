@@ -205,7 +205,7 @@ export default function Review() {
   return (
     <main className="px-5 pb-36 pt-[calc(16px+var(--safe-top))]">
       <BackButton fallback="/scan" />
-      <h1 className="mb-3 text-title font-semibold tracking-[-0.02em]">{t(title)}</h1>
+      <h1 className="page-title mb-3">{t(title)}</h1>
       {docId && meta.data && (
         <div className="sticky top-0 z-10 -mx-5 mb-4 bg-bg px-5 pb-2 pt-1"><DocImage src={`/api/documents/${docId}/file`} width={meta.data.width || 900} height={meta.data.height || 1180} alt={t(docAlt)}
           boxes={boxes} activeIndex={active} onBoxClick={pickRow} maxHeight="28dvh" /></div>
@@ -215,7 +215,7 @@ export default function Review() {
       {loading ? (
         <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" /></div>
       ) : (
-        <div className="space-y-4">
+        <div className="stagger space-y-4">
           <Card className="p-4">
             <label htmlFor="rv-sup" className={label}>{t('review.supplier')}</label>
             <button id="rv-sup" type="button" onClick={() => setSupplierSheet(true)} className="flex min-h-12 w-full items-center justify-between rounded-btn border border-line bg-surface px-4 text-left font-medium">

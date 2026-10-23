@@ -65,7 +65,7 @@ export default function Evidence() {
       {q.isError ? <div className="space-y-3 rounded-card border border-line p-5"><p className="text-ink-2">{(q.error as Error).message === 'not_found' ? t('ev.notFound') : t('evidence.netErr')}</p>{(q.error as Error).message !== 'not_found' && <Button variant="secondary" className="bg-surface-2 ring-line-strong" onClick={() => void q.refetch()}>{t('evidence.retry')}</Button>}</div> : !d ? <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-60 w-full" /></div> : (
         <div className="space-y-4">
           <div className="space-y-1 border-b border-dashed border-line pb-4">
-            <h1 className="text-2xl font-semibold leading-8">{t('evidence.title')}</h1>
+            <h1 className="page-title">{t('evidence.title')}</h1>
             <p className="num text-sm text-ink-2">{t('evidence.refInvoice', { no: d.invoice.invoiceNo, date: dateFmt(d.invoiceDocDate) })}</p>
             <p className="text-ink-2">{t(bon ? 'ev.from.delivery' : 'ev.from', { shop: d.shopName, no: d.invoice.invoiceNo })}</p>
             <p className="text-sm text-ink-2">{d.supplierName}</p>

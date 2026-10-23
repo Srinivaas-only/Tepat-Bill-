@@ -97,7 +97,7 @@ export default function Read() {
     <main className="px-5 pb-32 pt-[calc(16px+var(--safe-top))]">
       <BackButton fallback="/scan" />
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{reading ? t('read.reading') : doc ? t('read.lines', { n: lines.length }) : t('read.manual')}</h1>
+        <h1 className="page-title">{reading ? t('read.reading') : doc ? t('read.lines', { n: lines.length }) : t('read.manual')}</h1>
         {result?.status === 'ok' && result.model === 'fixture' && <Badge tone="brand"><FlaskConical size={12} aria-hidden />{t('read.demoChip')}</Badge>}
       </div>
 

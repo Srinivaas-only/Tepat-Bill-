@@ -52,7 +52,7 @@ export function FlagCard({ flag }: { flag: FlagView; index?: number }) {
 export function FlagLedger({ flags, onPick, dark }: { flags: FlagView[]; onPick?: (f: FlagView) => void; dark?: boolean }) {
   const row = `press block border-t first:border-t-0 ${dark ? 'border-white/10' : 'border-line'}`;
   return (
-    <div className={dark ? 'frosted spot overflow-hidden' : 'spot overflow-hidden rounded-card bg-surface shadow-card'}>
+    <div className={dark ? 'stagger frosted spot overflow-hidden' : 'stagger spot overflow-hidden rounded-card bg-surface shadow-card'}>
       {flags.map(f => (onPick
         ? <button key={f.id} type="button" onClick={() => onPick(f)} className={`${row} w-full text-left`}><FlagCard flag={f} /></button>
         : <Link key={f.id} href={`/flags/${f.id}`} className={row}><FlagCard flag={f} /></Link>))}

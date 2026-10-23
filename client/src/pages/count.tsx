@@ -132,7 +132,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
   return (
     <main className="px-5 pb-36 pt-[calc(16px+var(--safe-top))]">
       <BackButton fallback="/" />
-      <h1 className="text-title font-semibold tracking-[-0.02em]">{title}</h1>
+      <h1 className="page-title">{title}</h1>
       {d && <p className="mb-5 mt-1 text-ink-2"><span className="num">{d.ref}</span> · {d.supplierName}{d.poNo ? ` · ${d.poNo}` : ''}</p>}
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} notFound={q.error instanceof ApiError && q.error.status === 404} /> : !d ? <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-[112px] w-full" />)}</div> : (
         <div className="space-y-3">
@@ -186,7 +186,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
       <Sheet open={!!result} onOpenChange={() => undefined}>
         <SheetContent title={t('count.resultTitle')} onInteractOutside={e => e.preventDefault()} onEscapeKeyDown={e => e.preventDefault()}>
           {result && (result.processed ? (
-            <div className="space-y-4">
+            <div className="stagger space-y-4">
               <p className="text-ink-2">{t(isDel ? 'count.processedDelivery' : 'count.processed')}</p>
               <Button block onClick={() => nav('/flags', { replace: true })}>{t('count.view')}</Button>
               <Button block variant="ghost" onClick={() => setResult(null)}>{t('count.done')}</Button>
@@ -199,7 +199,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
               <Button block variant={isDel && role && can(role, 'mark_correct') ? 'secondary' : 'primary'} onClick={() => nav('/', { replace: true })}>{t('count.done')}</Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="stagger space-y-4">
               <div>
                 <h2 className="text-xl font-semibold leading-6">{t('count.diffs', { n: result.flags.length })}</h2>
                 <p className="mt-1 flex items-baseline gap-2">{isDel && <span className="text-sm text-ink-2">{t('flag.estimate', { rm: '' }).trim()}</span>}<span className="inline-block"><Money sen={shown} animate className="text-[32px] font-semibold leading-10" /></span></p>

@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { motion } from 'motion/react';
 import { useI18n } from '@/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { BottomNav } from '@/components/bottom-nav';
+import { openIntro, useIntroOpen } from '@/lib/intro';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /** Reload once when a lazy chunk fails to load (e.g. after a redeploy). */
@@ -13,6 +14,7 @@ function lazyRetry<T extends ComponentType<any>>(load: () => Promise<{ default: 
     throw err;
   }));
 }
+const Intro = lazyRetry(() => import('@/components/intro'));
 const Login = lazyRetry(() => import('@/pages/login'));
 const Home = lazyRetry(() => import('@/pages/home'));
 const Flags = lazyRetry(() => import('@/pages/flags'));
@@ -52,17 +54,25 @@ function OfflineBanner() {
   return online ? null : <div role="status" className="pointer-events-none fixed inset-x-0 top-0 z-[70]"><div className="mx-auto max-w-[480px] border-b border-line bg-surface-3 px-4 pb-2 pt-[calc(8px+var(--safe-top))] text-center text-sm font-medium text-ink">{t('common.offline')}</div></div>;
 }
 
+/** Deeper screens slide in from the right, going back slides in from the left, sibling tabs just rise. */
+const depth = (p: string) => p.split('/').filter(Boolean).length;
+
 function AppShell() {
   const { role, loading } = useAuth();
   const [loc] = useLocation();
+  const introOpen = useIntroOpen();
+  const nav = useRef({ loc, dir: 0 });
+  if (nav.current.loc !== loc) nav.current = { loc, dir: Math.sign(depth(loc) - depth(nav.current.loc)) };
+  const dx = nav.current.dir * 28;
+  useEffect(() => { if (role) openIntro(); }, [role]);   // a short how-to after every login
   if (loading) return <Fallback />;
-  if (!role) return <><div className="ambient" aria-hidden /><div className="grain" aria-hidden /><Suspense fallback={<Fallback />}><Login /></Suspense></>;
+  if (!role) return <><div className="ambient" aria-hidden /><div className="aurora" aria-hidden /><div className="grain" aria-hidden /><Suspense fallback={<Fallback />}><Login /></Suspense></>;
   return (
     <div className="mx-auto min-h-dvh max-w-[480px] pb-28 md:bg-bg md:shadow-[0_0_0_1px_rgb(255_255_255/.08),0_40px_100px_-30px_rgb(0_0_0/.9)]">
-      <div className="ambient" aria-hidden /><div className="grain" aria-hidden />
+      <div className="ambient" aria-hidden /><div className="aurora" aria-hidden /><div className="grain" aria-hidden />
       <OfflineBanner />
       <Suspense fallback={<Fallback />}>
-        <motion.div key={loc} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
+        <motion.div key={loc} initial={{ opacity: 0, x: dx, y: dx ? 0 : 8 }} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}>
         <Switch>
           <Route path="/login"><Redirect to="/" /></Route>
           <Route path="/" component={Home} />
@@ -89,6 +99,7 @@ function AppShell() {
         </motion.div>
       </Suspense>
       <NavGate />
+      {introOpen && <Suspense fallback={null}><Intro /></Suspense>}
     </div>
   );
 }

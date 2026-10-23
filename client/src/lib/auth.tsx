@@ -10,9 +10,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ['me'],
-    queryFn: async () => {
-      try { return (await api.get<{ role: Role }>('/auth/me')).role; }
-      catch (e) { if (e instanceof ApiError && e.status === 401) return null; throw e; }
+    /** Every page load / reload starts logged out: drop any old cookie and show the PIN screen. */
+    queryFn: async (): Promise<Role | null> => {
+      try { await api.post('/auth/logout'); } catch (e) { if (!(e instanceof ApiError)) throw e; }
+      return null;
     },
     staleTime: Infinity, retry: false,
   });

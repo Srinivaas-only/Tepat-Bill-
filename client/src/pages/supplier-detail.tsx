@@ -64,8 +64,8 @@ export default function SupplierDetail() {
     <main className="px-5 pb-10 pt-[calc(16px+var(--safe-top))]">
       <BackButton fallback="/suppliers" />
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} /> : !d ? <div className="space-y-3"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-32 w-full" /></div> : (
-        <div className="space-y-5">
-          <h1 className="text-2xl font-semibold leading-8 tracking-[-0.02em]">{d.supplier.name}</h1>
+        <div className="stagger space-y-5">
+          <h1 className="page-title">{d.supplier.name}</h1>
           <div className="edge rounded-card p-5 text-ink shadow-raised" style={{ background: 'var(--grad-band)' }}>
             <p className="eyebrow">{t('supplier.payNow')}</p>
             <Money sen={d.ledger.payNowSen} animate className="mt-1 block text-display font-semibold tracking-[-0.03em]" />

@@ -43,7 +43,7 @@ export default function Compare() {
         {d && <p className="mt-1 font-medium"><span className="num">{d.invoice.invoiceNo}</span> · {d.invoice.supplierName}{d.delivery && <> · <span className="num">{d.delivery.doNo}</span></>}</p>}
       </div>
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} notFound={q.error instanceof ApiError && q.error.status === 404} /> : !d ? <Skeleton className="h-64 w-full" /> : (
-        <div className="space-y-5">
+        <div className="stagger space-y-5">
           {d.readyToPay ? (
             <section className="space-y-3 text-center">
               <Stamp status="ok" thunk label={t('compare.correct')} />

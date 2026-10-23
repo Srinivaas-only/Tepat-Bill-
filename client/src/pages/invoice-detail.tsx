@@ -49,10 +49,10 @@ export default function InvoiceDetail() {
     <main className="px-5 pb-10 pt-[calc(16px+var(--safe-top))]">
       <BackButton fallback="/orders" />
       {q.isError ? <ErrorState notFound onRetry={() => void q.refetch()} /> : !d ? <div className="space-y-3"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-40 w-full" /></div> : (
-        <div className="space-y-5">
+        <div className="stagger space-y-5">
           <div>
             <p className="text-sm text-ink-2">{t('inv.title')}{d.invoice.poNo ? ` · ${d.invoice.poNo}` : ''}</p>
-            <h1 className="num text-2xl font-semibold leading-8 tracking-[-0.02em]">{d.invoice.invoiceNo}</h1>
+            <h1 className="num page-title">{d.invoice.invoiceNo}</h1>
             <Link href={`/suppliers/${d.invoice.supplierId}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-text">{d.invoice.supplierName}</Link>
           </div>
           <div className="space-y-2">

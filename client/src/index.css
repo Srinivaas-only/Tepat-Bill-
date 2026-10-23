@@ -186,3 +186,41 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.8); opac
 .overflow-hidden :focus-visible { outline-offset: -3px; box-shadow: none; border-radius: 0; }
 input:focus-visible, textarea:focus-visible { outline: none; box-shadow: 0 0 0 4px rgb(147 180 255 / .18); }
 .paper input:focus-visible, .paper textarea:focus-visible { box-shadow: 0 0 0 4px rgb(36 87 214 / .16); }
+
+/* ---------- Motion: buttons, entrances, intro ---------- */
+@layer components {
+  .btn { position: relative; overflow: hidden; isolation: isolate; }
+  .btn svg { transition: transform 220ms var(--ease-out); }
+  @media (hover: hover) { .btn:hover svg { transform: scale(1.08); } }
+  .btn:active svg { transform: scale(.92); }
+  .btn-shine::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; transform: translateX(-130%);
+    background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / .30) 50%, transparent 62%); transition: transform 650ms var(--ease-out); }
+  @media (hover: hover) { .btn-shine:hover::before { transform: translateX(130%); } }
+  .btn-shine:active::before { transform: translateX(130%); transition-duration: 450ms; }
+  .btn .ripple { position: absolute; z-index: -1; border-radius: 9999px; background: currentColor; opacity: .16; transform: scale(0); pointer-events: none; animation: tb-ripple 650ms var(--ease-out) forwards; }
+  /* children of .stagger rise in one after another (first 8) */
+  .stagger > * { animation: tb-rise 480ms var(--ease-out) backwards; }
+  .stagger > :nth-child(2) { animation-delay: 50ms; } .stagger > :nth-child(3) { animation-delay: 100ms; } .stagger > :nth-child(4) { animation-delay: 150ms; }
+  .stagger > :nth-child(5) { animation-delay: 200ms; } .stagger > :nth-child(6) { animation-delay: 250ms; } .stagger > :nth-child(7) { animation-delay: 300ms; }
+  .stagger > :nth-child(n+8) { animation-delay: 340ms; }
+  [aria-current="page"] > span > svg { animation: tb-pop 420ms var(--ease-out); }
+}
+/* springy release for every pressable: overshoots a hair on the way back */
+.press { transition: transform 320ms cubic-bezier(.34, 1.56, .64, 1), background-color 150ms, opacity 150ms, box-shadow 150ms; }
+.press:active { transition-duration: 80ms; transition-timing-function: var(--ease-press); }
+@keyframes tb-ripple { to { transform: scale(1); opacity: 0; } }
+@keyframes tb-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes tb-pop { 0% { transform: scale(.8); } 55% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes tb-ring { 0% { transform: scale(.7); opacity: .7; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes tb-sweep { 0% { transform: translateY(-10%); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(110%); opacity: 0; } }
+
+/* one page-title style everywhere */
+@utility page-title { font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
+/* slow aurora behind every page header (transform only, composited) */
+.aurora { position: fixed; inset: 0 0 auto 0; height: 440px; z-index: -1; pointer-events: none; overflow: hidden; }
+.aurora::before, .aurora::after { content: ""; position: absolute; border-radius: 9999px; will-change: transform; }
+.aurora::before { width: 520px; height: 420px; left: -170px; top: -230px; background: radial-gradient(closest-side, rgb(36 87 214 / .40), transparent); animation: tb-drift-a 28s ease-in-out infinite alternate; }
+.aurora::after { width: 480px; height: 400px; right: -150px; top: -210px; background: radial-gradient(closest-side, rgb(112 88 255 / .26), transparent); animation: tb-drift-b 34s ease-in-out infinite alternate; }
+@keyframes tb-drift-a { to { transform: translate(140px, 60px) scale(1.18); } }
+@keyframes tb-drift-b { to { transform: translate(-120px, 50px) scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .aurora::before, .aurora::after { animation: none !important; } }

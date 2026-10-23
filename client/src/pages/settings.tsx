@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { can } from '@shared/core';
-import { Page } from '@/components/page';
+import { Download, RotateCcw, LogOut, ChevronRight } from 'lucide-react';
+import { Page, SectionLabel } from '@/components/page';
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -23,19 +25,23 @@ export default function SettingsPage() {
   };
   return (
     <Page band title={t('more.settings')}>
-      <Card className="space-y-4 p-4">
-        <div>
-          <p className="mb-2 text-sm font-medium text-ink-2">{t('settings.language')}</p>
+      <div className="stagger space-y-5">
+        <section>
+          <SectionLabel>{t('settings.language')}</SectionLabel>
           <Tabs value={lang} onValueChange={v => setLang(v as Lang)}>
             <TabsList><TabsTrigger value="ms">Bahasa Melayu</TabsTrigger><TabsTrigger value="en">English</TabsTrigger></TabsList>
           </Tabs>
-        </div>
-        {checks.data && <div className="flex items-baseline justify-between"><span className="text-ink-2">{t('settings.checks')}</span><span className="num text-lg font-semibold">{checks.data.checksLeft}</span></div>}
-        <p className="text-sm text-ink-2">{role ? t(role === 'owner' ? 'role.owner' : 'role.staff') : ''}</p>
-        {owner && <Button variant="secondary" block asChild><a href="/api/export.csv" download>{t('settings.export')}</a></Button>}
-        {owner && checks.data?.demo && <Button variant="ghost" block className="text-notord" onClick={() => setConfirm(true)}>{t('settings.reset')}</Button>}
-        <Button variant="secondary" block onClick={() => void logout()}>{t('settings.switchUser')}</Button>
-      </Card>
+        </section>
+        <Card className="flex min-h-14 items-center justify-between gap-3 px-4">
+          <span className="flex items-center gap-2 text-ink-2">{role && <Badge tone={role === 'owner' ? 'brand' : 'neutral'}>{t(role === 'owner' ? 'role.owner' : 'role.staff')}</Badge>}</span>
+          {checks.data && <span className="flex items-baseline gap-2"><span className="text-ink-2">{t('settings.checks')}</span><span className="num text-xl font-semibold">{checks.data.checksLeft}</span></span>}
+        </Card>
+        <Card className="divide-y divide-line overflow-hidden">
+          {owner && <a href="/api/export.csv" download className="press flex min-h-14 items-center gap-3 px-4 font-medium [--p:.985]"><Download size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.export')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></a>}
+          <button type="button" onClick={() => void logout()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><LogOut size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.switchUser')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></button>
+          {owner && checks.data?.demo && <button type="button" onClick={() => setConfirm(true)} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium text-notord [--p:.985]"><RotateCcw size={22} strokeWidth={1.5} aria-hidden /><span className="flex-1">{t('settings.reset')}</span></button>}
+        </Card>
+      </div>
       <Sheet open={confirm} onOpenChange={setConfirm}>
         <SheetContent title={t('settings.reset')} description={t('settings.resetConfirm')}>
           <div className="space-y-2">
@@ -44,7 +50,7 @@ export default function SettingsPage() {
           </div>
         </SheetContent>
       </Sheet>
-      <p className="mt-4 text-center text-xs text-ink-2">{t('settings.about')}</p>
+      <p className="mt-6 text-center text-caption text-ink-2">{t('settings.about')}</p>
     </Page>
   );
 }

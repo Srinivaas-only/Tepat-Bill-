@@ -20,11 +20,11 @@ export function Page({ title, children, action, back, band }: { title?: string; 
   if (band && title) {
     return (
       <main className="pb-8">
-        <header className="flex items-center justify-between rounded-b-sheet px-5 pb-8 pt-[calc(16px+var(--safe-top))] text-ink" style={{ background: 'var(--grad-band)' }}>
-          <h1 className="text-title font-semibold tracking-[-0.02em]">{title}</h1>
+        <header className="flex min-h-[72px] items-end justify-between px-5 pb-4 pt-[calc(24px+var(--safe-top))]">
+          <h1 className="page-title">{title}</h1>
           {action}
         </header>
-        <div className="px-5 pt-5">{children}</div>
+        <div className="stagger px-5">{children}</div>
       </main>
     );
   }
@@ -33,7 +33,7 @@ export function Page({ title, children, action, back, band }: { title?: string; 
       {back && <BackButton fallback={back} />}
       {title && (
         <header className="mb-5 flex items-center justify-between">
-          <h1 className="text-title font-semibold tracking-[-0.02em]">{title}</h1>
+          <h1 className="page-title">{title}</h1>
           {action}
         </header>
       )}
