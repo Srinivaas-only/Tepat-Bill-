@@ -37,3 +37,5 @@
 - 2026-10-24 · decision · B2 the session version also depends on SESSION_SECRET, so rotating the secret or either PIN logs everyone out once.
 - 2026-10-24 · decision · B4 Home keeps an uncapped read of invoice-stage flags for money and a separate newest-500 read for the work lists; delivery flags for the latest 5 deliveries are read by delivery id.
 - 2026-10-24 · decision · scenario 3 "Anggaran RM0.00": the tester read the count-up animation (it starts at 0, count.tsx setShown 250 ms) before it finished; the API returns estimateSen 9000 (asserted in tests). Client untouched this round.
+- 2026-10-24 · decision · R6 B2 dismissing a price DECREASE accepts the new price automatically (no asInflation needed); the event logs { asInflation, accepted: 'down' }.
+- 2026-10-24 · decision · R6 B6 the overflow check on invoices runs after foreign lines are converted to MYR sen; on POST /pos it runs before the transaction.

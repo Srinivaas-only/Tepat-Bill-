@@ -67,7 +67,7 @@ export function messagesRouter(deps: AppDeps) {
     const evidenceUrl = `${origin}/e/${group[0].evidenceToken}`;
     const text = draftMessage({
       lang, shopName: (shop?.value as { name?: string } | undefined)?.name ?? 'Kedai', supplierName: sup?.name ?? '', invoiceNo: p.refNo,
-      invoiceDate: p.refDate, poNo: p.poNo, lines, evidenceUrl,
+      invoiceDate: p.refDate, poNo: p.poNo, lines, evidenceUrl, docKind: flag.stage === 'delivery' ? 'delivery' : 'invoice',
     });
     res.json({ text, lang, phone: sup?.whatsapp ?? null, link: waLink(text, sup?.whatsapp ?? undefined), flagIds: group.map(g => g.id), evidenceUrl });
   });

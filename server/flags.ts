@@ -113,9 +113,9 @@ export async function attachPhotos(db: Conn, c: Pick<InvoiceContext, 'inv' | 'po
 
 /** First save only: autofill last_invoice prices from the matched lines, skipping skus with an upward price flag (core rule). */
 export async function firstSaveAutofill(db: Conn, c: InvoiceContext, detected: DetectedFlag[]) {
-  const skip = new Set(detected.filter(d => d.type === 'price_change' && d.sku).map(d => d.sku!));
+  const skip = new Set(detected.filter(d => d.type === 'price_change' && d.direction !== 'down' && d.sku).map(d => d.sku!));
   const open = await db.select({ sku: S.flags.sku }).from(S.flags)
-    .where(and(eq(S.flags.supplierId, c.inv.supplierId), eq(S.flags.type, 'price_change'), inArray(S.flags.status, ['proposed', 'open', 'disputed'])));
+    .where(and(eq(S.flags.supplierId, c.inv.supplierId), eq(S.flags.type, 'price_change'), eq(S.flags.direction, 'up'), inArray(S.flags.status, ['proposed', 'open', 'disputed'])));
   for (const o of open) if (o.sku) skip.add(o.sku);
   const lines = c.invLines.flatMap(l => {
     const m = matchLine(c.inv.supplierId, l, c.po, c.aliases);

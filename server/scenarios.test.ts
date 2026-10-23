@@ -88,6 +88,11 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     });
     it('4. wrong invoice linked to the short delivery: two flags, delivery flag superseded, Pay now 962 -> 872', async () => {
       expect((await call('POST', `/api/flags/${d2flagId}/approve`, ownerCookie, {})).status).toBe(200);
+      const dm = await call('GET', `/api/flags/${d2flagId}/message?lang=ms`, ownerCookie);
+      expect(dm.status).toBe(200);
+      expect(dm.json.text).toContain('bon penghantaran DO-5512');
+      expect(dm.json.text).toContain('dalam bon 10, diterima 8');
+      expect(dm.json.text.toLowerCase()).not.toContain('invois');
       const r = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', poId: 'po_004', deliveryId: del2, invoiceNo: 'INV-2291', currency: 'MYR', totalSen: 99390, lines: iLines('invoice_borong_ali_INV-2291') });
       expect(r.status).toBe(201);
       expect(r.json.compared).toBe(true); expect(r.json.readyToPay).toBe(false);
@@ -97,6 +102,14 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
       expect((await call('GET', '/api/suppliers/sup_ali/ledger', ownerCookie)).json.ledger.payNowSen).toBe(96200);
       const maggi = r.json.flags.find((f: any) => f.type === 'short_qty');
       expect((await call('POST', `/api/flags/${maggi.id}/approve`, ownerCookie, { request: 'deduct' })).status).toBe(200);
+      const gula = r.json.flags.find((f: any) => f.type === 'price_change');
+      expect((await call('POST', `/api/flags/${gula.id}/approve`, ownerCookie, {})).status).toBe(200);
+      const im = await call('GET', `/api/flags/${maggi.id}/message?lang=ms`, ownerCookie);
+      const norm = (t: string) => t.replace(/\d{2}\/\d{2}\/\d{4}/, '20/10/2026').replace(/https?:\/\/\S+/, 'https://<host>/e/<token>');
+      expect(norm(im.json.text)).toBe(["Salam sejahtera Syarikat Borong Ali Sdn. Bhd., ini Kedai Runcit Maju.", "Merujuk invois INV-2291 bertarikh 20/10/2026 (pesanan PO-2610-004):",
+        "• MAGGI KARI 5'S (CTN 8 PEK): dalam invois 10, diterima 8. Kurang 2 unit = RM90.00.",
+        "• GULA PASIR 1KG: harga invois RM3.20/unit, harga yang dipersetujui RM2.80/unit, untuk 50 unit = perbezaan RM20.00.", "Jumlah: RM110.00.",
+        "Mohon tolak jumlah ini daripada invois.", "Mohon caj mengikut harga yang dipersetujui.", "Bukti (gambar & dokumen): https://<host>/e/<token>", "Terima kasih."].join('\n'));
       expect((await call('POST', `/api/flags/${maggi.id}/settle`, ownerCookie, { settlement: 'deducted' })).status).toBe(200);
       expect((await call('GET', '/api/suppliers/sup_ali/ledger', ownerCookie)).json.ledger.payNowSen).toBe(87200);
       const msg = await call('GET', `/api/flags/${d2flagId}/message?lang=ms`, ownerCookie);
@@ -385,5 +398,61 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     const after = (await call('GET', '/api/home', ownerCookie)).json.summary;
     expect(after).toEqual(before);
     expect((await call('GET', '/api/flags', ownerCookie)).json.flags.length).toBeLessThanOrEqual(500);
+  });
+
+  // ---- round 6
+  const newSup = (name: string) => ({ newSupplier: { name } });
+  const mkPo = async (sup: any, unit?: number) => (await call('POST', '/api/pos', staffCookie, { ...sup, source: 'typed', lines: [{ description: 'Teh Kotak', qty: 10, ...(unit ? { unitPriceSen: unit } : {}) }] })).json;
+  const inv = async (supplierId: string, no: string, price: number, poId?: string) => {
+    const c = await call('POST', '/api/invoices', staffCookie, { supplierId, poId, invoiceNo: no, totalSen: price * 10, lines: [{ description: 'Teh Kotak', qty: 10, unitPriceSen: price }] });
+    return call('PUT', `/api/invoices/${c.json.id}/counts`, staffCookie, { counts: {} });
+  };
+  const priceFlags = (r: any) => r.json.flags.filter((f: any) => f.type === 'price_change');
+
+  it('R6-T1 a price decrease flag, once dismissed, does not come back', async () => {
+    const po = await mkPo(newSup('Pembekal Turun'));
+    const sid = (await pool.query(`select supplier_id from ${SCHEMA}.purchase_orders where id = $1`, [po.id])).rows[0].supplier_id;
+    expect(priceFlags(await inv(sid, 'D-1', 280, po.id))).toHaveLength(0);
+    const r2 = await inv(sid, 'D-2', 250, po.id);
+    const down = priceFlags(r2);
+    expect(down).toHaveLength(1); expect(down[0].direction).toBe('down');
+    expect((await call('POST', `/api/flags/${down[0].id}/dismiss`, ownerCookie, {})).status).toBe(200);
+    expect(priceFlags(await inv(sid, 'D-3', 250, po.id))).toHaveLength(0);
+  });
+
+  it('R6-T2 "ordinary increase" sticks with an agreed price or a PO price', async () => {
+    const po = await mkPo(newSup('Pembekal Naik'));
+    const sid = (await pool.query(`select supplier_id from ${SCHEMA}.purchase_orders where id = $1`, [po.id])).rows[0].supplier_id;
+    await inv(sid, 'U-1', 280, po.id);
+    await pool.query(`update ${SCHEMA}.price_list set agreed_sen = 280 where supplier_id = $1`, [sid]);
+    const up = priceFlags(await inv(sid, 'U-2', 320, po.id));
+    expect(up).toHaveLength(1); expect(up[0].direction).toBe('up');
+    expect((await call('POST', `/api/flags/${up[0].id}/dismiss`, ownerCookie, { asInflation: true })).status).toBe(200);
+    expect(priceFlags(await inv(sid, 'U-3', 320, po.id))).toHaveLength(0);
+    // PO price, no agreed price
+    const po2 = await mkPo(newSup('Pembekal PO Harga'), 280);
+    const sid2 = (await pool.query(`select supplier_id from ${SCHEMA}.purchase_orders where id = $1`, [po2.id])).rows[0].supplier_id;
+    const up2 = priceFlags(await inv(sid2, 'P-1', 320, po2.id));
+    expect(up2).toHaveLength(1);
+    expect((await call('POST', `/api/flags/${up2[0].id}/dismiss`, ownerCookie, { asInflation: true })).status).toBe(200);
+    expect(priceFlags(await inv(sid2, 'P-2', 320, po2.id))).toHaveLength(0);
+  });
+
+  it('R6-T4 a different pack size is not_ordered and is never merged into the same sku', async () => {
+    const po = await call('POST', '/api/pos', staffCookie, { ...newSup('Pembekal Minyak'), source: 'typed', lines: [{ description: 'Minyak Masak 1kg', qty: 5, unitPriceSen: 500 }] });
+    const sid = (await pool.query(`select supplier_id from ${SCHEMA}.purchase_orders where id = $1`, [po.json.id])).rows[0].supplier_id;
+    const r = await call('POST', '/api/invoices', staffCookie, { supplierId: sid, poId: po.json.id, invoiceNo: 'M-1', totalSen: 5 * 2000, lines: [{ description: 'Minyak Masak 5kg', qty: 5, unitPriceSen: 2000 }] });
+    expect(r.status).toBe(201);
+    const fl = (await call('PUT', `/api/invoices/${r.json.id}/counts`, staffCookie, { counts: {} })).json.flags;
+    expect(fl.some((f: any) => f.type === 'not_ordered')).toBe(true);
+    expect(fl.some((f: any) => f.type === 'price_change')).toBe(false);
+    expect(mintSkus(['Minyak Masak 5kg'], ['minyak-masak-1kg'])).not.toEqual(['minyak-masak-1kg']);
+  });
+
+  it('R6-T5 amounts that overflow int4 are rejected with 422, not 500', async () => {
+    const r = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'BIG-1', lines: [{ description: 'Emas', qty: 100000, unitPriceSen: 100000000 }] });
+    expect(r.status).toBe(422); expect(r.json.error?.code ?? r.json.code).toBe('too_large');
+    const p = await call('POST', '/api/pos', staffCookie, { supplierId: 'sup_ali', source: 'typed', lines: [{ description: 'Emas', qty: 100000, unitPriceSen: 100000000 }] });
+    expect(p.status).toBe(422);
   });
 });

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { and, eq, inArray } from 'drizzle-orm';
 import * as S from '../../shared/schema';
-import { autofillPriceList, learnAlias, matchLine, normalise, setAgreedPrice, transition, type FlagType } from '../../shared/core';
+import { acceptPrice, autofillPriceList, learnAlias, matchLine, normalise, setAgreedPrice, transition, type FlagType } from '../../shared/core';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
@@ -96,7 +96,8 @@ export function flagActionsRouter(deps: AppDeps) {
     if (!body.success) throw new ApiError(400, 'bad_request', 'Data tidak sah');
     const row = await load(String(req.params.id));
     needProposed(row.status);
-    const asInflation = !!body.data.asInflation && row.type === 'price_change' && row.direction === 'up' && !!row.sku && row.invoiceUnitSen !== null && !!row.invoiceId;
+    const accepted = row.direction === 'down' ? 'down' as const : undefined;
+    const asInflation = (!!body.data.asInflation || !!accepted) && row.type === 'price_change' && (row.direction === 'up' || row.direction === 'down') && !!row.sku && row.invoiceUnitSen !== null && !!row.invoiceId;
     const next = transition(flagRowToCore(row), 'dismissed', Date.now());
     const out = await db.transaction(async tx => {
       const o = await updateFlagAtomic(tx, row, flagCoreToPatch(next));
@@ -104,12 +105,12 @@ export function flagActionsRouter(deps: AppDeps) {
       if (asInflation) {
         const c = await loadContext(tx, row.invoiceId!);
         if (c) {
-          const next2 = cleanPriceList(autofillPriceList(c.priceNow, [{ sku: row.sku!, unitPriceSen: row.invoiceUnitSen! }]))[row.sku!];
-          await tx.insert(S.priceList).values({ supplierId: c.inv.supplierId, sku: row.sku!, lastInvoiceSen: next2?.lastInvoiceSen ?? row.invoiceUnitSen })
-            .onConflictDoUpdate({ target: [S.priceList.supplierId, S.priceList.sku], set: { lastInvoiceSen: next2?.lastInvoiceSen ?? row.invoiceUnitSen } });
+          const next2 = cleanPriceList(acceptPrice(c.priceNow, row.sku!, row.invoiceUnitSen!))[row.sku!];
+          await tx.insert(S.priceList).values({ supplierId: c.inv.supplierId, sku: row.sku!, agreedSen: next2?.agreedSen, lastInvoiceSen: next2?.lastInvoiceSen ?? row.invoiceUnitSen })
+            .onConflictDoUpdate({ target: [S.priceList.supplierId, S.priceList.sku], set: { agreedSen: next2?.agreedSen, lastInvoiceSen: next2?.lastInvoiceSen ?? row.invoiceUnitSen } });
         }
       }
-      await logEvent(tx, req.role!, 'flag.dismiss', row.id, { asInflation });
+      await logEvent(tx, req.role!, 'flag.dismiss', row.id, accepted ? { asInflation, accepted } : { asInflation });
       return o;
     });
     res.json({ flag: (await toViews(db, [out]))[0] });

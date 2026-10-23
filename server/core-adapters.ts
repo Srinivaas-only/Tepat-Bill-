@@ -1,7 +1,7 @@
 // DB rows <-> shared/core types. The only place that converts Dates to ms epoch and foreign minor units to MYR sen.
 import type { InferSelectModel } from 'drizzle-orm';
 import type * as S from '../shared/schema';
-import { normalise, tokenOverlap, MATCH_THRESHOLD, type AliasTable, type DetectedFlag, type InvLine, type PoLine, type PriceList, type BaselineSource, type FlagType } from '../shared/core';
+import { normalise, sameSize, tokenOverlap, MATCH_THRESHOLD, type AliasTable, type DetectedFlag, type InvLine, type PoLine, type PriceList, type BaselineSource, type FlagType } from '../shared/core';
 import type { Flag, Invoice, FlagStatus, Settlement, FlagRequest } from '../shared/core';
 
 export type FlagRow = InferSelectModel<typeof S.flags>;
@@ -89,7 +89,7 @@ export function nearSku(description: string, skus: string[], exclude: Set<string
     const a = tokenOverlap(description, text), b = tokenOverlap(text, description);
     const A = new Set(normalise(description).split(' ')), B = new Set(normalise(text).split(' '));
     const jac = [...A].filter(x => B.has(x)).length / new Set([...A, ...B]).size;
-    if (a >= MATCH_THRESHOLD && b >= MATCH_THRESHOLD && jac >= MATCH_THRESHOLD && jac > best) { best = jac; near = sku; }
+    if (a >= MATCH_THRESHOLD && b >= MATCH_THRESHOLD && jac >= MATCH_THRESHOLD && sameSize(description, text) && jac > best) { best = jac; near = sku; }
   }
   return near;
 }

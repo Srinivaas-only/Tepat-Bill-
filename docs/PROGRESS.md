@@ -62,3 +62,8 @@ Not verified: the WhatsApp chat picker on a real phone; the evidence-line pulse 
 - Verified: `npm test` 148/148, typecheck ok, build ok, `git diff` of shared/core, fixtures and client is empty. Production smoke: `/api/health` seeded:true; `POST /api/gemini-check` as owner returned `{"ok":false,"error":"GEMINI_API_KEY not set"}`; a cookie from before restart with a changed OWNER_PIN returned 401. 390px App Test: scenarios 1, 2, 4 ok (RM285.60; "2 perbezaan · RM110.00"; RM962.00 then RM872.00; Home shows "Dibawa ke invois").
 - Scenario 3: the result card's total was read as RM0.00 by the tester while the Maggi card showed RM90.00; the total counts up from 0 after 250 ms and was most likely read mid-animation. The API returns estimateSen 9000 (tested). Not confirmed in a browser.
 - Not verified: the real Gemini call in `/api/gemini-check` (no key here; the route is only tested without a key), the WhatsApp popup (blocked in headless).
+
+## Fix round 6
+- Done: B1–B6, T1–T6 (new tests prefixed R6-, plus the delivery and INV-2291 message assertions in scenario 4).
+- Verified: `npm test` 184/184, typecheck ok, build ok; no diff in shared/core or fixtures from this round; client diff is only the evidence.tsx filter and the review.tsx swap. Production smoke: /api/health seeded:true. 390px App Test: scenarios 1–4 ok (RM285.60; "1 perbezaan · Anggaran RM90.00", read after the count-up finished; "2 perbezaan · RM110.00"; RM962.00 then RM872.00).
+- Not verified: the Buka WhatsApp popup (blocked in headless); the B4/B5 client changes only through typecheck and the scenario run (no pack-size or company-word case tried in the browser).

@@ -20,7 +20,9 @@ const DAY = 86_400_000;
 export const pgCode = (e: unknown): string | undefined => (e as { code?: string })?.code ?? (e as { cause?: { code?: string } })?.cause?.code;
 export const Box = z.array(z.number().min(-10).max(1010)).length(4).transform(a => a.map(v => Math.max(0, Math.min(1000, Math.round(v))))).nullish();
 const Country = z.string().trim().max(60).optional().transform(c => (c && /^[A-Za-z]{2}$/.test(c) ? c.toUpperCase() : undefined));
-export const Sen = z.number().int().nonnegative();
+/** int4 columns hold 2,147,483,647: keep any line or invoice total below 2,000,000,000 sen. */
+const MAX_AMOUNT_SEN = 2_000_000_000;
+export const Sen = z.number().int().nonnegative().max(100_000_000);
 export const SupplierRef = z.object({ supplierId: z.string().optional(), newSupplier: z.object({ name: z.string().trim().min(1).max(120), isForeign: z.boolean().optional(), country: Country }).optional() });
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
@@ -75,6 +77,7 @@ export function ordersRouter(deps: AppDeps) {
     }).safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Data tidak sah', { issues: z.flattenError(body.error) });
     const b = body.data;
+    if (b.lines.some(l => l.qty * (l.unitPriceSen ?? 0) > MAX_AMOUNT_SEN) || b.lines.reduce((t, l) => t + l.qty * (l.unitPriceSen ?? 0), 0) > MAX_AMOUNT_SEN) throw new ApiError(422, 'too_large', 'Jumlah terlalu besar');
     const out = await db.transaction(async tx => {
       const supplierId = await resolveSupplier(tx, b, req.role!);
       const orderedAt = new Date(b.orderedAt ?? Date.now());
@@ -168,6 +171,7 @@ export function ordersRouter(deps: AppDeps) {
         return { ...l, unitPriceSen, sku: m?.sku ?? null };
       });
       const sum = lines.reduce((a, l) => a + l.qty * l.unitPriceSen, 0);
+      if (lines.some(l => l.qty * l.unitPriceSen > MAX_AMOUNT_SEN) || sum > MAX_AMOUNT_SEN) throw new ApiError(422, 'too_large', 'Jumlah terlalu besar');
       const totalSen = foreign && b.totalForeignMinor !== undefined ? toMyrSen(b.totalForeignMinor, b.exchangeRateBp!) : b.totalSen ?? sum;
       if (b.documentId) {
         const [doc] = await tx.select().from(S.documents).where(eq(S.documents.id, b.documentId));

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'wouter';
-import { tokenOverlap } from '@shared/core';
+import { sameSize, tokenOverlap } from '@shared/core';
 import { useQuery } from '@tanstack/react-query';
 import { Money } from '@/components/ui/money';
 import { Card } from '@/components/ui/card';
@@ -55,7 +55,7 @@ export default function Evidence() {
   const bon = d?.stage === 'delivery';
   const dateFmt = (iso: string) => iso.split('-').reverse().join('/');
   const line = d?.invoice.lines.find(l => l.lineId === d.highlight.invoiceLineId);
-  const poLine = line && d?.po ? [...d.po.lines].map(l => ({ l, o: tokenOverlap(line.description, l.description) })).sort((a, b) => b.o - a.o).filter(x => x.o >= 0.6)[0]?.l : undefined;
+  const poLine = line && d?.po ? [...d.po.lines].map(l => ({ l, o: tokenOverlap(line.description, l.description) })).sort((a, b) => b.o - a.o).filter(x => x.o >= 0.6 && sameSize(line.description, x.l.description))[0]?.l : undefined;
   const invoicePhoto = bon ? (d?.photos.find(p => p.kind === 'signed_bon') ?? d?.photos.find(p => p.kind === 'delivery')) : d?.photos.find(p => p.kind === 'invoice');
   const others = d?.photos.filter(p => p !== invoicePhoto) ?? [];
   return (

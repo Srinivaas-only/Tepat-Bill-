@@ -3,7 +3,7 @@ import { useLocation, useParams, Link } from 'wouter';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Globe2, Link2, ChevronDown, AlertTriangle, Truck } from 'lucide-react';
 import { toast } from 'sonner';
-import { can, looksForeign, tokenOverlap } from '@shared/core';
+import { can, looksForeign, supplierOverlap } from '@shared/core';
 import type { ExtractedDoc } from '@shared/core/extract';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -100,7 +100,7 @@ export default function Review() {
     setInvoiceNo(d.docNo ?? ''); setDocDate(normDate(d.docDate)); setCurrency(normCur(d.currency));
     setPrinted(d.totalAmount ?? ''); setCountry(isMy(d.supplierCountry) ? undefined : d.supplierCountry);
     if (normCur(d.currency) === 'USD') setRate('4.20');
-    const best = suppliers.data.suppliers.map(s => ({ s, o: tokenOverlap(d.supplierName, s.name) })).sort((a, b) => b.o - a.o)[0];
+    const best = suppliers.data.suppliers.map(s => ({ s, o: supplierOverlap(d.supplierName, s.name) })).sort((a, b) => b.o - a.o)[0];
     if (best && best.o >= 0.6) setSupplierId(best.s.id); else setNewName(d.supplierName);
     setSeededName(d.supplierName);
   }, [read.data, suppliers.data, isNew]);
@@ -119,7 +119,7 @@ export default function Review() {
   });
   const cands = sugg.data?.candidates ?? [];
   // auto-pick only when the supplier is known, or the candidate's supplier name clearly matches what was typed/read
-  const top = cands[0] && cands[0].score >= 0.5 && (!!supplierId || tokenOverlap(cands[0].supplierName, supplierName) >= 0.6) ? cands[0] : undefined;
+  const top = cands[0] && cands[0].score >= 0.5 && (!!supplierId || supplierOverlap(cands[0].supplierName, supplierName) >= 0.6) ? cands[0] : undefined;
   const effectivePoId = poPick === undefined ? top?.id ?? null : poPick;
   const effectivePo = cands.find(c => c.id === effectivePoId);
   const suggLoading = kind !== 'po' && poPick === undefined && !!supplierName && (sugg.isLoading || sugg.isFetching);
