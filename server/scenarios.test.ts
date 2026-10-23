@@ -201,7 +201,6 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     const wrong = owner === '0000' ? '9999' : '0000';
     for (let i = 0; i < 4; i++) expect(await post(wrong)).toBe(401);
     expect(await post(staff)).toBe(200);
-    expect(await post(wrong)).toBe(401);
     expect(await post(wrong)).toBe(429);
     srv.close(); await m.pool.end();
   });

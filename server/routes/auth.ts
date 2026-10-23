@@ -16,6 +16,7 @@ export function authRouter(deps: AppDeps) {
     const pins = getPins();
     const role = pinMatches(body.data.pin, pins.owner) ? 'owner' : pinMatches(body.data.pin, pins.staff) ? 'staff' : null;
     if (!role) { limiter.fail(ip); throw new ApiError(401, 'wrong_pin', 'PIN salah'); }
+    limiter.success(ip);
     res.cookie(COOKIE, await signSession(role), {
       httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 30 * 86_400_000, path: '/',
     });

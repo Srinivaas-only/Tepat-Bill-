@@ -49,7 +49,8 @@ export function makePinLimiter(max = 5, windowMs = 60_000) {
   return {
     blocked: (ip: string, now = Date.now()) => recent(ip, now).length >= max,
     fail: (ip: string, now = Date.now()) => { hits.set(ip, [...recent(ip, now), now]); },
-    reset: (ip: string) => { hits.delete(ip); },
+    /** A successful login never clears the count; while the IP has recent failures it counts as an attempt too. */
+    success: (ip: string, now = Date.now()) => { if (recent(ip, now).length > 0) hits.set(ip, [...recent(ip, now), now]); },
   };
 }
 
