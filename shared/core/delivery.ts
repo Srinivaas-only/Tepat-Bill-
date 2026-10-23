@@ -62,9 +62,19 @@ export function receivedFromDelivery(i: InvoiceFromDeliveryInput): Record<string
   }
   const out: Record<string, number> = {};
   for (const p of i.po) out[p.sku] = bySku[p.sku] ?? 0;
+  // Invoice lines that share a sku (or an unmatched description) split the delivered total in order; the last one keeps any surplus,
+  // so two lines are never each credited with the full delivery.
+  const group = (l: InvLine) => { const m = matchLine(i.supplierId, l, i.po, i.aliases); return m ? `sku:${m.sku}` : `desc:${normalise(l.description)}`; };
+  const left: Record<string, number> = {}, lastOf: Record<string, string> = {};
   for (const l of i.invoiceLines) {
-    const m = matchLine(i.supplierId, l, i.po, i.aliases);
-    out[`line:${l.lineId}`] = m ? bySku[m.sku] ?? 0 : byDesc[normalise(l.description)] ?? 0;
+    const g = group(l);
+    left[g] ??= g.startsWith('sku:') ? bySku[g.slice(4)] ?? 0 : byDesc[g.slice(5)] ?? 0;
+    lastOf[g] = l.lineId;
+  }
+  for (const l of i.invoiceLines) {
+    const g = group(l);
+    const n = lastOf[g] === l.lineId ? left[g] : Math.min(l.qty, left[g]);
+    out[`line:${l.lineId}`] = n; left[g] -= n;
   }
   return out;
 }

@@ -38,7 +38,9 @@ Return every item line exactly as written. Rules:
 - qty: the integer quantity on that line (cartons/packs/units as written). Never invent or compute quantities.
 - unitPrice, lineTotal, totalAmount: digits only with 2 decimals, e.g. "45.00". Omit if not written. Never calculate a missing price.
 - currency: ISO code if shown (RM => MYR). supplierCountry: ISO alpha-2 if an address shows it.
-- docDate as YYYY-MM-DD.
+- docDate as YYYY-MM-DD. Malaysian dates are day first: 05/10/2026 is 5 October 2026, never 10 May.
+- Only real goods lines are items. Skip subtotal, total, SST/tax, rounding, discount, delivery/transport charge and payment-term rows.
+- If a line shows two quantity columns (for example CTN and PEK), qty is the quantity in the unit the price is charged per.
 - box_2d: bounding box of the WHOLE line row as [ymin, xmin, ymax, xmax] normalised 0-1000.
 - If a value is unreadable, omit it rather than guess.`;
 

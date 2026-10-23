@@ -22,8 +22,10 @@ export const parseRM = (s: string): Sen => {
 };
 
 // ---------- item matching ----------
-export const normalise = (s: string) =>
-  s.toLowerCase().replace(/(\d+)\s+(kg|g|ml|l|pcs|pc)\b/g, '$1$2').replace(/[^a-z0-9]+/g, ' ').trim();
+export const normalise = (s: string) => {
+  const n = s.toLowerCase().replace(/(\d+)\s+(kg|g|ml|l|pcs|pc)\b/g, '$1$2').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return n || s.toLowerCase().trim(); // never an empty key (e.g. a description of only symbols)
+};
 const tokens = (s: string) => new Set(normalise(s).split(' ').filter(Boolean));
 export function tokenOverlap(a: string, b: string): number {
   const A = tokens(a), B = tokens(b);
@@ -40,12 +42,24 @@ export interface PoLine { sku: string; description: string; orderedQty: number; 
 export interface InvLine { lineId: string; description: string; qty: number; unitPriceSen: Sen; box?: [number, number, number, number] }
 
 export const MATCH_THRESHOLD = 0.6;
-/** Alias first (exact, owner-confirmed), then best token overlap >= threshold. */
+/** Pack-size tokens ("5kg", "500g", "1l", "600ml"). Two descriptions that BOTH state a size must state the same one. */
+const sizeTokens = (s: string) => new Set(normalise(s).split(' ').filter(t => /^\d+(kg|g|ml|l)$/.test(t)));
+export function sameSize(a: string, b: string): boolean {
+  const A = sizeTokens(a), B = sizeTokens(b);
+  if (!A.size || !B.size) return true;
+  for (const t of A) if (B.has(t)) return true;
+  return false;
+}
+/** Alias first (exact, owner-confirmed; a stale alias to a sku not on this PO is ignored), then best token overlap >= threshold. */
 export function matchLine(supplierId: string, inv: InvLine, po: PoLine[], aliases: AliasTable): PoLine | undefined {
   const aliased = aliases[supplierId]?.[normalise(inv.description)];
-  if (aliased) return po.find(p => p.sku === aliased);
+  const hit = aliased ? po.find(p => p.sku === aliased) : undefined;
+  if (hit) return hit;
   let best: PoLine | undefined, score = 0;
-  for (const p of po) { const s = tokenOverlap(inv.description, p.description); if (s > score) { score = s; best = p; } }
+  for (const p of po) {
+    if (!sameSize(inv.description, p.description)) continue; // "Minyak 5kg" is not "Minyak 1kg"
+    const s = tokenOverlap(inv.description, p.description); if (s > score) { score = s; best = p; }
+  }
   return score >= MATCH_THRESHOLD ? best : undefined;
 }
 
@@ -56,12 +70,15 @@ export type BaselineSource = 'agreed' | 'po' | 'last_invoice';
 /** Baseline chain: owner-agreed price -> price written on the PO line -> last invoice price -> none. */
 export function baseline(e: PriceEntry | undefined, po?: PoLine): { sen: Sen; source: BaselineSource } | undefined {
   if (e?.agreedSen !== undefined) return { sen: e.agreedSen, source: 'agreed' };
-  if (po?.unitPriceSen !== undefined) return { sen: po.unitPriceSen, source: 'po' };
-  if (e?.lastInvoiceSen !== undefined) return { sen: e.lastInvoiceSen, source: 'last_invoice' };
+  if (po?.unitPriceSen !== undefined && po.unitPriceSen > 0) return { sen: po.unitPriceSen, source: 'po' };
+  if (e?.lastInvoiceSen !== undefined && e.lastInvoiceSen > 0) return { sen: e.lastInvoiceSen, source: 'last_invoice' };  // a free-of-charge line is not a price
   return undefined;
 }
 export const setAgreedPrice = (pl: PriceList, sku: string, sen: Sen): PriceList =>
   ({ ...pl, [sku]: { ...pl[sku], agreedSen: assertSen(sen) } });
+/** "Ini kenaikan biasa": the owner accepts this price as the new normal. Wins over an older agreed price and over the PO price. */
+export const acceptPrice = (pl: PriceList, sku: string, sen: Sen): PriceList =>
+  ({ ...pl, [sku]: { ...pl[sku], agreedSen: assertSen(sen), lastInvoiceSen: sen } });
 /**
  * Auto-fill from an invoice. A line whose price is under an unresolved price flag does NOT
  * overwrite the baseline (otherwise a disputed increase silently becomes the new normal).
@@ -69,7 +86,7 @@ export const setAgreedPrice = (pl: PriceList, sku: string, sen: Sen): PriceList 
  */
 export function autofillPriceList(pl: PriceList, lines: { sku: string; unitPriceSen: Sen }[], skipSkus: Set<string> = new Set()): PriceList {
   const out: PriceList = { ...pl };
-  for (const l of lines) if (!skipSkus.has(l.sku)) out[l.sku] = { ...out[l.sku], lastInvoiceSen: assertSen(l.unitPriceSen) };
+  for (const l of lines) if (!skipSkus.has(l.sku) && assertSen(l.unitPriceSen) > 0) out[l.sku] = { ...out[l.sku], lastInvoiceSen: l.unitPriceSen };
   return out;
 }
 
@@ -122,8 +139,8 @@ export function detectFlags(i: LineCheckInput): DetectedFlag[] {
     if (missing > 0) out.push({ type: 'short_qty', sku: m.sku, invoiceLineId: line.lineId, missingQty: missing,
       invoiceUnitSen: line.unitPriceSen, amountSen: missing * line.unitPriceSen });
     const b = baseline(i.priceList[m.sku], m);
-    if (b !== undefined && b.sen !== line.unitPriceSen) {
-      const pricedQty = Math.min(line.qty, rec);
+    const pricedQty = Math.min(line.qty, rec);
+    if (b !== undefined && b.sen !== line.unitPriceSen && pricedQty > 0) {   // nothing received -> nothing to re-price (the shortage covers it)
       const diff = line.unitPriceSen - b.sen;
       out.push({ type: 'price_change', sku: m.sku, invoiceLineId: line.lineId, invoiceUnitSen: line.unitPriceSen,
         baselineUnitSen: b.sen, baselineSource: b.source, pricedQty, direction: diff > 0 ? 'up' : 'down',
@@ -143,13 +160,22 @@ export function detectFlags(i: LineCheckInput): DetectedFlag[] {
 export const poNumber = (date: Date, seq: number): string =>
   `PO-${String(date.getFullYear() % 100).padStart(2, '0')}${String(date.getMonth() + 1).padStart(2, '0')}-${String(seq).padStart(3, '0')}`;
 
+const COMPANY_WORDS = new Set(['sdn', 'bhd', 'syarikat', 'enterprise', 'enterprises', 'trading', 'co', 'company', 'ltd', 'limited', 'kedai', 'pte', 'inc', 'berhad']);
+/** Supplier-name similarity that ignores company words, so "Borong Ali Sdn Bhd" is not "Borong Abu Sdn Bhd". */
+export function supplierOverlap(a: string, b: string): number {
+  const core = (s: string) => new Set(normalise(s).split(' ').filter(t => t && !COMPANY_WORDS.has(t)));
+  const A = core(a), B = core(b);
+  if (!A.size || !B.size) return tokenOverlap(a, b);
+  let inter = 0; for (const t of A) if (B.has(t)) inter++;
+  return inter / Math.min(A.size, B.size);
+}
 export interface PoCandidate { id: string; supplierName: string; orderedAt: number; lines: PoLine[] }
 /** Suggest the PO an invoice belongs to: supplier name 0.5 + item overlap 0.4 + date closeness 0.1. Highest first. */
 export function rankPoCandidates(inv: { supplierName: string; issuedAt: number; lines: { description: string }[] }, pos: PoCandidate[]) {
   const DAY = 86_400_000;
   return pos.map(p => {
-    const name = tokenOverlap(inv.supplierName, p.supplierName);
-    const hits = inv.lines.filter(l => p.lines.some(pl => tokenOverlap(l.description, pl.description) >= MATCH_THRESHOLD)).length;
+    const name = supplierOverlap(inv.supplierName, p.supplierName);
+    const hits = inv.lines.filter(l => p.lines.some(pl => sameSize(l.description, pl.description) && tokenOverlap(l.description, pl.description) >= MATCH_THRESHOLD)).length;
     const items = inv.lines.length ? hits / inv.lines.length : 0;
     const days = Math.abs(inv.issuedAt - p.orderedAt) / DAY;
     const date = Math.max(0, 1 - days / 30);
@@ -158,5 +184,7 @@ export function rankPoCandidates(inv: { supplierName: string; issuedAt: number; 
 }
 
 /** Foreign supplier suggestion from AI-read currency / country (owner confirms). */
-export const looksForeign = (currency?: string, country?: string): boolean =>
-  (!!currency && currency.toUpperCase() !== 'MYR') || (!!country && !['MY', 'MALAYSIA'].includes(country.toUpperCase()));
+export const looksForeign = (currency?: string, country?: string): boolean => {
+  const cur = currency?.trim().toUpperCase(), cty = country?.trim().toUpperCase();
+  return (!!cur && !['MYR', 'RM', 'RINGGIT', 'RINGGIT MALAYSIA'].includes(cur)) || (!!cty && !['MY', 'MYS', 'MALAYSIA'].includes(cty));
+};
