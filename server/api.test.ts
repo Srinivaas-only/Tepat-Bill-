@@ -106,6 +106,12 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
     expect((await call('GET', '/api/suppliers/sup_ali/ledger', ownerCookie)).json.ledger.payNowSen).toBe(87200);
   });
 
+  it('no PO: a different product (Gula perang) does not map to gula-pasir-1kg', async () => {
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'NOPO-GULA', lines: [{ description: 'Gula perang 1kg', qty: 3, unitPriceSen: 400 }], totalSen: 1200 });
+    const put = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: {} });
+    expect(put.json.flags.filter((f: any) => f.sku === 'gula-pasir-1kg')).toHaveLength(0);
+  });
+
   it('no PO: implicit PO means no not_ordered flags', async () => {
     const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_sinar', invoiceNo: 'NOPO-1', lines: [{ description: 'Roti Gardenia', qty: 4, unitPriceSen: 300 }], totalSen: 1200 });
     const put = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: {} });

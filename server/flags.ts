@@ -38,10 +38,23 @@ export async function loadContext(db: Conn, invoiceId: string): Promise<InvoiceC
   if (implicit) {
     const known = Object.keys(priceNow);
     const skuDesc = new Map(known.map(sku => [sku, sku.replace(/[-_]/g, ' ')]));
+    const used = new Set<string>();
     po = invLines.map(l => {
       const aliased = aliases[inv.supplierId]?.[normalise(l.description)];
-      const near = known.find(sku => tokenOverlap(l.description, skuDesc.get(sku)!) >= 0.6);
-      return { sku: aliased ?? near ?? slug(l.description), description: l.description, orderedQty: l.qty };
+      let near: string | undefined; let best = 0;
+      for (const sku of known) {
+        if (used.has(sku)) continue;
+        const text = skuDesc.get(sku)!;
+        const a = tokenOverlap(l.description, text); const b = tokenOverlap(text, l.description);
+        // overlap coefficient alone lets "gula perang 1kg" match "gula pasir 1kg" (2/3), so also require Jaccard >= 0.6
+        const A = new Set(normalise(l.description).split(' ')); const B = new Set(normalise(text).split(' '));
+        const jac = [...A].filter(x => B.has(x)).length / new Set([...A, ...B]).size;
+        if (a >= 0.6 && b >= 0.6 && jac >= 0.6 && jac > best) { best = jac; near = sku; }
+      }
+      let sku = aliased ?? near ?? slug(l.description);
+      if (used.has(sku)) sku = slug(l.description);
+      used.add(sku);
+      return { sku, description: l.description, orderedQty: l.qty };
     });
   }
   const savedRows = await db.select().from(S.receivedCounts).where(eq(S.receivedCounts.invoiceId, invoiceId));
@@ -112,6 +125,9 @@ export async function attachPhotos(db: Conn, c: Pick<InvoiceContext, 'inv' | 'po
 /** First save only: autofill last_invoice prices from the matched lines, skipping skus with an upward price flag (core rule). */
 export async function firstSaveAutofill(db: Conn, c: InvoiceContext, detected: DetectedFlag[]) {
   const skip = new Set(detected.filter(d => d.type === 'price_change' && d.sku).map(d => d.sku!));
+  const open = await db.select({ sku: S.flags.sku }).from(S.flags)
+    .where(and(eq(S.flags.supplierId, c.inv.supplierId), eq(S.flags.type, 'price_change'), inArray(S.flags.status, ['proposed', 'open', 'disputed'])));
+  for (const o of open) if (o.sku) skip.add(o.sku);
   const lines = c.invLines.flatMap(l => {
     const m = matchLine(c.inv.supplierId, l, c.po, c.aliases);
     return m ? [{ sku: m.sku, unitPriceSen: l.unitPriceSen }] : [];

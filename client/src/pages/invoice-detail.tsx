@@ -42,15 +42,15 @@ export default function InvoiceDetail() {
         <div className="space-y-5">
           <div>
             <p className="text-sm text-ink-2">{t('inv.title')}{d.invoice.poNo ? ` · ${d.invoice.poNo}` : ''}</p>
-            <h1 className="tnum text-2xl font-semibold">{d.invoice.invoiceNo}</h1>
+            <h1 className="num text-2xl font-semibold">{d.invoice.invoiceNo}</h1>
             <Link href={`/suppliers/${d.invoice.supplierId}`} className="text-sm font-semibold text-brand">{d.invoice.supplierName}</Link>
           </div>
-          {d.invoice.documentId && d.invoice.doc && <DocImage src={`/api/documents/${d.invoice.documentId}/file`} width={d.invoice.doc.width || 900} height={d.invoice.doc.height || 1180} alt="" boxes={d.lines.map(l => l.box)} maxHeight="45dvh" />}
+          {d.invoice.documentId && d.invoice.doc && <DocImage src={`/api/documents/${d.invoice.documentId}/file`} width={d.invoice.doc.width || 900} height={d.invoice.doc.height || 1180} alt={d.invoice.invoiceNo} boxes={d.lines.map(l => l.box)} maxHeight="45dvh" />}
           <Card className="divide-y divide-line px-4">
             {d.lines.map(l => (
               <div key={l.lineId} className="flex items-start justify-between gap-3 py-3 text-sm">
-                <div className="min-w-0"><p className="font-medium">{l.description}</p><p className="tnum text-xs text-ink-2">{d.counts[`line:${l.lineId}`] ?? l.qty} / {l.qty} × {formatMoney(l.unitPriceSen, 'MYR')}</p></div>
-                <p className="tnum shrink-0 font-semibold">{formatMoney(l.qty * l.unitPriceSen, 'MYR')}</p>
+                <div className="min-w-0"><p className="font-medium">{l.description}</p><p className="num text-xs text-ink-2">{d.counts[`line:${l.lineId}`] ?? l.qty} / {l.qty} × {formatMoney(l.unitPriceSen, 'MYR')}</p></div>
+                <p className="num shrink-0 font-semibold">{formatMoney(l.qty * l.unitPriceSen, 'MYR')}</p>
               </div>))}
             <div className="flex items-baseline justify-between py-3"><span className="text-ink-2">{t('inv.total')}</span><Money sen={d.invoice.totalSen} className="text-xl font-semibold" /></div>
           </Card>

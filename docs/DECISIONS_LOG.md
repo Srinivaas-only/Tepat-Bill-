@@ -23,3 +23,5 @@
 - 2026-10-23 · deploy · smoke ran on port 5056 (5055 may be held by an old process); .replit [[ports]] 5055 entry removed; run command set via deployConfig to db:push then start.
 - 2026-10-23 · SKIPPED · items 30, 31, 32, 33, 34 · P3 optional, not attempted (budget); item 36 partly done (focus-visible radius, --safe-top, open=brand); hex tokens, keypad keys, img alt audit not done
 - 2026-10-23 · decision · item 21 price_list has no description column, so near-match uses the sku slug text as description; item 27 CSV rm() uses formatRM minus "RM" (thousands separators now appear in quoted cells)
+- 2026-10-23 · decision · B2 · tokenOverlap is symmetric (overlap coefficient) so 'gula perang 1kg' scored 0.67 against 'gula pasir 1kg'; added Jaccard >= 0.6 so the required test passes
+- 2026-10-23 · SKIPPED · items U9 (ErrorState only on home, flag-detail, supplier-detail, flags, activity; not invoice-detail, count, suppliers, orders, einvoice), U10 (back buttons, empty-state CTAs; OfflineBanner done), U12 · P3 optional, not attempted (budget)

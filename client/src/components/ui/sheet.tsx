@@ -10,11 +10,11 @@ export const SheetClose = D.Close;
 export function SheetContent({ className, children, title, description, ...p }: ComponentProps<typeof D.Content> & { title: string; description?: string; children?: ReactNode }) {
   return (
     <D.Portal>
-      <D.Overlay className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+      <D.Overlay className="fixed inset-0 z-50 bg-ink/40 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
       <D.Content
         className={cn(
-          'fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] rounded-t-sheet bg-surface p-5 pb-[calc(20px+var(--safe-bottom))] shadow-elev',
-          'data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-200',
+          'fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] max-h-[92dvh] overflow-y-auto rounded-t-sheet bg-surface p-5 pb-[calc(20px+var(--safe-bottom))] shadow-elev',
+          'data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-[420ms] data-[state=open]:ease-[cubic-bezier(0.22,1.25,0.36,1)] data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-200',
           className,
         )}
         {...p}

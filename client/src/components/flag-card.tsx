@@ -1,9 +1,8 @@
 import { motion } from 'motion/react';
-import { PackageMinus, Tag, PackageX } from 'lucide-react';
+import { Link } from 'wouter';
 import { useI18n } from '@/i18n';
 import type { Key } from '@/i18n/ms';
 import { Money } from '@/components/ui/money';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 export interface FlagView {
@@ -11,8 +10,6 @@ export interface FlagView {
   direction: string | null; supplierId: string; invoiceId: string; poId: string | null; poNo: string | null; reminderDue: boolean; supplierName: string; invoiceNo: string;
   createdAt: number; sentAt: number | null; openedAt: number | null; settledAt: number | null; request: string | null; settlement: string | null;
 }
-const icon = { short_qty: PackageMinus, price_change: Tag, not_ordered: PackageX } as const;
-const bg = { short_qty: 'bg-short-bg text-short', price_change: 'bg-price-bg text-price', not_ordered: 'bg-notord-bg text-notord' } as const;
 export const statusTone = { proposed: 'neutral', open: 'brand', disputed: 'dispute', settled: 'ok', dismissed: 'neutral' } as const;
 
 export function useFlagTitle() {
@@ -25,27 +22,38 @@ export function useAge() {
   return (ms: number) => { const d = Math.floor((Date.now() - ms) / 86_400_000); return d <= 0 ? t('age.today') : t('age.days', { n: d }); };
 }
 
-export function FlagCard({ flag, index = 0 }: { flag: FlagView; index?: number }) {
+const bar = { short_qty: 'bg-short', price_change: 'bg-price', not_ordered: 'bg-notord' } as const;
+const word = { short_qty: 'flag.typeShort', price_change: 'flag.typePrice', not_ordered: 'flag.typeNotOrd' } as const;
+
+/** One ledger row: 3px bar in the type colour, small type word, one status chip. */
+export function FlagCard({ flag }: { flag: FlagView; index?: number }) {
   const title = useFlagTitle();
   const age = useAge();
-  const { t } = useI18n();
-  const Icon = icon[flag.type];
+  const { t, lang } = useI18n();
+  void lang;
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 32, delay: Math.min(index, 10) * 0.04 }} whileTap={{ scale: 0.98 }}>
-      <Card className="flex min-h-[72px] items-center gap-3 p-4">
-        <div className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${bg[flag.type]}`}>
-          <Icon size={20} strokeWidth={1.5} aria-hidden />
-          {flag.reminderDue && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-dispute ring-2 ring-surface" role="img" aria-label={t('flag.remind')} />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 font-medium leading-5">{title(flag)} · {flag.lineDescription}</p>
-          <p className="mt-0.5 truncate text-xs text-ink-2">{flag.supplierName} · <span className="tnum">{flag.invoiceNo}</span> · <span className="tnum">{age(flag.openedAt ?? flag.createdAt)}</span></p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <motion.span layoutId={`flag-amt-${flag.id}`}><Money sen={flag.amountSen} className="text-xl font-semibold" /></motion.span>
-          <motion.span layoutId={`flag-chip-${flag.id}`}><Badge tone={statusTone[flag.status as keyof typeof statusTone]}>{t(`status.${flag.status}` as Key)}</Badge></motion.span>
-        </div>
-      </Card>
-    </motion.div>
+    <div className="relative flex min-h-[72px] items-center gap-3 py-3 pl-5 pr-4">
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${bar[flag.type]}`} />
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-2">{t(word[flag.type])}{flag.reminderDue && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-dispute align-middle" role="img" aria-label={t('flag.remind')} />}</p>
+        <p className="line-clamp-2 font-medium leading-5">{title(flag)} · {flag.lineDescription}</p>
+        <p className="mt-0.5 truncate text-xs text-ink-2">{flag.supplierName} · <span className="num">{flag.invoiceNo}</span> · <span className="num">{age(flag.openedAt ?? flag.createdAt)}</span></p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <motion.span layoutId={`flag-amt-${flag.id}`}><Money sen={flag.amountSen} className="text-lg font-semibold" /></motion.span>
+        <motion.span layoutId={`flag-chip-${flag.id}`}><Badge tone={statusTone[flag.status as keyof typeof statusTone]}>{t(`status.${flag.status}` as Key)}</Badge></motion.span>
+      </div>
+    </div>
+  );
+}
+
+/** A group of flags in one bordered container, rows split by dashed hairlines (like a bon). */
+export function FlagLedger({ flags, onPick }: { flags: FlagView[]; onPick?: (f: FlagView) => void }) {
+  return (
+    <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
+      {flags.map(f => (onPick
+        ? <button key={f.id} type="button" onClick={() => onPick(f)} className="block w-full border-t border-dashed border-line text-left first:border-t-0"><FlagCard flag={f} /></button>
+        : <Link key={f.id} href={`/flags/${f.id}`} className="block border-t border-dashed border-line first:border-t-0"><FlagCard flag={f} /></Link>))}
+    </div>
   );
 }

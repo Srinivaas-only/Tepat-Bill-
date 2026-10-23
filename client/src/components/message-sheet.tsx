@@ -21,8 +21,7 @@ export function MessageSheet({ flagId, open, onOpenChange, reminder }: { flagId:
   const qc = useQueryClient();
   const [lang, setLang] = useState<'ms' | 'en'>(uiLang === 'en' ? 'en' : 'ms');
   // capture `reminder` once per opening: a refetch after "sent" must not flip an in-flight first send into a reminder
-  const [rem, setRem] = useState(reminder);
-  useEffect(() => { if (open) setRem(reminder); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open]);
+  const [rem] = useState(reminder); // parent remounts this component (key) on every opening
   const q = useQuery({ queryKey: ['message', flagId, lang, rem], enabled: open, gcTime: 0,
     queryFn: () => api.get<Msg>(`/flags/${flagId}/message?lang=${lang}${rem ? '&reminder=1' : ''}`) });
   const sent = useMutation({
@@ -42,10 +41,10 @@ export function MessageSheet({ flagId, open, onOpenChange, reminder }: { flagId:
           {!m ? <Skeleton className="h-56 w-full" /> : (
             <>
               <div className="rounded-2xl bg-surface-2 p-3">
-                <div className="relative ml-auto max-w-[94%] rounded-2xl rounded-tr-sm bg-white p-3 shadow-card">
+                <div className="relative ml-auto max-w-[94%] rounded-2xl rounded-tr-sm bg-surface p-3">
                   <textarea aria-label={t('flag.msgTitle')} value={text} onChange={e => setText(e.target.value)} rows={9}
                     className="max-h-[36dvh] w-full resize-none bg-transparent font-sans text-sm leading-5 outline-none" />
-                  <span className="tnum block text-right text-[11px] text-ink-2">{now}</span>
+                  <span className="num block text-right text-[11px] text-ink-2">{now}</span>
                 </div>
               </div>
               {!m.phone && <p className="text-sm text-ink-2">{t('flag.noNumber')}</p>}

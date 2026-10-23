@@ -17,10 +17,10 @@ export function PhotoViewer({ src, onClose, box }: { src: string | null; onClose
             <TransformWrapper minScale={1} maxScale={5} doubleClick={{ mode: 'zoomIn' }}>
               <TransformComponent wrapperStyle={{ width: '100vw', height: '100dvh' }} contentStyle={{ width: '100vw', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div className="relative inline-block">
-                  <img src={src} alt="" className="block max-h-[100dvh] max-w-[100vw] object-contain" draggable={false} />
+                  <img src={src} alt={t('flag.photos')} className="block max-h-[100dvh] max-w-[100vw] object-contain" draggable={false} />
                   {box && (
                     <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden>
-                      <rect className="hl-pulse" x={box[1]} y={box[0]} width={box[3] - box[1]} height={box[2] - box[0]} rx={6} fill="var(--brand)" stroke="var(--brand)" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+                      <rect x={box[1]} y={box[0]} width={box[3] - box[1]} height={box[2] - box[0]} rx={6} fill="var(--brand)" fillOpacity={0.16} stroke="var(--brand)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
                     </svg>
                   )}
                 </div>

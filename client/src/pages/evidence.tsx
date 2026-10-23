@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Stamp } from '@/components/stamp';
 import { Logo } from '@/components/logo';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { useI18n } from '@/i18n';
@@ -36,7 +37,7 @@ function Highlighted({ src, box, size, alt, onOpen }: { src: string; box: [numbe
       <img src={src} alt={alt} className={size ? 'absolute inset-0 h-full w-full object-fill' : 'block w-full'} />
       {box && (
         <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden>
-          <rect className="hl-pulse" x={box[1]} y={box[0]} width={box[3] - box[1]} height={box[2] - box[0]} rx={6} fill="var(--brand)" stroke="var(--brand)" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+          <rect x={box[1]} y={box[0]} width={box[3] - box[1]} height={box[2] - box[0]} rx={6} fill="var(--brand)" fillOpacity={0.16} stroke="var(--brand)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
         </svg>
       )}
     </button>
@@ -61,34 +62,34 @@ export default function Evidence() {
         <div className="space-y-4">
           <div className="space-y-1">
             <p className="text-ink-2">{t('ev.from', { shop: d.shopName, no: d.invoice.invoiceNo })}</p>
-            <p className="text-sm text-ink-2">{d.supplierName} · {t('ev.date')} <span className="tnum">{d.invoiceDocDate.split('-').reverse().join('/')}</span></p>
+            <p className="text-sm text-ink-2">{d.supplierName} · {t('ev.date')} <span className="num">{d.invoiceDocDate.split('-').reverse().join('/')}</span></p>
           </div>
           <Card className="p-4">
-            <div className="flex items-center justify-between gap-2"><p className="text-sm text-ink-2">{t(`ev.type.${d.flag.type}` as Key)}</p><Badge tone={d.flag.status === 'settled' ? 'ok' : d.flag.status === 'disputed' ? 'dispute' : 'price'}>{t(`status.${d.flag.status}` as Key)}</Badge></div>
+            <div className="flex items-center justify-between gap-2"><p className="text-sm text-ink-2">{t(`ev.type.${d.flag.type}` as Key)}</p><Stamp status={d.flag.status} /></div>
             <p className="mt-1 font-semibold leading-6">{line?.description}</p>
             <Money sen={d.flag.amountSen} className="mt-2 text-[32px] font-semibold leading-10" />
             <dl className="mt-3 divide-y divide-line text-sm">
-              {line && <div className="flex justify-between py-2"><dt className="text-ink-2">{t('flag.billed')}</dt><dd className="tnum font-semibold">{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</dd></div>}
-              {d.baseline && <div className="flex justify-between py-2"><dt className="text-ink-2">{t('ev.baseline')} ({t(`flag.src.${d.baseline.source}` as Key)})</dt><dd className="tnum font-semibold">{formatMoney(d.baseline.unitSen, 'MYR')}</dd></div>}
+              {line && <div className="flex justify-between py-2"><dt className="text-ink-2">{t('flag.billed')}</dt><dd className="num font-semibold">{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</dd></div>}
+              {d.baseline && <div className="flex justify-between py-2"><dt className="text-ink-2">{t('ev.baseline')} ({t(`flag.src.${d.baseline.source}` as Key)})</dt><dd className="num font-semibold">{formatMoney(d.baseline.unitSen, 'MYR')}</dd></div>}
             </dl>
           </Card>
 
-          {invoicePhoto && <section><h2 className="mb-2 text-lg font-semibold">{t('ev.invoice')} <span className="tnum">{d.invoice.invoiceNo}</span></h2><Highlighted src={invoicePhoto.url} box={d.highlight.box_2d} size={d.invoiceDoc} alt={t('ev.invoiceAlt', { no: d.invoice.invoiceNo })} onOpen={() => setViewer(invoicePhoto.url)} /></section>}
+          {invoicePhoto && <section><h2 className="mb-2 text-lg font-semibold">{t('ev.invoice')} <span className="num">{d.invoice.invoiceNo}</span></h2><Highlighted src={invoicePhoto.url} box={d.highlight.box_2d} size={d.invoiceDoc} alt={t('ev.invoiceAlt', { no: d.invoice.invoiceNo })} onOpen={() => setViewer(invoicePhoto.url)} /></section>}
 
           {line && d.po && (
             <section><h2 className="mb-2 text-lg font-semibold">{t('ev.compare')}</h2>
               <Card className="grid grid-cols-2 divide-x divide-line text-sm">
                 <div className="p-3"><p className="text-xs text-ink-2">{t('ev.poCol')}</p>
-                  <p className="font-medium">{poLine?.description ?? t('ev.notInPo')}</p><p className="tnum text-ink-2">{poLine ? `${poLine.orderedQty}` : '—'}</p></div>
+                  <p className="font-medium">{poLine?.description ?? t('ev.notInPo')}</p><p className="num text-ink-2">{poLine ? `${poLine.orderedQty}` : '—'}</p></div>
                 <div className="p-3"><p className="text-xs text-ink-2">{t('ev.invCol')}</p>
-                  <p className="font-medium">{line.description}</p><p className="tnum text-ink-2">{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</p></div>
+                  <p className="font-medium">{line.description}</p><p className="num text-ink-2">{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</p></div>
               </Card>
             </section>
           )}
 
           {d.po && (
             <section><h2 className="mb-2 text-lg font-semibold">{t('ev.po', { no: d.po.poNo })}</h2>
-              <Card className="divide-y divide-line px-4">{d.po.lines.map(l => <div key={l.sku} className="flex justify-between gap-3 py-2 text-sm"><span>{l.description}</span><span className="tnum font-semibold">{l.orderedQty}</span></div>)}</Card></section>
+              <Card className="divide-y divide-line px-4">{d.po.lines.map(l => <div key={l.sku} className="flex justify-between gap-3 py-2 text-sm"><span>{l.description}</span><span className="num font-semibold">{l.orderedQty}</span></div>)}</Card></section>
           )}
 
           <section><h2 className="mb-2 text-lg font-semibold">{t('ev.photos')}</h2>

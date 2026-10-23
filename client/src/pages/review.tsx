@@ -185,9 +185,9 @@ export default function Review() {
                 <div><span className={label}>{t('review.currency')}</span><Input value={currency} maxLength={3} onChange={e => setCurrency(e.target.value.toUpperCase())} /></div>
               </div>
               {foreignInvoice && (
-                <div><span className={label}>{t('review.rate')}</span><Input inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} placeholder="4.20" aria-invalid={touched && !rateOk} className="tnum" /></div>
+                <div><span className={label}>{t('review.rate')}</span><Input inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} placeholder="4.20" aria-invalid={touched && !rateOk} className="num" /></div>
               )}
-              <div><span className={label}>{t('review.printedTotal')} ({currency})</span><Input inputMode="decimal" value={printed} onChange={e => setPrinted(e.target.value)} className="tnum" /></div>
+              <div><span className={label}>{t('review.printedTotal')} ({currency})</span><Input inputMode="decimal" value={printed} onChange={e => setPrinted(e.target.value)} className="num" /></div>
             </Card>
           )}
 
@@ -220,9 +220,9 @@ export default function Review() {
                     <Button variant="ghost" size="icon" aria-label={t('review.removeLine')} disabled={rows.length === 1} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}><Trash2 size={20} strokeWidth={1.5} /></Button>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div><span className="mb-1 block text-xs text-ink-2">{t('review.qty')}</span><Input inputMode="numeric" value={r.qty} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { qty: e.target.value.replace(/\D/g, '') })} className="tnum" aria-invalid={touched && !/^\d+$/.test(r.qty)} /></div>
+                    <div><span className="mb-1 block text-xs text-ink-2">{t('review.qty')}</span><Input inputMode="numeric" value={r.qty} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { qty: e.target.value.replace(/\D/g, '') })} className="num" aria-invalid={touched && !/^\d+$/.test(r.qty)} /></div>
                     <div><span className="mb-1 block text-xs text-ink-2">{t('review.unit')}</span><Input value={r.unit} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { unit: e.target.value })} /></div>
-                    <div><span className="mb-1 block text-xs text-ink-2">{t('review.price')}</span><Input inputMode="decimal" value={r.price} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { price: e.target.value })} className="tnum" aria-invalid={touched && !(kind === 'po' ? r.price === '' || isMoney(r.price) : isMoney(r.price))} /></div>
+                    <div><span className="mb-1 block text-xs text-ink-2">{t('review.price')}</span><Input inputMode="decimal" value={r.price} onFocus={() => setActive(rowIdx(r.key))} onChange={e => patch(r.key, { price: e.target.value })} className="num" aria-invalid={touched && !(kind === 'po' ? r.price === '' || isMoney(r.price) : isMoney(r.price))} /></div>
                   </div>
                 </Card>
               </motion.div>
@@ -233,13 +233,13 @@ export default function Review() {
           {mismatch && (
             <div className="flex items-start gap-3 rounded-card bg-short-bg p-4 text-short" role="alert">
               <AlertTriangle size={20} className="mt-0.5 shrink-0" aria-hidden />
-              <p className="tnum text-sm font-medium">{t('review.totalMismatch', { sum: formatMoney(sum, currency), printed: formatMoney(printedMinor!, currency) })}</p>
+              <p className="num text-sm font-medium">{t('review.totalMismatch', { sum: formatMoney(sum, currency), printed: formatMoney(printedMinor!, currency) })}</p>
             </div>
           )}
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/85 px-5 pt-3 backdrop-blur-xl" style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface px-5 pt-3" style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}>
         <div className="mx-auto max-w-[480px]"><Button block disabled={save.isPending || loading} onClick={trySave}>{save.isPending ? t('review.saving') : t(kind === 'po' ? 'review.savePo' : 'review.saveInvoice')}</Button></div>
       </div>
 
@@ -259,7 +259,7 @@ export default function Review() {
           <div className="max-h-[50dvh] space-y-2 overflow-y-auto">
             {cands.map(c => (
               <Button key={c.id} variant={c.id === effectivePoId ? 'primary' : 'secondary'} block className="h-auto justify-between py-3 text-left" onClick={() => { setPoPick(c.id); setPoSheet(false); }}>
-                <span><span className="tnum block">{c.poNo}</span><span className="block text-xs font-normal opacity-80">{c.supplierName}</span></span>
+                <span><span className="num block">{c.poNo}</span><span className="block text-xs font-normal opacity-80">{c.supplierName}</span></span>
                 {c.id === top?.id && <Badge tone="brand">{Math.round(c.score * 100)}%</Badge>}
               </Button>
             ))}

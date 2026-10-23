@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
-import { motion } from 'motion/react';
+import { AlertTriangle } from 'lucide-react';
+import { useI18n } from '@/i18n';
+import { Button } from '@/components/ui/button';
 
 export function Page({ title, children, action }: { title?: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 32 }} className="px-5 pb-8 pt-[calc(24px+var(--safe-top))]">
+    <main className="px-5 pb-8 pt-[calc(24px+var(--safe-top))]">
       {title && (
         <header className="mb-5 flex items-center justify-between">
           <h1 className="text-[28px] font-semibold leading-[34px]">{title}</h1>
@@ -11,7 +13,7 @@ export function Page({ title, children, action }: { title?: string; children: Re
         </header>
       )}
       {children}
-    </motion.main>
+    </main>
   );
 }
 
@@ -22,5 +24,14 @@ export function EmptyState({ icon, text, children }: { icon: ReactNode; text: st
       <p className="text-ink-2">{text}</p>
       {children}
     </div>
+  );
+}
+
+export function ErrorState({ onRetry, notFound }: { onRetry: () => void; notFound?: boolean }) {
+  const { t } = useI18n();
+  return (
+    <EmptyState icon={<AlertTriangle size={26} strokeWidth={1.5} />} text={t(notFound ? 'flag.notFound' : 'common.error')}>
+      <Button size="sm" variant="secondary" onClick={onRetry}>{t('common.retry')}</Button>
+    </EmptyState>
   );
 }

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const Row = ({ k, v }: { k: string; v: string }) => <div className="flex justify-between gap-4 py-2"><dt className="text-ink-2">{k}</dt><dd className="tnum text-right font-semibold">{v}</dd></div>;
+const Row = ({ k, v }: { k: string; v: string }) => <div className="flex justify-between gap-4 py-2"><dt className="text-ink-2">{k}</dt><dd className="num text-right font-semibold">{v}</dd></div>;
 
 export default function EInvoice() {
   const { id } = useParams<{ id: string }>();
@@ -43,8 +43,8 @@ export default function EInvoice() {
           </dl>
           <h2 className="mb-1 mt-4 font-semibold">{t('einv.items')}</h2>
           <div className="divide-y divide-line text-sm">{f.lines.map((l, i) => (
-            <div key={i} className="flex justify-between gap-3 py-2"><span>{l.description}<span className="tnum block text-xs text-ink-2">{l.qty} × {formatMoney(l.unitPriceSen, f.currency)}</span></span><span className="tnum font-semibold">{formatMoney(l.totalSen, f.currency)}</span></div>))}</div>
-          <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3"><span className="font-semibold">{t('einv.total', { cur: f.currency })}</span><span className="tnum text-2xl font-semibold">{formatMoney(f.totalSen, f.currency)}</span></div>
+            <div key={i} className="flex justify-between gap-3 py-2"><span>{l.description}<span className="num block text-xs text-ink-2">{l.qty} × {formatMoney(l.unitPriceSen, f.currency)}</span></span><span className="num font-semibold">{formatMoney(l.totalSen, f.currency)}</span></div>))}</div>
+          <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3"><span className="font-semibold">{t('einv.total', { cur: f.currency })}</span><span className="num text-2xl font-semibold">{formatMoney(f.totalSen, f.currency)}</span></div>
           <div className="mt-5 space-y-2">
             {d.status === 'draft' && <Button block disabled={act.isPending} onClick={() => act.mutate('approve')}>{t('einv.approve')}</Button>}
             {d.status === 'approved' && <Button block disabled={act.isPending} onClick={() => act.mutate('release')}>{t('einv.release')}</Button>}

@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
+import { useI18n } from '@/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { BottomNav } from '@/components/bottom-nav';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,12 +31,24 @@ function NavGate() {
   return /^\/(read|review|bon)\b/.test(loc) || /^\/invoices\/[^/]+\/count/.test(loc) || /^\/flags\/[^/]+/.test(loc) ? null : <BottomNav />;
 }
 
+function OfflineBanner() {
+  const { t } = useI18n();
+  const [online, setOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const on = () => setOnline(true); const off = () => setOnline(false);
+    window.addEventListener('online', on); window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+  return online ? null : <div role="status" className="fixed inset-x-0 top-0 z-[70] bg-dispute px-4 py-2 text-center text-sm font-medium text-white">{t('common.offline')}</div>;
+}
+
 function AppShell() {
   const { role, loading } = useAuth();
   if (loading) return <Fallback />;
   if (!role) return <Suspense fallback={<Fallback />}><Login /></Suspense>;
   return (
     <div className="mx-auto min-h-dvh max-w-[480px] pb-24">
+      <OfflineBanner />
       <Suspense fallback={<Fallback />}>
         <Switch>
           <Route path="/" component={Home} />

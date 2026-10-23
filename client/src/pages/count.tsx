@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'wouter';
+import { useLocation, useParams } from 'wouter';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Minus, Plus, Camera, Check, Truck, TriangleAlert } from 'lucide-react';
@@ -9,11 +9,10 @@ import { useI18n } from '@/i18n';
 import { prepareFile, uploadDocument } from '@/lib/image';
 import { buzz } from '@/lib/haptics';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Money } from '@/components/ui/money';
-import { FlagCard, type FlagView } from '@/components/flag-card';
+import { FlagLedger, type FlagView } from '@/components/flag-card';
 
 interface Detail {
   invoice: { id: string; invoiceNo: string; supplierName: string; poNo: string | null };
@@ -24,13 +23,13 @@ interface Detail {
   flags: FlagView[];
 }
 
-function Stepper({ value, onChange, max = 100000, decLabel, incLabel }: { value: number; onChange: (n: number) => void; max?: number; decLabel: string; incLabel: string }) {
+function Stepper({ value, onChange, max = 100000, decLabel, incLabel, hand }: { hand?: boolean; value: number; onChange: (n: number) => void; max?: number; decLabel: string; incLabel: string }) {
   // long-press repeat: starts after 400ms, then every 120ms
   const valRef = useRef(value); valRef.current = value;
   const timers = useRef<{ t?: ReturnType<typeof setTimeout>; i?: ReturnType<typeof setInterval>; fired: boolean }>({ fired: false });
   const clamp = (n: number) => Math.max(0, Math.min(max, n));
-  const apply = (d: number) => { const n = clamp(valRef.current + d); valRef.current = n; buzz(6); onChange(n); };
   const stop = () => { clearTimeout(timers.current.t); clearInterval(timers.current.i); };
+  const apply = (d: number) => { const n = clamp(valRef.current + d); if (n === valRef.current) { stop(); return; } valRef.current = n; buzz(6); onChange(n); };
   const start = (d: number) => { stop(); timers.current.fired = false; timers.current.t = setTimeout(() => { timers.current.fired = true; timers.current.i = setInterval(() => apply(d), 120); }, 400); };
   useEffect(() => stop, []);
   const press = (d: number) => ({
@@ -41,7 +40,7 @@ function Stepper({ value, onChange, max = 100000, decLabel, incLabel }: { value:
     <div className="flex items-center gap-2">
       <Button variant="secondary" size="icon" className="h-14 w-14 rounded-full" aria-label={decLabel} disabled={value <= 0} {...press(-1)}><Minus size={22} /></Button>
       <input inputMode="numeric" aria-label="qty" value={value} onFocus={e => e.currentTarget.select()} onChange={e => onChange(clamp(Number(e.target.value.replace(/\D/g, '')) || 0))}
-        className="tnum h-14 w-16 rounded-btn border border-line bg-surface text-center text-[28px] font-semibold" />
+        className={`h-14 w-16 rounded-btn border border-line bg-surface text-center text-[28px] ${hand ? 'font-normal text-brand' : 'num font-semibold'}`} style={hand ? { fontFamily: "'Kalam', cursive" } : undefined} />
       <Button variant="secondary" size="icon" className="h-14 w-14 rounded-full" aria-label={incLabel} {...press(1)}><Plus size={22} /></Button>
     </div>
   );
@@ -66,7 +65,7 @@ export default function Count() {
   const save = useMutation({
     mutationFn: () => api.put<{ flags: FlagView[]; totalSen: number }>(`/invoices/${id}/counts`, { counts }),
     onSuccess: r => {
-      buzz(14); setShown(0); setTotalSen(r.totalSen); setResult(r.flags.filter(f => f.type !== 'price_change' || f.direction !== 'down'));
+      buzz(14); setShown(0); setTotalSen(r.totalSen); setResult(r.flags.filter(f => f.status === 'proposed' && (f.type !== 'price_change' || f.direction !== 'down')));
       for (const k of ['flags', 'home', 'ledger', 'ledgers']) void qc.invalidateQueries({ queryKey: [k] });
       void qc.invalidateQueries({ queryKey: ['invoice', id] });
     },
@@ -84,38 +83,40 @@ export default function Count() {
   const set = (key: string, n: number) => setCounts(c => ({ ...c, [key]: n }));
   const d = q.data;
   useEffect(() => { if (!result) return; const tm = setTimeout(() => setShown(totalSen), 250); return () => clearTimeout(tm); }, [result, totalSen]);
+  const thumb = (kind: string) => [...(d?.photos ?? [])].reverse().find(p => p.photoKind === kind)?.id;
   const hasBon = d?.photos.some(p => p.photoKind === 'signed_bon');
   const hasDelivery = d?.photos.some(p => p.photoKind === 'delivery');
 
   return (
     <main className="px-5 pb-36 pt-6">
       <h1 className="text-[28px] font-semibold leading-[34px]">{t('count.title')}</h1>
-      {d && <p className="mb-5 mt-1 text-ink-2"><span className="tnum">{d.invoice.invoiceNo}</span> · {d.invoice.supplierName}{d.invoice.poNo ? ` · ${d.invoice.poNo}` : ''}</p>}
+      {d && <p className="mb-5 mt-1 text-ink-2"><span className="num">{d.invoice.invoiceNo}</span> · {d.invoice.supplierName}{d.invoice.poNo ? ` · ${d.invoice.poNo}` : ''}</p>}
       {!d ? <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-[112px] w-full" />)}</div> : (
         <div className="space-y-3">
-          {d.lines.map((l, i) => {
-            const key = `line:${l.lineId}`; const v = counts[key] ?? l.qty; const diff = l.qty - v;
-            return (
-              <motion.div key={l.lineId} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 32, delay: Math.min(i, 8) * 0.04 }}>
-                <Card className={`p-4 ${diff !== 0 ? 'ring-2 ring-short bg-short-bg/40' : ''}`}>
-                  <div className="flex items-start justify-between gap-2"><p className="font-medium leading-5">{l.description}</p>{diff !== 0 && <Badge tone="short" className="tnum shrink-0">{diff > 0 ? '−' : '+'}{Math.abs(diff)}</Badge>}</div>
+          <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
+            {d.lines.map(l => {
+              const key = `line:${l.lineId}`; const v = counts[key] ?? l.qty; const diff = l.qty - v;
+              return (
+                <div key={l.lineId} className="relative border-t border-dashed border-line py-4 pl-5 pr-4 first:border-t-0">
+                  {diff !== 0 && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-short" />}
+                  <div className="flex items-start justify-between gap-2"><p className="font-medium leading-5">{l.description}</p>{diff !== 0 && <Badge tone="short" className="num shrink-0">{diff > 0 ? '−' : '+'}{Math.abs(diff)}</Badge>}</div>
                   <div className="mt-3 flex items-center justify-between">
-                    <span className="tnum text-sm text-ink-2">{t('count.billed', { n: `${l.qty}${l.unit ? ` ${l.unit}` : ''}` })}</span>
-                    <Stepper value={v} onChange={n => set(key, n)} decLabel={t('count.dec')} incLabel={t('count.inc')} />
+                    <span className="num text-sm text-ink-2">{t('count.billed', { n: `${l.qty}${l.unit ? ` ${l.unit}` : ''}` })}</span>
+                    <Stepper hand={diff !== 0} value={v} onChange={n => set(key, n)} decLabel={t('count.dec')} incLabel={t('count.inc')} />
                   </div>
-                </Card>
-              </motion.div>
-            );
-          })}
-          {d.poOnly.map(p => (
-            <Card key={p.sku} className="bg-surface-2 p-4 opacity-60">
-              <p className="font-medium leading-5">{p.description}</p>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm text-ink-2">{t('count.ordered')}</span>
-                <Stepper value={counts[p.sku] ?? 0} onChange={n => set(p.sku, n)} decLabel={t('count.dec')} incLabel={t('count.inc')} />
+                </div>
+              );
+            })}
+            {d.poOnly.map(p => (
+              <div key={p.sku} className="border-t border-dashed border-line bg-surface-2 py-4 pl-5 pr-4 opacity-60">
+                <p className="font-medium leading-5">{p.description}</p>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-sm text-ink-2">{t('count.ordered')}</span>
+                  <Stepper value={counts[p.sku] ?? 0} onChange={n => set(p.sku, n)} decLabel={t('count.dec')} incLabel={t('count.inc')} />
+                </div>
               </div>
-            </Card>
-          ))}
+            ))}
+          </div>
 
           <section className="pt-2">
             <h2 className="mb-2 text-lg font-semibold">{t('count.photos')}</h2>
@@ -123,8 +124,8 @@ export default function Count() {
               {([['delivery', hasDelivery, delivery, Camera, 'count.addDelivery'], ['signed_bon', hasBon, bon, Truck, 'count.addBon']] as const).map(([kind, done, ref, Icon, key]) => (
                 <div key={kind}>
                   <input ref={ref} type="file" accept="image/*" {...(kind === 'delivery' ? { capture: 'environment' as const } : {})} className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) photo.mutate({ file: f, photoKind: kind }); }} />
-                  <Button variant="secondary" block className="h-auto flex-col gap-1 py-4" disabled={photo.isPending} onClick={() => ref.current?.click()}>
-                    {done ? <Check size={22} className="text-ok" aria-hidden /> : <Icon size={22} strokeWidth={1.5} aria-hidden />}<span className="text-sm">{t(key)}</span>
+                  <Button variant="secondary" block className="h-auto flex-col gap-1 whitespace-normal px-3 py-4 text-center leading-5" disabled={photo.isPending} onClick={() => ref.current?.click()}>
+                    {done && thumb(kind) ? <img src={`/api/documents/${thumb(kind)}/file`} alt={t(key)} className="h-10 w-10 rounded-lg object-cover" /> : done ? <Check size={22} className="text-ok" aria-hidden /> : <Icon size={22} strokeWidth={1.5} aria-hidden />}<span className="text-sm">{t(key)}</span>
                   </Button>
                 </div>
               ))}
@@ -133,7 +134,7 @@ export default function Count() {
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/85 px-5 pt-3 backdrop-blur-xl" style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface px-5 pt-3" style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}>
         <div className="mx-auto max-w-[480px]"><Button block disabled={!d || save.isPending || photo.isPending} onClick={() => save.mutate()}>{save.isPending ? t('count.saving') : t('count.save')}</Button></div>
       </div>
 
@@ -154,7 +155,7 @@ export default function Count() {
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-notord-bg text-notord"><TriangleAlert size={24} aria-hidden /></div>
                     <div><h2 className="text-xl font-semibold leading-6">{t('count.diffs', { n: result.length })}</h2><Money sen={shown} animate className="text-[32px] font-semibold leading-10" /></div>
                   </div>
-                  <div className="space-y-2">{result.map((f, i) => <Link key={f.id} href={`/flags/${f.id}`} className="block"><FlagCard flag={f} index={i} /></Link>)}</div>
+                  <FlagLedger flags={result} onPick={f => { nav('/flags', { replace: true }); nav('/flags/' + f.id); }} />
                   <Button block onClick={() => nav('/flags', { replace: true })}>{t('count.view')}</Button>
                 </div>
               )}

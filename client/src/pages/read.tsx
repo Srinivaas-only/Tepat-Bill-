@@ -82,6 +82,7 @@ export default function Read() {
   const useFixture = useMutation({
     mutationFn: (fixture: string) => api.post<ReadResult>(`/documents/${id}/use-fixture`, { fixture }),
     onSuccess: r => { setPicker(false); setRev(v => v + 1); setReady(false); setResult(r); },
+    onError: () => { fixtureChosen.current = false; },
   });
   const boxes = useMemo(() => lines.map(l => l.box_2d ?? null), [lines]);
   const goReview = () => nav(`/review/${kind}/${id}`, { replace: true });
@@ -123,9 +124,9 @@ export default function Read() {
           {lines.length === 0 && <li className="text-ink-2">{t('read.noLines')}</li>}
           {lines.map((l, i) => (
             <motion.li key={i} initial={{ opacity: 0, y: reduce ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : i * 0.12, duration: 0.3 }}
-              className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 shadow-card">
+              className="flex items-center justify-between gap-3 rounded-[14px] border border-line bg-surface px-4 py-3">
               <span className="min-w-0 flex-1 text-sm font-medium leading-5">{l.description}</span>
-              <span className="tnum shrink-0 text-right text-sm text-ink-2">
+              <span className="num shrink-0 text-right text-sm text-ink-2">
                 {l.qty}{l.unit ? ` ${l.unit}` : ''}{l.unitPrice ? ` · ${formatRM(parseRM(l.unitPrice))}` : ''}
               </span>
             </motion.li>
@@ -137,8 +138,8 @@ export default function Read() {
       )}
 
       {result?.status === 'manual' && (
-        <div className="mt-4 space-y-3 rounded-card bg-surface p-4 shadow-card">
-          <p className="font-medium">{t('read.manual')}</p>
+        <div className="mt-4 space-y-3 rounded-[14px] border border-line bg-surface p-4">
+          <p className="font-medium">{t('review.manualNote')}</p>
           <Button block onClick={() => nav(`/review/${kind}/new?doc=${id}`, { replace: true })}><PenLine size={18} aria-hidden />{t('read.manual')}</Button>
           {demo.data && <Button variant="secondary" block onClick={() => setPicker(true)}><FlaskConical size={18} aria-hidden />{t('read.useDemo')}</Button>}
         </div>
@@ -147,7 +148,7 @@ export default function Read() {
       <AnimatePresence>
         {doc && ready && (
           <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-            className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/85 px-5 pt-3 backdrop-blur-xl" style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}>
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface px-5 pt-3" style={{ paddingBottom: 'calc(12px + var(--safe-bottom))' }}>
             <div className="mx-auto max-w-[480px]"><Button block onClick={goReview}>{t('read.review')}</Button></div>
           </motion.div>
         )}

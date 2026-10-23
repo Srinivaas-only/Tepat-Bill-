@@ -14,9 +14,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ErrorState } from '@/components/page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { buzz } from '@/lib/haptics';
+import { Stamp } from '@/components/stamp';
 import { Money } from '@/components/ui/money';
 import { LineCrop } from '@/components/line-crop';
 import { PhotoViewer } from '@/components/photo-viewer';
@@ -40,12 +42,13 @@ const reqKey: Record<string, Key> = { send_missing: 'flag.req.send', deduct: 'fl
 const settleKey: Record<string, Key> = { redelivered: 'settle.redelivered', credit_note: 'settle.credit', deducted: 'settle.deducted' };
 
 function Fact({ k, v }: { k: string; v: string }) {
-  return <div className="flex items-baseline justify-between gap-4 py-2"><dt className="text-ink-2">{k}</dt><dd className="tnum text-right font-semibold">{v}</dd></div>;
+  return <div className="flex items-baseline justify-between gap-4 py-2"><dt className="text-ink-2">{k}</dt><dd className="num text-right font-semibold">{v}</dd></div>;
 }
 
 export default function FlagDetail() {
   const { id } = useParams<{ id: string }>();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const loc = lang === 'ms' ? 'ms-MY' : 'en-GB';
   const { role } = useAuth();
   const [, nav] = useLocation();
   const qc = useQueryClient();
@@ -55,7 +58,10 @@ export default function FlagDetail() {
   const [agreed, setAgreed] = useState('');
   const [viewer, setViewer] = useState<string | null>(null);
   const [msg, setMsg] = useState(false);
+  const [msgOpenCount, setMsgOpenCount] = useState(0);
+  const openMsg = () => { setMsgOpenCount(n => n + 1); setMsg(true); };
   const [settleOpen, setSettleOpen] = useState(false);
+  const [dismissOpen, setDismissOpen] = useState(false);
   const [subClosed, setSubClosed] = useState(false);
   const ledgerFn = (sid: string) => () => api.get(`/suppliers/${sid}/ledger`);
   // warm the supplier ledger so the Pay now figure is already there (and rolls) when we land on it after settling
@@ -90,16 +96,16 @@ export default function FlagDetail() {
   const agreedSen = toSen(agreed);
 
   return (
-    <main className="px-5 pb-36 pt-4">
+    <main className="px-5 pb-48 pt-4">
       <Button variant="ghost" size="sm" className="-ml-3 mb-2" onClick={() => (history.length > 1 ? history.back() : nav('/flags'))}><ArrowLeft size={18} aria-hidden />{t('common.back')}</Button>
-      {!d || !f ? <div className="space-y-3"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-[220px] w-full" /></div> : (
+      {q.isError ? <ErrorState notFound onRetry={() => void q.refetch()} /> : !d || !f ? <div className="space-y-3"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-[220px] w-full" /></div> : (
         <div className="space-y-4">
           <div>
             <div className="mb-1 flex flex-wrap items-center gap-2">
-              <motion.span layoutId={`flag-chip-${f.id}`}><Badge tone={statusTone[f.status as keyof typeof statusTone]}>{t(`status.${f.status}` as Key)}</Badge></motion.span>
+              <motion.span layoutId={`flag-chip-${f.id}`}><Stamp key={f.status} status={f.status} thunk={f.status === 'settled'} /></motion.span>
               <span className="text-sm text-ink-2">
-                <Link href={`/suppliers/${f.supplierId}`} className="font-medium text-brand">{f.supplierName}</Link> · <Link href={`/invoices/${f.invoiceId}`} className="tnum font-medium text-brand">{f.invoiceNo}</Link>
-                {f.poNo && <> · <Link href="/orders" className="tnum font-medium text-brand">{f.poNo}</Link></>}
+                <Link href={`/suppliers/${f.supplierId}`} className="font-medium text-brand">{f.supplierName}</Link> · <Link href={`/invoices/${f.invoiceId}`} className="num font-medium text-brand">{f.invoiceNo}</Link>
+                {f.poNo && <> · <Link href="/orders" className="num font-medium text-brand">{f.poNo}</Link></>}
               </span>
             </div>
             <h1 className="text-2xl font-semibold leading-8">{title(f)} · {f.lineDescription}</h1>
@@ -116,7 +122,7 @@ export default function FlagDetail() {
             </>}
             {f.type === 'price_change' && <>
               <Fact k={t('flag.invoicePrice')} v={formatMoney(f.invoiceUnitSen ?? 0, 'MYR')} />
-              {f.baselineUnitSen !== null && <div className="flex items-baseline justify-between gap-4 py-2"><dt className="text-ink-2">{t('flag.basePrice')} <Badge tone="price" className="ml-1">{t(`flag.src.${f.baselineSource ?? 'last_invoice'}` as Key)}</Badge></dt><dd className="tnum text-right font-semibold">{formatMoney(f.baselineUnitSen, 'MYR')}</dd></div>}
+              {f.baselineUnitSen !== null && <div className="flex items-baseline justify-between gap-4 py-2"><dt className="text-ink-2">{t('flag.basePrice')} <Badge tone="price" className="ml-1">{t(`flag.src.${f.baselineSource ?? 'last_invoice'}` as Key)}</Badge></dt><dd className="num text-right font-semibold">{formatMoney(f.baselineUnitSen, 'MYR')}</dd></div>}
               <Fact k={t('flag.pricedQty')} v={String(f.pricedQty ?? 0)} />
             </>}
             {f.type === 'not_ordered' && d.line && <><Fact k={t('flag.billed')} v={String(d.line.qty)} /><Fact k={t('flag.invoicePrice')} v={formatMoney(d.line.unitPriceSen, 'MYR')} /><Fact k={t('flag.notOnPo')} v="—" /></>}
@@ -126,7 +132,7 @@ export default function FlagDetail() {
             <h2 className="mb-2 text-lg font-semibold">{t('flag.photos')}</h2>
             {d.photos.length === 0 ? <p className="text-ink-2">{t('flag.noPhotos')}</p> : (
               <div className="flex gap-3 overflow-x-auto pb-1">{d.photos.map(p => (
-                <button key={p.id} type="button" onClick={() => setViewer(p.url)} className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-surface-2" aria-label={t('flag.zoomHint')}><img src={p.url} alt="" className="h-full w-full object-cover" loading="lazy" /></button>
+                <button key={p.id} type="button" onClick={() => setViewer(p.url)} className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-surface-2" aria-label={t('flag.zoomHint')}><img src={p.url} alt={t('flag.photos')} className="h-full w-full object-cover" loading="lazy" /></button>
               ))}</div>
             )}
           </section>
@@ -138,11 +144,11 @@ export default function FlagDetail() {
               <h2 className="mb-2 text-lg font-semibold">{t('flag.history')}</h2>
               <ol className="space-y-2 border-l border-line pl-4">{d.events.map(e => (
                 <li key={e.id} className="relative text-sm"><span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-line" aria-hidden />
-                  <span className="font-medium">{evLabel(e.action)}</span> <span className="tnum text-xs text-ink-2">{new Date(e.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></li>))}</ol>
+                  <span className="font-medium">{evLabel(e.action)}</span> <span className="num text-xs text-ink-2">{new Date(e.at).toLocaleString(loc, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></li>))}</ol>
             </section>
           )}
 
-          {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="ok" className="tnum">{t('flag.sentOn', { date: new Date(f.sentAt).toLocaleDateString('en-GB') })}</Badge>}
+          {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="ok" className="num">{t('flag.sentOn', { date: new Date(f.sentAt).toLocaleDateString(loc) })}</Badge>}
 
           {proposed && !owner && <div className="space-y-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-medium text-ink-2"><Clock size={16} aria-hidden />{t('owner.only')}</span><p className="rounded-2xl bg-surface-2 px-4 py-3 text-ink-2">{t('flag.ownerReview')}</p></div>}
 
@@ -155,7 +161,7 @@ export default function FlagDetail() {
               )}
               {f.type === 'price_change' && !decrease && (
                 <Card className="space-y-3 p-4"><label className="font-medium" htmlFor="agreed">{t('flag.agreedPrice')}</label>
-                  <div className="flex gap-2"><Input id="agreed" inputMode="decimal" value={agreed} onChange={e => setAgreed(e.target.value)} className="tnum" />
+                  <div className="flex gap-2"><Input id="agreed" inputMode="decimal" value={agreed} onChange={e => setAgreed(e.target.value)} className="num" />
                     <Button variant="secondary" disabled={agreedSen === undefined || act.isPending} onClick={() => act.mutate({ path: 'report-price', body: { agreedSen } })}>{t('flag.useAgreed')}</Button></div></Card>
               )}
               {decrease ? <p className="rounded-2xl bg-surface-2 px-4 py-3 text-ink-2">{t('flag.decrease')}</p> : (
@@ -168,17 +174,17 @@ export default function FlagDetail() {
         </div>
       )}
       {d && f && owner && (proposed || f.status === 'open' || f.status === 'disputed') && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/85 px-5 pt-3 backdrop-blur-xl" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
-          <div className="mx-auto flex max-w-[480px] gap-2">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface px-5 pt-3" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
+          <div className={`mx-auto max-w-[480px] gap-2 ${proposed ? "flex" : "grid grid-cols-2"}`}>
             {proposed ? <>
               {!decrease && <Button className="flex-1" disabled={act.isPending} onClick={() => act.mutate({ path: 'approve', body: { request: chosen } })}>{t('flag.approve')}</Button>}
-              <Button variant="ghost" className="flex-1 bg-surface-2" disabled={act.isPending} onClick={() => act.mutate({ path: 'dismiss' })}>{t('flag.dismissFull')}</Button>
+              <Button variant="ghost" className="flex-1 bg-surface-2" disabled={act.isPending} onClick={() => setDismissOpen(true)}>{t('flag.dismissFull')}</Button>
             </> : <>
-              <Button size="sm" className="flex-1 px-2" onClick={() => setMsg(true)}>{!f.sentAt ? t('flag.send') : f.reminderDue ? t('flag.remind') : t('flag.resend')}</Button>
+              <Button className="col-span-2" onClick={openMsg}>{!f.sentAt ? t('flag.send') : f.reminderDue ? t('flag.remind') : t('flag.resend')}</Button>
               {f.status === 'open'
-                ? <Button size="sm" variant="secondary" className="flex-1 px-2" disabled={act.isPending} onClick={() => act.mutate({ path: 'dispute' })}>{t('flag.dispute')}</Button>
-                : <Button size="sm" variant="secondary" className="flex-1 px-2" disabled={act.isPending} onClick={() => act.mutate({ path: 'reopen' })}>{t('flag.reopen')}</Button>}
-              <Button size="sm" variant="secondary" className="flex-1 px-2" onClick={() => setSettleOpen(true)}>{t('flag.settle')}</Button>
+                ? <Button variant="secondary" disabled={act.isPending} onClick={() => act.mutate({ path: 'dispute' })}>{t('flag.dispute')}</Button>
+                : <Button variant="secondary" disabled={act.isPending} onClick={() => act.mutate({ path: 'reopen' })}>{t('flag.reopen')}</Button>}
+              <Button variant="secondary" onClick={() => setSettleOpen(true)}>{t('flag.settle')}</Button>
             </>}
           </div>
         </div>
@@ -191,7 +197,15 @@ export default function FlagDetail() {
           </SheetContent>
         </Sheet>
       )}
-      {f && <MessageSheet flagId={f.id} open={msg} onOpenChange={setMsg} reminder={f.reminderDue} />}
+      <Sheet open={dismissOpen} onOpenChange={setDismissOpen}>
+        <SheetContent title={t('flag.dismissQ')} description={t('flag.dismissFull')}>
+          <div className="space-y-2">
+            <Button block variant="destructive" disabled={act.isPending} onClick={() => { setDismissOpen(false); act.mutate({ path: 'dismiss' }); }}>{t('flag.dismissFull')}</Button>
+            <Button block variant="secondary" onClick={() => setDismissOpen(false)}>{t('common.cancel')}</Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+      {f && <MessageSheet key={msgOpenCount} flagId={f.id} open={msg} onOpenChange={setMsg} reminder={f.reminderDue} />}
       <PhotoViewer src={viewer} onClose={() => setViewer(null)} />
     </main>
   );

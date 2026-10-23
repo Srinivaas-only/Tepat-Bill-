@@ -43,7 +43,7 @@ export function evidenceRouter(deps: AppDeps) {
     const [idoc] = inv.documentId ? await db.select({ width: S.documents.width, height: S.documents.height }).from(S.documents).where(eq(S.documents.id, inv.documentId)) : [];
     const [sup] = await db.select({ name: S.suppliers.name }).from(S.suppliers).where(eq(S.suppliers.id, row.supplierId));
     res.json({ ...payload, siblings, shopName: (shop?.value as { name?: string } | undefined)?.name ?? '', supplierName: sup?.name ?? '',
-      invoiceDocDate: inv.docDate ?? inv.issuedAt.toISOString().slice(0, 10), invoiceDoc: idoc ? { width: idoc.width, height: idoc.height } : null });
+      invoiceDocDate: inv.docDate ?? `${inv.issuedAt.getFullYear()}-${String(inv.issuedAt.getMonth() + 1).padStart(2, '0')}-${String(inv.issuedAt.getDate()).padStart(2, '0')}`, invoiceDoc: idoc ? { width: idoc.width, height: idoc.height } : null });
   });
 
   r.get('/public/evidence/:token/photo/:documentId', async (req, res) => {

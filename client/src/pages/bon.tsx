@@ -29,8 +29,8 @@ export default function Bon() {
         : <div className="space-y-3">{list.slice(0, 12).map(v => (
           <button key={v.id} type="button" disabled={attach.isPending} onClick={() => attach.mutate(v.id)} className="block w-full text-left active:scale-[0.98]">
             <Card className="flex min-h-[72px] items-center justify-between p-4">
-              <div><p className="tnum font-semibold">{v.invoiceNo}</p><p className="text-sm text-ink-2">{v.supplierName} · {new Date(v.issuedAt).toLocaleDateString('en-GB')}</p></div>
-              <p className="tnum font-semibold">{formatRM(v.totalSen)}</p>
+              <div><p className="num font-semibold">{v.invoiceNo}</p><p className="text-sm text-ink-2">{v.supplierName} · {new Date(v.issuedAt).toLocaleDateString('en-GB')}</p></div>
+              <p className="num font-semibold">{formatRM(v.totalSen)}</p>
             </Card></button>))}</div>}
     </Page>
   );

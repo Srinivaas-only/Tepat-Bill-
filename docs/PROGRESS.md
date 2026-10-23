@@ -36,3 +36,11 @@
 Verified: `npm test` 100/100, typecheck ok, build ok, deploy smoke (production build on a spare port: /api/health ok, / returns HTML; production exits with a clear message when SESSION_SECRET is missing). One browser pass at 390px, steps a–h all ok (Pay now RM872.00 after settling; no reminder logged on first send; evidence page works logged out; staff sees no owner buttons).
 Done: items 1–29, 35, and part of 36. Not done (logged in DECISIONS_LOG): 30–34, rest of 36.
 Not verified: the WhatsApp chat picker on a real phone; the evidence-line pulse animation (still screenshots only); Lighthouse speed/accessibility scores; RM962.00 before-value was not sampled in the browser (covered by the API test); deploy smoke used port 5056 not 5055. Demo data was reset afterwards and the workflow restarted with the normal secrets.
+
+## Fix round 2
+- Done: B1–B8, D1–D8, U1–U8, U11, OfflineBanner (part of U10), ErrorState on home/flag-detail/supplier-detail/flags/activity (part of U9). Skipped: rest of U9, rest of U10, U12 (see DECISIONS_LOG).
+- B2 note: the overlap coefficient is symmetric, so I added a Jaccard >= 0.6 check; otherwise "Gula perang 1kg" still matched gula-pasir-1kg.
+- Verified: 101/101 tests, typecheck, build; a 390px App Testing pass (a–h ok); open-flag action bar at 360px ok; abaikan confirm sheet ok.
+- Flags tabs at 360px failed in that pass (count and label overlapped because the trigger was not display:flex). I added `flex items-center justify-center` to the tab trigger afterwards. This fix is NOT re-tested in a browser.
+- Screenshots: only 09-evidence.jpg is saved (public page). The other pages sit behind login, which the capture tool cannot do, so they were seen in the tester's run but not saved to disk.
+- Not verified: Lighthouse, WhatsApp chat picker on a real phone.

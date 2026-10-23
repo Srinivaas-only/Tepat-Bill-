@@ -6,6 +6,8 @@ import { MotionConfig } from 'motion/react';
 import { Toaster } from 'sonner';
 import { I18nProvider } from '@/i18n';
 import { ApiError } from '@/lib/api';
+import { ms } from '@/i18n/ms';
+import { en } from '@/i18n/en';
 import App from './App';
 
 const onAuthError = (e: unknown) => {
@@ -21,11 +23,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
+    const L = (localStorage.getItem('tb_lang') ?? 'ms') === 'en' ? en : ms;
     if (!this.state.failed) return this.props.children;
     return (
       <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="text-ink-2">Ada masalah. Cuba lagi.</p>
-        <button type="button" className="h-12 rounded-full bg-brand px-6 font-semibold text-brand-ink" onClick={() => location.reload()}>Muat semula</button>
+        <p className="text-ink-2">{L['common.error']}</p>
+        <button type="button" className="h-12 rounded-full bg-brand px-6 font-semibold text-brand-ink" onClick={() => location.reload()}>{L['common.reload']}</button>
       </div>
     );
   }
@@ -37,7 +40,7 @@ createRoot(document.getElementById('root')!).render(
       <MotionConfig reducedMotion="user">
         <I18nProvider>
           <App />
-          <Toaster position="bottom-center" offset={96} toastOptions={{ classNames: { toast: 'rounded-2xl bg-ink text-white font-sans shadow-elev' } }} />
+          <Toaster position="bottom-center" offset={96} style={{ '--normal-bg': 'var(--ink)', '--normal-text': '#fff', '--normal-border': 'transparent', '--border-radius': '14px' } as React.CSSProperties} toastOptions={{ style: { fontFamily: 'inherit', fontSize: 14 } }} />
         </I18nProvider>
       </MotionConfig>
     </QueryClientProvider>

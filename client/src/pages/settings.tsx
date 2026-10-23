@@ -30,7 +30,7 @@ export default function SettingsPage() {
             <TabsList><TabsTrigger value="ms">Bahasa Melayu</TabsTrigger><TabsTrigger value="en">English</TabsTrigger></TabsList>
           </Tabs>
         </div>
-        {checks.data && <div className="flex items-baseline justify-between"><span className="text-ink-2">{t('settings.checks')}</span><span className="tnum text-lg font-semibold">{checks.data.checksLeft}</span></div>}
+        {checks.data && <div className="flex items-baseline justify-between"><span className="text-ink-2">{t('settings.checks')}</span><span className="num text-lg font-semibold">{checks.data.checksLeft}</span></div>}
         <p className="text-sm text-ink-2">{role ? t(role === 'owner' ? 'role.owner' : 'role.staff') : ''}</p>
         {owner && <Button variant="secondary" block asChild><a href="/api/export.csv" download>{t('settings.export')}</a></Button>}
         {owner && checks.data?.demo && <Button variant="ghost" block className="text-notord" onClick={() => setConfirm(true)}>{t('settings.reset')}</Button>}

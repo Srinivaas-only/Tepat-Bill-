@@ -2,12 +2,12 @@
 @import "tw-animate-css";
 
 :root {
-  --bg: #F5F7FB;
-  --surface: #FFFFFF;
-  --surface-2: #EEF3FB;
+  --bg: #F5F3EC;
+  --surface: #FFFDF8;
+  --surface-2: #EEEBE1;
   --ink: #13254A;
   --ink-2: #55617A;
-  --line: #E3E8F2;
+  --line: #E2DCCB;
   --brand: #2457D6;
   --brand-ink: #FFFFFF;
   --short: #B45309; --short-bg: #FEF3C7;
@@ -16,7 +16,8 @@
   --ok: #047857; --ok-bg: #D1FAE5;
   --dispute: #C2410C; --dispute-bg: #FFEDD5;
   --wa: #25D366;
-  --shadow-card: 0 1px 2px rgba(19,37,74,.06), 0 8px 24px rgba(19,37,74,.06);
+  --brand-hover: #1d49b8; --surface-2-hover: #E4E0D3; --notord-hover: #9f0f30;
+  --shadow-card: none;
   --shadow-elev: 0 2px 4px rgba(19,37,74,.08), 0 16px 40px rgba(19,37,74,.16);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -42,7 +43,11 @@
   --color-dispute: var(--dispute);
   --color-dispute-bg: var(--dispute-bg);
   --color-wa: var(--wa);
+  --color-brand-hover: var(--brand-hover);
+  --color-surface-2-hover: var(--surface-2-hover);
+  --color-notord-hover: var(--notord-hover);
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --radius-card: 20px;
   --radius-btn: 14px;
   --radius-sheet: 28px;
@@ -74,9 +79,9 @@ img { max-width: 100%; }
   background-size: 200px 100%; background-color: var(--surface-2);
   animation: shimmer 1.2s infinite linear; border-radius: 12px;
 }
-@keyframes pulse-box { 0%,100% { fill-opacity: .15; } 50% { fill-opacity: .32; } }
-.hl-pulse { animation: pulse-box 1.6s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }

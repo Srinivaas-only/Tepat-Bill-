@@ -64,7 +64,7 @@ export default function Scan() {
       {kind && (
         <div className="flex flex-col items-center gap-5">
           <div className="flex aspect-[3/4] w-full max-w-[320px] items-center justify-center overflow-hidden rounded-card border border-dashed border-line bg-surface">
-            {thumb ? <img src={thumb} alt="" className="h-full w-full object-contain" /> : <p className="px-6 text-center text-ink-2">{t('scan.pickSource')}</p>}
+            {thumb ? <img src={thumb} alt={t('scan.pickSource')} className="h-full w-full object-contain" /> : <p className="px-6 text-center text-ink-2">{t('scan.pickSource')}</p>}
           </div>
           {busy && (
             <div className="flex items-center gap-3 text-ink-2" aria-live="polite">
