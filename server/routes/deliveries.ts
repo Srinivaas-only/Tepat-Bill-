@@ -20,7 +20,7 @@ type FlagRow = typeof S.flags.$inferSelect;
 const LIVE = ['proposed', 'open', 'disputed'];
 /** issue = unresolved delivery flags; correct = confirmed, or nothing wrong and the invoice already matched; else waiting for the invoice. */
 const stateOf = (d: { ownerMarkedCorrect: boolean; invoiceId: string | null }, flags: FlagRow[]) =>
-  flags.some(f => LIVE.includes(f.status) && !f.supersededBy) ? 'issue' : d.ownerMarkedCorrect || d.invoiceId ? 'correct' : 'waiting';
+  flags.some(f => LIVE.includes(f.status) && !f.supersededBy) ? 'issue' : flags.some(f => f.supersededBy) ? 'billed' : d.ownerMarkedCorrect || d.invoiceId ? 'correct' : 'waiting';
 
 export function deliveriesRouter(deps: AppDeps) {
   const r = Router();

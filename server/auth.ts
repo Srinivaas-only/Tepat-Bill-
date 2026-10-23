@@ -10,7 +10,8 @@ export function getPins() {
   const prod = process.env.NODE_ENV === 'production';
   const owner = process.env.OWNER_PIN ?? (prod ? '' : '1234');
   const staff = process.env.STAFF_PIN ?? (prod ? '' : '5678');
-  if (!/^\d{4}$/.test(owner) || !/^\d{4}$/.test(staff)) throw new Error('OWNER_PIN and STAFF_PIN must be 4 digits');
+  const bad = [['OWNER_PIN', owner], ['STAFF_PIN', staff]].filter(([, v]) => !/^\d{4}$/.test(v)).map(([k]) => k);
+  if (bad.length) throw new Error(`${bad.join(' and ')} must be exactly 4 digits`);
   if (owner === staff) throw new Error('OWNER_PIN and STAFF_PIN must differ');
   return { owner, staff };
 }
@@ -41,7 +42,7 @@ export const pinMatches = (given: string, actual: string) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
-/** 5 wrong PINs per minute per IP; success resets. */
+/** 5 wrong PINs per minute per IP (a success does not reset the count). */
 export function makePinLimiter(max = 5, windowMs = 60_000) {
   const hits = new Map<string, number[]>();
   const recent = (ip: string, now: number) => (hits.get(ip) ?? []).filter(t => now - t < windowMs);

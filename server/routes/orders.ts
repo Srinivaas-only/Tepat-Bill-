@@ -8,7 +8,7 @@ import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
 import { logEvent } from '../events';
-import { aliasTableFromRows, cleanPriceList, flagRowToCore, mintSkus, poLineRowToCore, toMyrSen } from '../core-adapters';
+import { aliasTableFromRows, cleanPriceList, kl, flagRowToCore, mintSkus, poLineRowToCore, toMyrSen } from '../core-adapters';
 import { firstSaveAutofill, loadContext, replaceProposedFlags, runDetection } from '../flags';
 import { defaultDeliveryCounts, loadDeliveryContext, supersedeDeliveryFlags } from '../delivery-ctx';
 import { toViews } from '../flag-view';
@@ -32,7 +32,8 @@ export async function resolveSupplier(tx: Tx | Db, ref: z.infer<typeof SupplierR
     return s.id;
   }
   if (!ref.newSupplier) throw new ApiError(400, 'bad_request', 'Pembekal diperlukan');
-  const name = ref.newSupplier.name;
+  const name = ref.newSupplier.name.trim();
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'supplier:' + name.toLowerCase()}))`);
   const all = await tx.select().from(S.suppliers);
   const same = all.find(s => normalise(s.name) === normalise(name));
   if (same) return same.id;
@@ -69,7 +70,7 @@ export function ordersRouter(deps: AppDeps) {
   // ---- purchase orders
   r.post('/pos', requireCan('correct_extraction'), async (req, res) => {
     const body = SupplierRef.extend({
-      documentId: z.string().optional(), source: z.enum(['notebook', 'whatsapp', 'typed']), orderedAt: z.number().int().optional(),
+      documentId: z.string().optional(), source: z.enum(['notebook', 'whatsapp', 'typed']), orderedAt: z.number().int().max(8.64e15).optional(),
       lines: z.array(z.object({ description: z.string().trim().min(1), qty: z.number().int().min(0).max(100000), unit: z.string().trim().max(20).optional(), unitPriceSen: Sen.nullish(), box: Box })).min(1),
     }).safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Data tidak sah', { issues: z.flattenError(body.error) });
@@ -77,7 +78,7 @@ export function ordersRouter(deps: AppDeps) {
     const out = await db.transaction(async tx => {
       const supplierId = await resolveSupplier(tx, b, req.role!);
       const orderedAt = new Date(b.orderedAt ?? Date.now());
-      const yymm = poNumber(orderedAt, 0).slice(3, 7);
+      const yymm = poNumber(kl(orderedAt), 0).slice(3, 7);
       const [seqRow] = await tx.execute(sql`insert into settings (key, value) values (${`po_seq:${yymm}`}, to_jsonb(1))
         on conflict (key) do update set value = to_jsonb((settings.value #>> '{}')::int + 1) returning (value #>> '{}')::int as seq`).then(r => r.rows as { seq: number }[]);
       if (b.documentId) {
@@ -86,7 +87,7 @@ export function ordersRouter(deps: AppDeps) {
         const [used] = await tx.select({ id: S.purchaseOrders.id }).from(S.purchaseOrders).where(eq(S.purchaseOrders.documentId, b.documentId));
         if (used) throw new ApiError(409, 'duplicate_document', 'Dokumen ini sudah digunakan untuk pesanan lain');
       }
-      const poNo = poNumber(orderedAt, seqRow.seq);
+      const poNo = poNumber(kl(orderedAt), seqRow.seq);
       const existing = await tx.select({ sku: S.priceList.sku }).from(S.priceList).where(eq(S.priceList.supplierId, supplierId));
       const skus = mintSkus(b.lines.map(l => l.description), existing.map(e => e.sku));
       const id = `po_${nanoid(10)}`;

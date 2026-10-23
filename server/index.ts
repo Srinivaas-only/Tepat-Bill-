@@ -16,8 +16,14 @@ function assertProductionConfig() {
   try { getPins(); } catch (e) { console.error(`[config] ${(e as Error).message}`); process.exit(1); }
 }
 
+function logPinState() {
+  const ok = (k: string) => /^\d{4}$/.test(process.env[k] ?? '');
+  console.log(`[config] OWNER_PIN ${ok('OWNER_PIN') ? 'is' : 'is NOT'} 4 digits; STAFF_PIN ${ok('STAFF_PIN') ? 'is' : 'is NOT'} 4 digits`);
+}
+
 async function main() {
   assertProductionConfig();
+  logPinState();
   const { db } = getDb();
   const storage = makeStorage();
   if (process.env.SEED_ON_BOOT === '1') {

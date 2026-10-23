@@ -32,8 +32,9 @@ export function homeRouter(deps: AppDeps) {
     const dels = await db.select({ d: S.deliveries, supplierName: S.suppliers.name }).from(S.deliveries).innerJoin(S.suppliers, eq(S.suppliers.id, S.deliveries.supplierId)).orderBy(desc(S.deliveries.receivedAt)).limit(5);
     const dflags = dels.length ? all.filter(f => f.deliveryId && dels.some(x => x.d.id === f.deliveryId)) : [];
     const deliveries = dels.map(x => {
-      const fl = dflags.filter(f => f.deliveryId === x.d.id && !f.supersededBy);
-      const state = fl.some(f => ['proposed', 'open', 'disputed'].includes(f.status)) ? 'issue' : x.d.ownerMarkedCorrect || x.d.invoiceId ? 'correct' : 'waiting';
+      const all = dflags.filter(f => f.deliveryId === x.d.id);
+      const live = all.filter(f => !f.supersededBy);
+      const state = live.some(f => ['proposed', 'open', 'disputed'].includes(f.status)) ? 'issue' : all.some(f => f.supersededBy) ? 'billed' : x.d.ownerMarkedCorrect || x.d.invoiceId ? 'correct' : 'waiting';
       return { id: x.d.id, doNo: x.d.doNo, supplierName: x.supplierName, receivedAt: x.d.receivedAt.getTime(), invoiceId: x.d.invoiceId, state };
     });
     const [checks] = await db.select().from(S.settings).where(eq(S.settings.key, 'checks_left'));

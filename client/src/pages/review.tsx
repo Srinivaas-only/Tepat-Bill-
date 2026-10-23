@@ -130,7 +130,7 @@ export default function Review() {
     queryFn: () => api.post<{ deliveries: DeliveryCand[] }>('/delivery-suggestions', { supplierId, poId: effectivePoId }),
   });
   const dcands = dsugg.data?.deliveries ?? [];
-  const effectiveDeliveryId = deliveryPick === undefined ? dcands[0]?.id ?? null : deliveryPick;
+  const effectiveDeliveryId = deliveryPick === undefined ? (dcands.find(c => c.samePo)?.id ?? (dcands.length === 1 ? dcands[0].id : null)) : deliveryPick;
   const effectiveDelivery = dcands.find(c => c.id === effectiveDeliveryId);
   const deliveryLoading = kind === 'invoice' && deliveryPick === undefined && !!supplierId && (suggLoading || dsugg.isLoading || dsugg.isFetching);
 

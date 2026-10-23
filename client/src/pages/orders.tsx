@@ -14,10 +14,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface PoRow { id: string; poNo: string; supplierName: string; orderedAt: number; lineCount: number }
 interface InvRow { id: string; invoiceNo: string; supplierName: string; totalSen: number; issuedAt: number; payment: string; state: string }
-interface DelRow { id: string; doNo: string; supplierName: string; receivedAt: number; state: 'issue' | 'correct' | 'waiting' }
+interface DelRow { id: string; doNo: string; supplierName: string; receivedAt: number; state: 'issue' | 'billed' | 'correct' | 'waiting' }
 type Tab = 'po' | 'invoice' | 'delivery';
 const stateTone = { recorded: 'neutral', has_flags: 'short', correct: 'ok' } as const;
-const delTone = { issue: 'short', correct: 'ok', waiting: 'neutral' } as const;
+const delTone = { issue: 'short', correct: 'ok', waiting: 'neutral', billed: 'neutral' } as const;
 const row = 'flex min-h-[64px] items-center justify-between gap-3 border-t border-dashed border-line px-4 py-3 first:border-t-0';
 
 export default function Orders() {
@@ -52,7 +52,7 @@ export default function Orders() {
           {tab === 'delivery' && dels.data?.deliveries.map(v => (
             <Link key={v.id} href={`/deliveries/${v.id}/count`} className={row}>
               <div className="min-w-0"><p className="num font-semibold">{v.doNo}</p><p className="truncate text-sm text-ink-2">{v.supplierName} · <span className="num">{fmtDate(v.receivedAt, lang)}</span></p></div>
-              <Badge tone={delTone[v.state]} className="shrink-0">{t(`deliveries.state.${v.state}` as Key)}</Badge>
+              <Badge tone={delTone[v.state]} className="shrink-0">{v.state === 'billed' ? t('flag.broughtToInvoice') : t(`deliveries.state.${v.state}` as Key)}</Badge>
             </Link>
           ))}
         </div>

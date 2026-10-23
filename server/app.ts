@@ -39,9 +39,16 @@ export function createApp(deps: AppDeps, early: express.RequestHandler[] = []): 
   app.use(cookieParser());
 
   app.get('/api/health', async (_req, res) => {
-    await deps.db.execute(sql`select 1`);
-    await deps.storage.exists('__health__').catch(() => false); // lets the lazy storage pick its driver
-    res.json({ ok: true, db: true, storage: deps.storage.driver, gemini: !!process.env.GEMINI_API_KEY, demo: process.env.DEMO_FIXTURES === '1' });
+    const base = { storage: deps.storage.driver, gemini: !!process.env.GEMINI_API_KEY, demo: process.env.DEMO_FIXTURES === '1' };
+    try {
+      const r = await deps.db.execute(sql`select count(*)::int as n from suppliers`);
+      await deps.storage.exists('__health__').catch(() => false); // lets the lazy storage pick its driver
+      const n = Number((r as unknown as { rows?: { n: number }[] }).rows?.[0]?.n ?? 0);
+      res.json({ ok: true, db: true, ...base, storage: deps.storage.driver, seeded: n > 0 });
+    } catch (e) {
+      console.error('[health] db ping failed', e instanceof Error ? e.message : e);
+      res.status(503).json({ ok: false, db: false, ...base, seeded: false });
+    }
   });
 
   // CSRF: browsers send Origin on cross-site writes; reject when it is not our host (or the fetch metadata says cross-site).
@@ -49,7 +56,10 @@ export function createApp(deps: AppDeps, early: express.RequestHandler[] = []): 
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') { next(); return; }
     const origin = req.get('origin');
     let bad = req.get('sec-fetch-site') === 'cross-site';
-    if (origin && !bad) { try { bad = new URL(origin).host !== req.get('host'); } catch { bad = true; } }
+    if (origin && !bad) {
+      const hosts = [req.get('host'), req.get('x-forwarded-host')?.split(',')[0].trim()].filter(Boolean);
+      try { bad = !hosts.includes(new URL(origin).host); } catch { bad = true; }
+    }
     if (bad) { next(new ApiError(403, 'forbidden', 'Permintaan ditolak')); return; }
     next();
   });

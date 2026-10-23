@@ -61,7 +61,7 @@ export function moneyRouter(deps: AppDeps) {
   });
 
   r.patch('/invoices/:id/payment', requireCan('mark_paid'), async (req, res) => {
-    const body = z.object({ payment: z.enum(['paid', 'on_credit']).optional(), paidAt: z.number().int().positive().optional(), dueAt: z.number().int().positive().optional() }).safeParse(req.body);
+    const body = z.object({ payment: z.enum(['paid', 'on_credit']).optional(), paidAt: z.number().int().positive().max(8.64e15).optional(), dueAt: z.number().int().positive().max(8.64e15).optional() }).safeParse(req.body);
     if (!body.success || Object.keys(body.data).length === 0) throw new ApiError(400, 'bad_request', 'Data tidak sah');
     const id = String(req.params.id);
     const [cur] = await db.select().from(S.invoices).where(eq(S.invoices.id, id));

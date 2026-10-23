@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
+import http from 'node:http';
 import { sql } from 'drizzle-orm';
 import { ALL_TABLES } from '../shared/schema';
 import { makeDb } from './db';
@@ -48,6 +49,11 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
   afterAll(async () => { server?.close(); await pool?.end(); });
 
   let del1 = ''; let del2 = ''; let d2flagId = '';
+
+  it('T6 fresh seed: exact home summary', async () => {
+    const h = await call('GET', '/api/home', ownerCookie);
+    expect(h.json.summary).toMatchObject({ flaggedSen: 8580, settledSen: 3190, openSen: 5390 });
+  });
 
   describe('T1 the four scenarios', () => {
     it('1. clean delivery: no flags, owner marks correct (staff cannot)', async () => {
@@ -185,12 +191,93 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect((await call('POST', '/api/invoices/inv_gz088/einvoice/approve', staffCookie)).status).toBe(403);
   });
 
-  it('T12 home summary counts invoice-stage flags only', async () => {
-    const h = await call('GET', '/api/home', ownerCookie);
-    expect(h.status).toBe(200);
-    const expected = await pool.query(`select coalesce(sum(amount_sen),0)::int as s from ${SCHEMA}.flags where stage = 'invoice' and status <> 'dismissed' and created_at > now() - interval '30 days'`);
-    expect(h.json.summary.flaggedSen).toBeGreaterThanOrEqual(0);
-    expect(h.json.summary.flaggedSen).toBeLessThanOrEqual(expected.rows[0].s);
-    expect(h.json.deliveries.length).toBeGreaterThan(0);
+  it('T1 limiter: a successful staff login does not reset the wrong-PIN count', async () => {
+    const m = makeDb(undefined, SCHEMA);
+    const app = createApp({ db: m.db, storage: memoryStorage(), gemini: () => { throw new Error('no'); } });
+    mountErrorHandlers(app);
+    const srv: Server = await new Promise(res => { const x = app.listen(0, () => res(x)); });
+    const b = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+    const post = (pin: string) => fetch(b + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pin }) }).then(r => r.status);
+    const wrong = owner === '0000' ? '9999' : '0000';
+    for (let i = 0; i < 4; i++) expect(await post(wrong)).toBe(401);
+    expect(await post(staff)).toBe(200);
+    expect(await post(wrong)).toBe(401);
+    expect(await post(wrong)).toBe(429);
+    srv.close(); await m.pool.end();
+  });
+
+  it('T2 recount keeps an approved flag (same id, token, status open)', async () => {
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'RECOUNT-1', lines: [{ description: 'Kicap', qty: 6, unitPriceSen: 400 }], totalSen: 2400 });
+    const put = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 4 } });
+    const f = put.json.flags[0];
+    expect((await call('POST', `/api/flags/${f.id}/approve`, ownerCookie, {})).status).toBe(200);
+    const token = (await call('GET', `/api/flags/${f.id}`, ownerCookie)).json.evidenceToken;
+    const again = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 4 } });
+    expect(again.status).toBe(200);
+    const after = await call('GET', `/api/flags/${f.id}`, ownerCookie);
+    expect(after.status).toBe(200);
+    expect(after.json.flag.status).toBe('open');
+    expect(after.json.evidenceToken).toBe(token);
+    const none = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 6 } });
+    expect(none.status).toBe(200);
+    expect((await call('GET', `/api/flags/${f.id}`, ownerCookie)).json.flag.status).toBe('open');
+  });
+
+  it('T3 a delivery document cannot be attached to an invoice', async () => {
+    const fd = new FormData();
+    fd.append('kind', 'delivery_note');
+    fd.append('file', new Blob([readFileSync('fixtures/docs/do_lim_brothers_DO-LB-0901.png')], { type: 'image/png' }), 'd.png');
+    const up = await (await fetch(base + '/api/documents', { method: 'POST', headers: { cookie: staffCookie }, body: fd })).json() as any;
+    const d = await call('POST', '/api/deliveries', staffCookie, { supplierId: 'sup_lim', doNo: 'DO-T3-1', documentId: up.id, lines: [{ description: 'x', qty: 1 }] });
+    expect(d.status).toBe(201);
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_lim', invoiceNo: 'T3-INV', lines: [{ description: 'x', qty: 1, unitPriceSen: 100 }], totalSen: 100 });
+    expect((await call('POST', `/api/documents/${up.id}/attach`, staffCookie, { invoiceId: inv.json.id })).status).toBe(409);
+  });
+
+  it('T4 POST /flags/sent with a superseded delivery flag -> 409', async () => {
+    expect(d2flagId).toBeTruthy();
+    expect((await call('POST', '/api/flags/sent', ownerCookie, { flagIds: [d2flagId] })).status).toBe(409);
+  });
+
+  it('T5 an invoice without a linked delivery is never readyToPay', async () => {
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_lim', invoiceNo: 'T5-INV', lines: [{ description: 'Teh', qty: 2, unitPriceSen: 300 }], totalSen: 600 });
+    const cmp = await call('GET', `/api/invoices/${inv.json.id}/compare`, staffCookie);
+    expect(cmp.json.readyToPay).toBe(false);
+  });
+
+  it('T7 staff 403 on invoice mark-correct and einvoice release', async () => {
+    expect((await call('POST', '/api/invoices/inv_gz088/mark-correct', staffCookie)).status).toBe(403);
+    expect((await call('POST', '/api/invoices/inv_gz088/einvoice/release', staffCookie)).status).toBe(403);
+  });
+
+  it('T8 use-fixture on a document already used -> 409 document_in_use', async () => {
+    const prev = process.env.DEMO_FIXTURES; process.env.DEMO_FIXTURES = '1';
+    try {
+      const fd = new FormData();
+      fd.append('kind', 'po');
+      fd.append('file', new Blob([readFileSync('fixtures/docs/po_notebook_borong_ali.png')], { type: 'image/png' }), 'p.png');
+      const up = await (await fetch(base + '/api/documents', { method: 'POST', headers: { cookie: staffCookie }, body: fd })).json() as any;
+      const po = await call('POST', '/api/pos', staffCookie, { supplierId: 'sup_ali', source: 'notebook', documentId: up.id, lines: [{ description: 'Mee', qty: 2 }] });
+      expect(po.status).toBe(201);
+      const r = await call('POST', `/api/documents/${up.id}/use-fixture`, staffCookie, { fixture: 'po_notebook_borong_ali' });
+      expect([r.status, r.json.error?.code]).toEqual([409, 'document_in_use']);
+    } finally { if (prev === undefined) delete process.env.DEMO_FIXTURES; else process.env.DEMO_FIXTURES = prev; }
+  });
+
+  it('T9 after a reminder is sent, reminderDue is false', async () => {
+    const id = 'flg_l2';
+    await call('POST', '/api/flags/sent', ownerCookie, { flagIds: [id], reminder: true });
+    const f = await call('GET', `/api/flags/${id}`, ownerCookie);
+    expect(f.json.flag.reminderDue).toBe(false);
+  });
+
+  it('T10 CSRF: forwarded host accepted, foreign origin rejected', async () => {
+    const send = (origin: string, headers: Record<string, string>) => new Promise<number>((resolve, reject) => {
+      const u = new URL(base);
+      const req = http.request({ host: u.hostname, port: u.port, path: '/api/auth/logout', method: 'POST', headers: { origin, cookie: ownerCookie, ...headers } }, res => { res.resume(); resolve(res.statusCode ?? 0); });
+      req.on('error', reject); req.end();
+    });
+    expect(await send('https://x.example', { host: 'internal', 'x-forwarded-host': 'x.example' })).toBe(200);
+    expect(await send('https://evil.example', { host: 'internal', 'x-forwarded-host': 'x.example' })).toBe(403);
   });
 });

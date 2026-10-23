@@ -88,13 +88,13 @@ export async function replaceProposedFlags(db: Conn, c: InvoiceContext, detected
     if (old) {
       matched.add(k);
       const { id: _i, evidenceToken: _t, supplierId: _s, invoiceId: _v, ...patch } = row;
-      await db.update(S.flags).set(patch).where(eq(S.flags.id, old.id));
+      await db.update(S.flags).set(patch).where(and(eq(S.flags.id, old.id), eq(S.flags.status, 'proposed')));
     } else inserts.push(row);
   }
   const staleIds = [...proposed.entries()].filter(([k]) => !matched.has(k)).map(([, f]) => f.id);
   if (staleIds.length) {
-    await db.delete(S.flagPhotos).where(inArray(S.flagPhotos.flagId, staleIds));
-    await db.delete(S.flags).where(inArray(S.flags.id, staleIds));
+    const gone = await db.delete(S.flags).where(and(inArray(S.flags.id, staleIds), eq(S.flags.status, 'proposed'))).returning({ id: S.flags.id });
+    if (gone.length) await db.delete(S.flagPhotos).where(inArray(S.flagPhotos.flagId, gone.map(g => g.id)));
   }
   if (inserts.length) await db.insert(S.flags).values(inserts);
   await attachPhotos(db, c);

@@ -56,7 +56,7 @@ export default function Evidence() {
   const dateFmt = (iso: string) => iso.split('-').reverse().join('/');
   const line = d?.invoice.lines.find(l => l.lineId === d.highlight.invoiceLineId);
   const poLine = line && d?.po ? [...d.po.lines].map(l => ({ l, o: tokenOverlap(line.description, l.description) })).sort((a, b) => b.o - a.o).filter(x => x.o >= 0.6)[0]?.l : undefined;
-  const invoicePhoto = d?.photos.find(p => p.kind === 'invoice');
+  const invoicePhoto = bon ? (d?.photos.find(p => p.kind === 'signed_bon') ?? d?.photos.find(p => p.kind === 'delivery')) : d?.photos.find(p => p.kind === 'invoice');
   const others = d?.photos.filter(p => p !== invoicePhoto) ?? [];
   return (
     <main className="mx-auto min-h-dvh max-w-[480px] px-5 pb-10 pt-5">
@@ -75,7 +75,7 @@ export default function Evidence() {
             <p className="mt-1 font-semibold leading-6">{line?.description}</p>
             <Money sen={d.flag.amountSen} className="mt-2 text-[32px] font-semibold leading-10" />
             <dl className="mt-3 divide-y divide-dashed divide-line text-sm">
-              {line && <div className="flex justify-between py-2"><dt className="text-ink-2">{t('flag.billed')}</dt><dd className="num font-semibold">{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</dd></div>}
+              {line && <div className="flex justify-between py-2"><dt className="text-ink-2">{t('flag.billed')}</dt><dd className="num font-semibold">{bon ? line.qty : <>{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</>}</dd></div>}
               {d.baseline && <div className="flex justify-between py-2"><dt className="text-ink-2">{t('ev.baseline')} ({t(`flag.src.${d.baseline.source}` as Key)})</dt><dd className="num font-semibold">{formatMoney(d.baseline.unitSen, 'MYR')}</dd></div>}
             </dl>
           </Card>
@@ -88,7 +88,7 @@ export default function Evidence() {
                 <div className="p-3"><p className="text-xs text-ink-2">{t('ev.poCol')}</p>
                   <p className="font-medium">{poLine?.description ?? t('ev.notInPo')}</p><p className="num text-ink-2">{poLine ? `${poLine.orderedQty}` : '—'}</p></div>
                 <div className="p-3"><p className="text-xs text-ink-2">{t('ev.invCol')}</p>
-                  <p className="font-medium">{line.description}</p><p className="num text-ink-2">{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</p></div>
+                  <p className="font-medium">{line.description}</p><p className="num text-ink-2">{bon ? line.qty : <>{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</>}</p></div>
               </Card>
             </section>
           )}

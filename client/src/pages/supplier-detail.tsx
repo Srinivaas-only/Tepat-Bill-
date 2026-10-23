@@ -43,7 +43,7 @@ export default function SupplierDetail() {
       : api.patch(`/invoices/${a.invId}/payment`, { payment: a.kind === 'pay' ? 'paid' : 'on_credit' }),
     onSuccess: refresh, onError: () => toast.error(t('common.error')),
   });
-  const fl = useQuery({ queryKey: ['flags', 'supplier', id], queryFn: () => api.get<{ flags: FlagView[] }>(`/flags?supplierId=${id}`) });
+  const fl = useQuery({ queryKey: ['flags', 'supplier', id], queryFn: () => api.get<{ flags: FlagView[] }>(`/flags?supplierId=${id}`).then(r => ({ flags: r.flags.filter(f => !f.supersededBy && f.status !== 'dismissed') })) });
   const [note, setNote] = useState(''); const [wa, setWa] = useState(''); const [foreign, setForeign] = useState(false);
   const sup = q.data?.supplier;
   useEffect(() => { if (sup) { setNote(sup.policyNote ?? ''); setWa(sup.whatsapp ?? ''); setForeign(sup.isForeign); } }, [sup?.id, sup?.policyNote, sup?.whatsapp, sup?.isForeign]); // eslint-disable-line react-hooks/exhaustive-deps

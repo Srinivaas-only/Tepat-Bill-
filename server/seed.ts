@@ -10,7 +10,7 @@ import * as S from '../shared/schema';
 import { ALL_TABLES } from '../shared/schema';
 import { cacheKey } from '../shared/core/extract';
 import { defaultDueAt, detectFlags, poNumber, type AliasTable, type PriceList } from '../shared/core';
-import { detectedToRow, toMyrSen } from './core-adapters';
+import { detectedToRow, kl, toMyrSen } from './core-adapters';
 
 const DAY = 86_400_000;
 const FX = () => path.resolve(process.cwd(), 'fixtures');
@@ -36,7 +36,7 @@ async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: b
 
   // 2. settings
   const nowDate = new Date(now);
-  const yymm = poNumber(nowDate, 0).slice(3, 7);
+  const yymm = poNumber(kl(nowDate), 0).slice(3, 7);
   const maxSeq = Math.max(0, ...seed.purchaseOrders.filter((p: any) => p.poNo.startsWith(`PO-${yymm}-`)).map((p: any) => Number(p.poNo.slice(-3))));
   const { pins: _pins, ...shop } = seed.shop;
   await db.insert(S.settings).values([

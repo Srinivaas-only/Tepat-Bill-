@@ -18,10 +18,10 @@ interface Home {
   summary: { flaggedSen: number; settledSen: number; openSen: number };
   needsActionCount: number; needsAction: FlagView[]; followUpCount: number; followUps: FlagView[];
   credits: { id: string; name: string; creditSen: number }[]; recent: { id: number; at: number; role: string; action: string; ref: string | null }[];
-  deliveries: { id: string; doNo: string; supplierName: string; receivedAt: number; invoiceId: string | null; state: 'issue' | 'correct' | 'waiting' }[];
+  deliveries: { id: string; doNo: string; supplierName: string; receivedAt: number; invoiceId: string | null; state: 'issue' | 'billed' | 'correct' | 'waiting' }[];
   checksLeft: number; firstRun: boolean;
 }
-const delTone = { issue: 'short', correct: 'ok', waiting: 'neutral' } as const;
+const delTone = { issue: 'short', correct: 'ok', waiting: 'neutral', billed: 'neutral' } as const;
 
 function Section({ title, count, flags }: { title: string; count: number; flags: FlagView[] }) {
   const { t } = useI18n();
@@ -103,7 +103,7 @@ function OwnerHome() {
               <div className="overflow-hidden rounded-card border border-line bg-surface">{d.deliveries.map(x => (
                 <Link key={x.id} href={x.invoiceId ? `/invoices/${x.invoiceId}/compare` : `/deliveries/${x.id}/count`} className="flex min-h-[56px] items-center justify-between gap-3 border-t border-dashed border-line px-4 py-2 first:border-t-0">
                   <div className="min-w-0"><p className="num font-medium">{x.doNo}</p><p className="truncate text-xs text-ink-2">{x.supplierName} · <span className="num">{fmtDate(x.receivedAt, lang)}</span></p></div>
-                  <Badge tone={delTone[x.state]} className="shrink-0">{t(`deliveries.state.${x.state}` as Key)}</Badge>
+                  <Badge tone={delTone[x.state]} className="shrink-0">{x.state === 'billed' ? t('flag.broughtToInvoice') : t(`deliveries.state.${x.state}` as Key)}</Badge>
                 </Link>))}</div>
             </section>
           )}

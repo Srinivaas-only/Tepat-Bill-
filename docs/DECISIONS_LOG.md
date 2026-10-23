@@ -31,3 +31,5 @@
 - 2026-10-23 · decision · L7 the 7 s fixture delay stays on purpose (demo ladder); the fixture picker sorts the matching fixture first.
 - 2026-10-23 · decision · U19 unused i18n keys were not deleted (risk of removing keys still referenced via dynamic keys).
 - 2026-10-23 · decision · scenario e: a reminder flag (sent 15 days ago) legitimately logs flag.remind when the owner taps Buka WhatsApp; only drafting (GET) logs nothing.
+- 2026-10-23 · decision · P0.8 delivery evidence picks the signed_bon photo (a delivery_note document maps to signed_bon on the evidence route), falling back to a delivery photo.
+- 2026-10-23 · decision · P0.3 documents with deliveryId cannot be attached to an invoice; the attach update is conditional so two parallel attaches cannot move a document.

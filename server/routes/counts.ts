@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import * as S from '../../shared/schema';
 import { baseline, canMarkCorrect, matchLine, orderState, readyToPay } from '../../shared/core';
 import type { AppDeps } from '../app';
@@ -27,8 +27,10 @@ export function countsRouter(deps: AppDeps) {
     const [doc] = await db.select().from(S.documents).where(eq(S.documents.id, String(req.params.id)));
     if (!doc) throw new ApiError(404, 'not_found', 'Dokumen tiada');
     // only bon/photo uploads, and never one already tied to a different invoice (would leak across suppliers via evidence links)
-    if (!['delivery_note', 'photo'].includes(doc.kind) || (doc.invoiceId && doc.invoiceId !== inv.id)) throw new ApiError(409, 'bad_document', 'Dokumen ini tidak boleh dilampirkan');
-    const [d] = await db.update(S.documents).set({ invoiceId: inv.id, photoKind: body.data.photoKind }).where(eq(S.documents.id, doc.id)).returning({ id: S.documents.id });
+    if (!['delivery_note', 'photo'].includes(doc.kind) || doc.deliveryId || (doc.invoiceId && doc.invoiceId !== inv.id)) throw new ApiError(409, 'bad_document', 'Dokumen ini tidak boleh dilampirkan');
+    const [d] = await db.update(S.documents).set({ invoiceId: inv.id, photoKind: body.data.photoKind })
+      .where(and(eq(S.documents.id, doc.id), or(isNull(S.documents.invoiceId), eq(S.documents.invoiceId, inv.id)))).returning({ id: S.documents.id });
+    if (!d) throw new ApiError(409, 'bad_document', 'Dokumen ini tidak boleh dilampirkan');
     const c = await loadContext(db, inv.id);
     if (c) await attachPhotos(db, c);
     await logEvent(db, req.role!, 'document.attach', d.id, { invoiceId: inv.id });
@@ -122,7 +124,7 @@ export function countsRouter(deps: AppDeps) {
       invoice: { id: c.inv.id, invoiceNo: c.inv.invoiceNo, supplierId: c.inv.supplierId, supplierName: sup?.name ?? '', totalSen: c.inv.totalSen, payment: c.inv.payment, docDate: c.inv.docDate, poNo: c.poRow?.poNo ?? null },
       delivery: delivery ? { id: delivery.id, doNo: delivery.doNo, docDate: delivery.docDate } : null,
       rows: [...rows, ...poOnly], flags: await toViews(db, flagRows), flagCount: live.filter(f => !(f.type === 'price_change' && f.direction === 'down')).length, claimableSen: claimable,
-      readyToPay: readyToPay(live.map(f => ({ amountSen: f.amountSen, type: f.type as 'short_qty' | 'price_change' | 'not_ordered', direction: (f.direction ?? undefined) as 'up' | 'down' | undefined }))),
+      readyToPay: !!delivery && readyToPay(live.map(f => ({ amountSen: f.amountSen, type: f.type as 'short_qty' | 'price_change' | 'not_ordered', direction: (f.direction ?? undefined) as 'up' | 'down' | undefined }))),
       netOwedSen: ledger.rows.find(x => x.id === c.inv.id)?.netOwedSen ?? c.inv.totalSen,
     });
   });

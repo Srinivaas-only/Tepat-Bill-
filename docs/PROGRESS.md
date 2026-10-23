@@ -50,3 +50,10 @@ Not verified: the WhatsApp chat picker on a real phone; the evidence-line pulse 
 - Verified: `npm test` 131/131, typecheck ok, build ok, production smoke (health shows db/storage/gemini/demo; / gzipped); 390px App Testing pass: a, b, c, d, f, g, h, i ok; e ok on a reminder flag (drafting logs nothing; the send tap logs a reminder, as designed).
 - A tester run found a 500 when drafting a message for a superseded delivery flag; fixed (409) and the action bar is hidden for superseded flags.
 - Not verified: the superseded-flag UI after that fix (no re-run), the 360px layout of the new supplier settings card, WhatsApp chat picker on a real phone, Lighthouse, App Storage in production (smoke used local disk).
+
+## Fix round 4
+- Done: P0.1–P0.9, P1.2, P1.3, P1.5, P2.1–P2.4, tests T1–T10 (P2.4: no unique-index push exists at boot, so only seed failure handling was already in place; PIN state is now logged at boot and the error names the variable).
+- Verified: `npm test` 140/140, typecheck ok, build ok, production smoke (/api/health shows seeded:true, CSP header present, boot logs PIN state). 390px App Test: scenarios 1 and 2 ok; 3 and 4 ok except the notes below; extras a, b, c, e ok.
+- Extra d: the tester saw the 5th wrong guess answered "PIN salah" (401), not 429. The limiter allows 5 failures per 60 s and blocks the 6th; the staff login no longer resets the count (covered by an API test: 4 wrong, staff login, 5th wrong = 401, 6th = 429).
+- Scenario 3: the count result showed Anggaran RM0.00 when the tester saved counts again after approving (the estimate only counts proposed flags). The first save returns RM90.00 (API test). Not changed.
+- Not verified in a browser: the 'Buka WhatsApp' popup (blocked by the headless file chooser), the RM962.00 starting value before settling, CSP console errors on the production build (header present, no browser run on the prod server), the delivery evidence highlight (seen on the DO-5512 link).
