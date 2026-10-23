@@ -367,13 +367,13 @@ Rules:
 ## 11. Message and evidence specifics
 - Message lines and wording come **only** from `draftMessage()` (exact BM/EN templates, tested). Example (BM):
   ```
-  Salam Syarikat Borong Ali Sdn. Bhd., ini Kedai Runcit Maju.
-  Untuk invois INV-2291 bertarikh 20/10/2026 (pesanan PO-2610-004):
-  • MAGGI KARI 5'S (CTN 8 PEK): dibil 10, diterima 8. Kurang 2 unit = RM90.00.
-  • GULA PASIR 1KG: harga invois RM3.20/unit, harga dipersetujui RM2.80/unit, untuk 50 unit = beza RM20.00.
+  Salam sejahtera Syarikat Borong Ali Sdn. Bhd., ini Kedai Runcit Maju.
+  Merujuk invois INV-2291 bertarikh 20/10/2026 (pesanan PO-2610-004):
+  • MAGGI KARI 5'S (CTN 8 PEK): dalam invois 10, diterima 8. Kurang 2 unit = RM90.00.
+  • GULA PASIR 1KG: harga invois RM3.20/unit, harga yang dipersetujui RM2.80/unit, untuk 50 unit = perbezaan RM20.00.
   Jumlah: RM110.00.
   Mohon tolak jumlah ini daripada invois.
-  Mohon caj mengikut harga dipersetujui.
+  Mohon caj mengikut harga yang dipersetujui.
   Bukti (gambar & dokumen): https://<host>/e/3f9c…
   Terima kasih.
   ```
