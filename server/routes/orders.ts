@@ -188,7 +188,7 @@ export function ordersRouter(deps: AppDeps) {
       });
       await tx.insert(S.invoiceLines).values(lines.map((l, i) => ({
         id: `${id}_L${i + 1}`, invoiceId: id, lineId: `L${i + 1}`, sku: l.sku, description: l.description, qty: l.qty, unit: l.unit || null,
-        unitPriceSen: l.unitPriceSen, unitPriceForeignMinor: foreign ? l.unitPriceForeignMinor! : null, lineTotalSen: l.qty * l.unitPriceSen,
+        unitPriceSen: l.unitPriceSen, unitPriceForeignMinor: foreign ? l.unitPriceForeignMinor! : null, lineTotalSen: foreign ? toMyrSen(l.qty * l.unitPriceForeignMinor!, b.exchangeRateBp!) : l.qty * l.unitPriceSen,
         box: (l.box ?? null) as S.Box | null, position: i,
       })));
       if (b.documentId) await tx.update(S.documents).set({ invoiceId: id }).where(eq(S.documents.id, b.documentId));

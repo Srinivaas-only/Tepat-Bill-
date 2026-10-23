@@ -106,6 +106,17 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
     expect((await call('GET', '/api/suppliers/sup_ali/ledger', ownerCookie)).json.ledger.payNowSen).toBe(87200);
   });
 
+  it('foreign invoice: line totals come from the foreign amount (no per-unit rounding drift) and flags keep integer unit sen', async () => {
+    // USD 0.33 x 1000 at 4.20: the exact line is RM1,386.00; rounding the unit to RM1.39 first would give RM1,390.00
+    const r = await call('POST', '/api/invoices', ownerCookie, { newSupplier: { name: 'Rounding Test Foods Ltd', isForeign: true, country: 'CN' }, invoiceNo: 'FX-ROUND-1', currency: 'USD', exchangeRateBp: 42000, totalForeignMinor: 33000,
+      lines: [{ description: 'Biskut kelapa', qty: 1000, unitPriceForeignMinor: 33 }] });
+    expect(r.status).toBe(201);
+    const d = await call('GET', `/api/invoices/${r.json.id}`, ownerCookie);
+    expect(d.json.lines[0].unitPriceSen).toBe(139);
+    expect(d.json.lines[0].lineTotalSen).toBe(138600);
+    expect(d.json.invoice?.totalSen ?? d.json.totalSen).toBe(138600);
+  });
+
   it('no PO: a different product (Gula perang) does not map to gula-pasir-1kg', async () => {
     const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'NOPO-GULA', lines: [{ description: 'Gula perang 1kg', qty: 3, unitPriceSen: 400 }], totalSen: 1200 });
     const put = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: {} });

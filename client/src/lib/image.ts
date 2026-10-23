@@ -58,8 +58,9 @@ async function exifOrientation(file: Blob): Promise<number> {
 }
 
 async function pdfPage1(file: File): Promise<Prepared> {
-  const pdfjs = await import('pdfjs-dist');
-  pdfjs.GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
+  // The "legacy" build runs on browsers without the newest JS features (Map.getOrInsertComputed etc.); the modern build fails silently there.
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url')).default;
   const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
   const page = await pdf.getPage(1);
   const base = page.getViewport({ scale: 1 });
