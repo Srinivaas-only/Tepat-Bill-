@@ -6,7 +6,7 @@ import { ExtractedDoc, linesToSen } from './extract';
 import { detectFlags, normalise, type PoLine, type PriceList } from './rules';
 import { supplierLedger, transition, needsReminder, type Flag, type Invoice } from './ledger';
 
-const FX = join(__dirname, '..', '..', 'fixtures');
+const FX = join(__dirname, '..', '..', '..', 'fixtures');
 const seed = JSON.parse(readFileSync(join(FX, 'seed.json'), 'utf8'));
 const expected = (f: string) => ExtractedDoc.parse(JSON.parse(readFileSync(join(FX, 'docs', `${f}.expected.json`), 'utf8')));
 const DAY = 86_400_000, NOW = Date.UTC(2026, 9, 22, 4);

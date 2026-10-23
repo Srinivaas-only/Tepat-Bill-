@@ -25,7 +25,7 @@ async function main() {
     app.use(vite.middlewares);
     app.get('/{*splat}', async (req, res, next) => {
       try {
-        const html = await vite.transformIndexHtml(req.originalUrl, fs.readFileSync(path.join(root, 'client/index.html'), 'utf8'));
+        const html = await vite.transformIndexHtml(req.originalUrl, fs.readFileSync(path.join(root, 'src/client/index.html'), 'utf8'));
         res.status(200).set({ 'Content-Type': 'text/html', 'Cache-Control': 'no-store' }).end(html);
       } catch (e) { vite.ssrFixStacktrace(e as Error); next(e); }
     });
