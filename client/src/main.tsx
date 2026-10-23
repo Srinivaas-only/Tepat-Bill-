@@ -1,3 +1,5 @@
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
 import './index.css';
 import { Component, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -8,7 +10,10 @@ import { I18nProvider } from '@/i18n';
 import { ApiError } from '@/lib/api';
 import { ms } from '@/i18n/ms';
 import { en } from '@/i18n/en';
+import { initSpotlight } from '@/lib/spotlight';
 import App from './App';
+
+initSpotlight();
 
 const onAuthError = (e: unknown) => {
   if (e instanceof ApiError && e.status === 401 && !location.pathname.startsWith('/e/')) qc.setQueryData(['me'], null);
@@ -40,7 +45,7 @@ createRoot(document.getElementById('root')!).render(
       <MotionConfig reducedMotion="user">
         <I18nProvider>
           <App />
-          <Toaster position="bottom-center" offset={96} style={{ '--normal-bg': 'var(--ink)', '--normal-text': '#fff', '--normal-border': 'transparent', '--border-radius': '14px' } as React.CSSProperties} toastOptions={{ style: { fontFamily: 'inherit', fontSize: 14 } }} />
+          <Toaster position="bottom-center" offset={96} style={{ '--normal-bg': 'var(--surface-3)', '--normal-text': 'var(--ink)', '--normal-border': 'var(--line)', '--border-radius': '16px' } as React.CSSProperties} toastOptions={{ style: { fontFamily: 'inherit', fontSize: 14 } }} />
         </I18nProvider>
       </MotionConfig>
     </QueryClientProvider>

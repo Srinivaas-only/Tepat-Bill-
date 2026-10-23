@@ -45,11 +45,11 @@ export default function Login() {
   });
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-[480px] flex-col items-center px-5 pb-8 pt-[calc(48px+var(--safe-top))]">
-      <button className="press absolute right-4 top-[calc(12px+var(--safe-top))] inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold text-ink-2 ring-1 ring-ink/15 [@media(hover:hover)]:hover:bg-surface-2" onClick={() => setLang(lang === 'ms' ? 'en' : 'ms')}>
+      <button className="press absolute right-4 top-[calc(12px+var(--safe-top))] inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold text-ink-2 ring-1 ring-white/10 [@media(hover:hover)]:hover:bg-surface-2" onClick={() => setLang(lang === 'ms' ? 'en' : 'ms')}>
         {lang === 'ms' ? 'English' : 'BM'}
       </button>
       <Logo />
-      <h1 className="mt-4 text-[28px] font-semibold leading-[34px] tracking-tight">{t('app.name')}</h1>
+      <h1 className="mt-4 text-title font-semibold tracking-[-0.02em]">{t('app.name')}</h1>
       <p className="mt-1 text-center text-ink-2">{t('app.tagline')}</p>
       <h2 className="mt-10 text-xl font-semibold">{t('login.title')}</h2>
       <p className="text-sm text-ink-2">{t('login.sub')}</p>

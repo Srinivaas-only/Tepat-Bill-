@@ -125,10 +125,10 @@ export default function Read() {
 
       {doc && (
         <div className="mt-4 overflow-hidden rounded-card bg-surface shadow-card">
-          <p className="border-b border-dashed border-line px-4 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2">{t(kind === 'delivery' ? 'ledger.head.qty' : 'ledger.head.price')}</p>
+          <p className="border-b border-line px-4 py-2 eyebrow">{t(kind === 'delivery' ? 'ledger.head.qty' : 'ledger.head.price')}</p>
           {lines.length === 0 && <p className="px-4 py-3 text-ink-2">{t('read.noLines')}</p>}
           {lines.map((l, i) => (
-            <div key={i} className="flex items-center justify-between gap-3 border-t border-dashed border-line px-4 py-3 first:border-t-0">
+            <div key={i} className="flex items-center justify-between gap-3 border-t border-line px-4 py-3 first:border-t-0">
               <span className="num w-6 shrink-0 text-xs text-ink-2">{String(i + 1).padStart(2, '0')}</span>
               <span className="min-w-0 flex-1 text-sm font-medium leading-5">{l.description}</span>
               <span className="num shrink-0 text-right text-sm text-ink-2">

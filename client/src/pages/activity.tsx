@@ -21,11 +21,11 @@ export default function Activity() {
         : events.length === 0 ? <EmptyState text={t('activity.empty')} />
         : <div className="space-y-4">{groups.map(([day, evs]) => (
           <section key={day}>
-            <h2 className="sticky top-0 z-10 bg-bg py-2 text-[11px] font-medium uppercase tracking-[.12em] text-ink-2">{day}</h2>
+            <h2 className="sticky top-0 z-10 bg-bg py-2 eyebrow">{day}</h2>
             <div className="overflow-hidden rounded-card bg-surface shadow-card">{evs.map(e => {
               const body = (
-                <div className="relative flex min-h-14 items-center gap-3 border-t border-dashed border-line px-4 py-2 pl-5">
-                  <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${e.role === 'owner' ? 'bg-ink' : 'bg-line'}`} />
+                <div className="relative flex min-h-14 items-center gap-3 border-t border-line px-4 py-2 pl-5">
+                  <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${e.role === 'owner' ? 'bg-brand-text' : 'bg-white/25'}`} />
                   <div className="min-w-0 flex-1"><p className="font-medium">{label(e.action)}</p><p className="text-xs text-ink-2">{t(e.role === 'owner' ? 'role.owner' : 'role.staff')}</p></div>
                   <time className="num shrink-0 text-xs text-ink-2">{new Date(e.at).toLocaleTimeString(loc, { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit' })}</time>
                 </div>);

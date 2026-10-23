@@ -59,10 +59,10 @@ export default function Evidence() {
   const invoicePhoto = bon ? (d?.photos.find(p => p.kind === 'signed_bon') ?? d?.photos.find(p => p.kind === 'delivery')) : d?.photos.find(p => p.kind === 'invoice');
   const others = d?.photos.filter(p => p !== invoicePhoto) ?? [];
   return (
-    <main className="mx-auto min-h-dvh max-w-[480px] px-5 pb-10 pt-5">
-      <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><Logo size={28} /><p className="text-[11px] font-medium uppercase tracking-[.12em] text-ink-2">{t('evidence.kicker')}</p></div>
-        <Button variant="secondary" size="sm" onClick={() => setLang(lang === 'ms' ? 'en' : 'ms')}>{lang === 'ms' ? 'English' : 'BM'}</Button></div>
-      {q.isError ? <div className="space-y-3 rounded-card border border-line p-5"><p className="text-ink-2">{(q.error as Error).message === 'not_found' ? t('ev.notFound') : t('evidence.netErr')}</p>{(q.error as Error).message !== 'not_found' && <Button variant="secondary" onClick={() => void q.refetch()}>{t('evidence.retry')}</Button>}</div> : !d ? <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-60 w-full" /></div> : (
+    <div className="paper min-h-dvh"><main className="mx-auto min-h-dvh max-w-[480px] px-5 pb-10 pt-5">
+      <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><Logo size={28} /><p className="eyebrow">{t('evidence.kicker')}</p></div>
+        <Button variant="secondary" size="sm" className="bg-surface-2 ring-line-strong" onClick={() => setLang(lang === 'ms' ? 'en' : 'ms')}>{lang === 'ms' ? 'English' : 'BM'}</Button></div>
+      {q.isError ? <div className="space-y-3 rounded-card border border-line p-5"><p className="text-ink-2">{(q.error as Error).message === 'not_found' ? t('ev.notFound') : t('evidence.netErr')}</p>{(q.error as Error).message !== 'not_found' && <Button variant="secondary" className="bg-surface-2 ring-line-strong" onClick={() => void q.refetch()}>{t('evidence.retry')}</Button>}</div> : !d ? <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-60 w-full" /></div> : (
         <div className="space-y-4">
           <div className="space-y-1 border-b border-dashed border-line pb-4">
             <h1 className="text-2xl font-semibold leading-8">{t('evidence.title')}</h1>
@@ -115,6 +115,6 @@ export default function Evidence() {
       )}
       {d && <p className="mt-8 text-center text-xs text-ink-2">{t('evidence.readOnly')}</p>}
       <PhotoViewer src={viewer} onClose={() => setViewer(null)} box={viewer && viewer === invoicePhoto?.url ? d?.highlight.box_2d : null} />
-    </main>
+    </main></div>
   );
 }

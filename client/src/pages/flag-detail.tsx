@@ -129,25 +129,25 @@ export default function FlagDetail() {
           <div>
             <div className="mb-1 flex items-start justify-between gap-3">
               <div className="min-w-0 text-sm text-ink-2">
-                <Link href={`/suppliers/${f.supplierId}`} className="flex min-h-11 items-center truncate font-semibold text-brand">{f.supplierName}</Link>
+                <Link href={`/suppliers/${f.supplierId}`} className="flex min-h-11 items-center truncate font-semibold text-brand-text">{f.supplierName}</Link>
                 <div className="-mt-1 flex flex-wrap items-center">
-                  <Link href={f.stage === 'delivery' && f.deliveryId ? `/deliveries/${f.deliveryId}/count` : `/invoices/${f.invoiceId}`} className="num inline-flex min-h-11 items-center font-medium text-brand">{f.invoiceNo}</Link>
-                  {f.poNo && <><span aria-hidden className="mx-2">·</span><Link href={f.poId ? `/orders/po/${f.poId}` : '/orders'} className="num inline-flex min-h-11 items-center font-medium text-brand">{f.poNo}</Link></>}
+                  <Link href={f.stage === 'delivery' && f.deliveryId ? `/deliveries/${f.deliveryId}/count` : `/invoices/${f.invoiceId}`} className="num inline-flex min-h-11 items-center font-medium text-brand-text">{f.invoiceNo}</Link>
+                  {f.poNo && <><span aria-hidden className="mx-2">·</span><Link href={f.poId ? `/orders/po/${f.poId}` : '/orders'} className="num inline-flex min-h-11 items-center font-medium text-brand-text">{f.poNo}</Link></>}
                 </div>
               </div>
               {f.supersededBy ? <Badge tone="neutral" className="mt-3 shrink-0">{t('flag.broughtToInvoice')}</Badge> : <span className="mt-3 shrink-0"><Stamp key={f.status} status={f.status} thunk={justStamped} /></span>}
             </div>
             {f.supersededBy && (
-              <Link href={`/flags/${f.supersededBy}`} className="press mb-3 flex min-h-11 items-center justify-between rounded-card border border-dashed border-line-strong/60 px-4 text-sm font-semibold text-brand">{t('flag.viewReplacing')}<ChevronRight size={16} aria-hidden /></Link>
+              <Link href={`/flags/${f.supersededBy}`} className="press mb-3 flex min-h-11 items-center justify-between rounded-card border border-line-strong/60 px-4 text-sm font-semibold text-brand-text">{t('flag.viewReplacing')}<ChevronRight size={16} aria-hidden /></Link>
             )}
-            <h1 className="text-2xl font-semibold leading-8 tracking-tight">{title(f)} · {f.lineDescription}</h1>
+            <h1 className="text-2xl font-semibold leading-8 tracking-[-0.02em]">{title(f)} · {f.lineDescription}</h1>
             <p className="mt-2 text-sm text-ink-2">{f.stage === 'delivery' ? t('flag.estimate', { rm: '' }).trim() : t('flag.amount')}</p>
-            <div className="inline-block"><span className="inline-block border-b-[3px] border-double border-ink pb-1"><Money sen={f.amountSen} className="text-[40px] font-semibold leading-[48px]" /></span></div>
+            <div className="inline-block"><span className="inline-block"><Money sen={f.amountSen} className="text-[40px] font-semibold leading-[48px]" /></span></div>
           </div>
 
           {d.invoiceDoc && <LineCrop src={`/api/documents/${d.invoiceDoc.id}/file`} width={d.invoiceDoc.width || 900} height={d.invoiceDoc.height || 1180} box={d.line?.box ?? null} onOpen={() => setViewer(`/api/documents/${d.invoiceDoc!.id}/file`)} label={t('flag.zoomHint')} />}
 
-          <Card className="px-4 py-2"><dl className="divide-y divide-dashed divide-line">
+          <Card className="px-4 py-2"><dl className="divide-y divide-line">
             {f.type === 'short_qty' && d.line && <>
               <Fact k={t(f.stage === 'delivery' ? 'flag.onBon' : 'flag.billed')} v={String(d.line.qty)} /><Fact k={t('flag.received')} v={String(d.receivedQty ?? 0)} /><Fact k={t('flag.missing')} v={String(f.missingQty ?? 0)} />
               {f.stage !== 'delivery' && <Fact k={t('flag.invoicePrice')} v={formatMoney(d.line.unitPriceSen, 'MYR')} />}
@@ -182,11 +182,11 @@ export default function FlagDetail() {
 
           {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="ok" className="num">{t('flag.sentOn', { date: fmtDate(f.sentAt, lang) })}</Badge>}
           {f.reminderDue && <p className="text-sm font-medium text-dispute">{t('flag.reminderCaption')}</p>}
-          {f.note && <Card className="px-4 py-3"><p className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-2">{t('flag.noteLabel')}</p><p className="text-sm">{f.note}</p></Card>}
+          {f.note && <Card className="px-4 py-3"><p className="eyebrow">{t('flag.noteLabel')}</p><p className="text-sm">{f.note}</p></Card>}
           {owner && f.status !== 'proposed' && d.evidenceToken && (
             <div className="flex flex-wrap gap-x-4">
-              <a href={`/e/${d.evidenceToken}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-brand"><ExternalLink size={16} aria-hidden />{t('flag.viewEvidence')}</a>
-              <button type="button" onClick={copyLink} className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-brand"><Copy size={16} aria-hidden />{t('flag.copyLink')}</button>
+              <a href={`/e/${d.evidenceToken}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-brand-text"><ExternalLink size={16} aria-hidden />{t('flag.viewEvidence')}</a>
+              <button type="button" onClick={copyLink} className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-brand-text"><Copy size={16} aria-hidden />{t('flag.copyLink')}</button>
             </div>
           )}
 

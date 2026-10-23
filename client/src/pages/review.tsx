@@ -205,7 +205,7 @@ export default function Review() {
   return (
     <main className="px-5 pb-36 pt-[calc(16px+var(--safe-top))]">
       <BackButton fallback="/scan" />
-      <h1 className="mb-3 text-[28px] font-semibold leading-[34px]">{t(title)}</h1>
+      <h1 className="mb-3 text-title font-semibold tracking-[-0.02em]">{t(title)}</h1>
       {docId && meta.data && (
         <div className="sticky top-0 z-10 -mx-5 mb-4 bg-bg px-5 pb-2 pt-1"><DocImage src={`/api/documents/${docId}/file`} width={meta.data.width || 900} height={meta.data.height || 1180} alt={t(docAlt)}
           boxes={boxes} activeIndex={active} onBoxClick={pickRow} maxHeight="28dvh" /></div>
@@ -257,7 +257,7 @@ export default function Review() {
 
           {kind !== 'po' && (
             suggLoading ? <Skeleton className="h-12 w-full" /> : (
-              <button type="button" onClick={() => setPoSheet(true)} className="flex min-h-12 w-full items-center justify-between rounded-card bg-surface-2 px-4 text-left font-medium text-brand">
+              <button type="button" onClick={() => setPoSheet(true)} className="flex min-h-12 w-full items-center justify-between rounded-card bg-surface-2 px-4 text-left font-medium text-brand-text">
                 <span className="flex items-center gap-2"><Link2 size={18} aria-hidden />{effectivePo ? t('review.poChip', { po: effectivePo.poNo }) : t('review.noPo')}</span>
                 <ChevronDown size={18} aria-hidden />
               </button>
@@ -266,7 +266,7 @@ export default function Review() {
 
           {kind === 'invoice' && !!supplierId && (
             deliveryLoading ? <Skeleton className="h-12 w-full" /> : dcands.length > 0 && (
-              <button type="button" onClick={() => setDeliverySheet(true)} className="flex min-h-12 w-full items-center justify-between rounded-card bg-surface-2 px-4 text-left font-medium text-brand">
+              <button type="button" onClick={() => setDeliverySheet(true)} className="flex min-h-12 w-full items-center justify-between rounded-card bg-surface-2 px-4 text-left font-medium text-brand-text">
                 <span className="flex min-w-0 items-center gap-2"><Truck size={18} className="shrink-0" aria-hidden /><span className="truncate">{effectiveDelivery ? t('review.deliveryChip', { do: effectiveDelivery.doNo, date: dmyOf(effectiveDelivery.docDate, effectiveDelivery.receivedAt) }) : t('review.noDelivery')}</span></span>
                 <ChevronDown size={18} className="shrink-0" aria-hidden />
               </button>
@@ -275,9 +275,9 @@ export default function Review() {
 
           <section aria-label={t('review.lines')}>
             <div className="overflow-hidden rounded-card bg-surface shadow-card">
-              <p className="border-b border-dashed border-line px-5 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2">{t(showPrice ? 'ledger.head.price' : 'ledger.head.qty')}</p>
+              <p className="border-b border-line px-5 py-2 eyebrow">{t(showPrice ? 'ledger.head.price' : 'ledger.head.qty')}</p>
               {rows.map((r, i) => (
-                <div key={r.key} id={`row-${i}`} className="relative scroll-mt-[32dvh] space-y-3 border-t border-dashed border-line py-4 pl-5 pr-4 first:border-t-0">
+                <div key={r.key} id={`row-${i}`} className="relative scroll-mt-[32dvh] space-y-3 border-t border-line py-4 pl-5 pr-4 first:border-t-0">
                   {active === i && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-brand" />}
                   <div className="flex items-start gap-2">
                     <span className="num mt-3 w-6 shrink-0 text-xs text-ink-2">{String(i + 1).padStart(2, '0')}</span>

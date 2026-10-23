@@ -36,8 +36,8 @@ export default function EInvoice() {
       : q.data && !d ? <EmptyState text={t('common.error')} />
       : !d || !f ? <Skeleton className="h-80 w-full" /> : (
         <Card className="relative overflow-hidden p-5">
-          <div className="mb-4 flex items-start justify-between gap-3"><p className="text-[11px] font-medium uppercase tracking-[.08em] text-notord">{t('einv.ribbon')}</p><Stamp status="ok" label={t(`einv.status.${d.status}` as Key)} /></div>
-          <dl className="divide-y divide-dashed divide-line text-sm">
+          <div className="mb-4 flex items-start justify-between gap-3"><p className="eyebrow text-notord">{t('einv.ribbon')}</p><Stamp status="ok" label={t(`einv.status.${d.status}` as Key)} /></div>
+          <dl className="divide-y divide-line text-sm">
             <Row k={t('einv.type')} v={t('einv.typeVal')} />
             <Row k={t('einv.no')} v={f.eInvoiceNo} />
             <Row k={t('einv.supplier')} v={f.supplierName} />
@@ -48,7 +48,7 @@ export default function EInvoice() {
             {f.exchangeRateToMYR && <Row k={t('einv.rate')} v={f.exchangeRateToMYR.toFixed(2)} />}
           </dl>
           <div className="mt-4"><SectionLabel>{t('einv.items')}</SectionLabel></div>
-          <div className="divide-y divide-dashed divide-line text-sm">{f.lines.map((l, i) => (
+          <div className="divide-y divide-line text-sm">{f.lines.map((l, i) => (
             <div key={i} className="flex justify-between gap-3 py-2"><span>{l.description}<span className="num block text-xs text-ink-2">{l.qty} × {formatMoney(l.unitPriceSen, f.currency)}</span></span><span className="num font-semibold">{formatMoney(l.totalSen, f.currency)}</span></div>))}</div>
           <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3"><span className="font-semibold">{t('einv.total', { cur: f.currency })}</span><span className="num text-2xl font-semibold">{formatMoney(f.totalSen, f.currency)}</span></div>
           <div className="mt-5 space-y-2">

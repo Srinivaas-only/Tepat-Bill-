@@ -59,7 +59,7 @@ function Stepper({ value, onChange, max = 100000, decLabel, incLabel, hand, labe
     <div className="flex items-center gap-2">
       <Button variant="secondary" size="icon" className="h-12 w-12 rounded-full" aria-label={decLabel} disabled={value <= 0} {...press(-1)}><Minus size={22} /></Button>
       <input inputMode="numeric" aria-label={label} value={value} onFocus={e => e.currentTarget.select()} onChange={e => onChange(clamp(Number(e.target.value.replace(/\D/g, '')) || 0))}
-        className={`h-12 w-14 bg-transparent text-center ${hand ? 'rounded-none border-0 border-b-2 border-brand/40 text-[30px] font-normal text-brand' : 'num rounded-btn border border-line-strong/70 bg-surface text-[26px] font-semibold'}`} style={hand ? { fontFamily: "'Kalam', cursive" } : undefined} />
+        className={`h-12 w-14 bg-transparent text-center ${hand ? 'rounded-none border-0 border-b-2 border-brand/40 text-[30px] font-normal text-brand-text' : 'num rounded-btn border border-line-strong/70 bg-surface text-[26px] font-semibold'}`} style={hand ? { fontFamily: "'Kalam', cursive" } : undefined} />
       <Button variant="secondary" size="icon" className="h-12 w-12 rounded-full" aria-label={incLabel} {...press(1)}><Plus size={22} /></Button>
     </div>
   );
@@ -132,16 +132,16 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
   return (
     <main className="px-5 pb-36 pt-[calc(16px+var(--safe-top))]">
       <BackButton fallback="/" />
-      <h1 className="text-[28px] font-semibold leading-[34px]">{title}</h1>
+      <h1 className="text-title font-semibold tracking-[-0.02em]">{title}</h1>
       {d && <p className="mb-5 mt-1 text-ink-2"><span className="num">{d.ref}</span> · {d.supplierName}{d.poNo ? ` · ${d.poNo}` : ''}</p>}
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} notFound={q.error instanceof ApiError && q.error.status === 404} /> : !d ? <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-[112px] w-full" />)}</div> : (
         <div className="space-y-3">
           <div className="overflow-hidden rounded-card bg-surface shadow-card">
-            <p className="flex items-center justify-between border-b border-dashed border-line px-5 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2"><span>{t('ledger.head.count')}</span>{d.lines.some(l => (counts[`line:${l.lineId}`] ?? l.qty) !== l.qty) && <span className="num normal-case tracking-normal text-short">{t('count.summary', { n: d.lines.filter(l => (counts[`line:${l.lineId}`] ?? l.qty) !== l.qty).length, m: d.lines.length })}</span>}</p>
+            <p className="flex items-center justify-between border-b border-line px-5 py-2 eyebrow"><span>{t('ledger.head.count')}</span>{d.lines.some(l => (counts[`line:${l.lineId}`] ?? l.qty) !== l.qty) && <span className="num normal-case tracking-normal text-short">{t('count.summary', { n: d.lines.filter(l => (counts[`line:${l.lineId}`] ?? l.qty) !== l.qty).length, m: d.lines.length })}</span>}</p>
             {d.lines.map((l, i) => {
               const key = `line:${l.lineId}`; const v = counts[key] ?? l.qty; const diff = l.qty - v;
               return (
-                <div key={l.lineId} className="relative border-t border-dashed border-line py-4 pl-5 pr-4 first:border-t-0">
+                <div key={l.lineId} className="relative border-t border-line py-4 pl-5 pr-4 first:border-t-0">
                   {diff !== 0 && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-short" />}
                   <div className="flex items-start justify-between gap-2">
                     <p className="flex gap-2 font-medium leading-5"><span className="num w-6 shrink-0 text-xs leading-5 text-ink-2">{String(i + 1).padStart(2, '0')}</span><span>{l.description}</span></p>
@@ -155,9 +155,9 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
               );
             })}
             {d.poOnly.map(p => (
-              <div key={p.sku} className="border-t border-dashed border-line py-4 pl-5 pr-4">
+              <div key={p.sku} className="border-t border-line py-4 pl-5 pr-4">
                 <p className="font-medium leading-5">{p.description}</p>
-                <p className="mt-1 text-sm text-ink-2"><span className="text-[11px] font-medium uppercase tracking-[.08em]">{t('count.orderedCaption')}</span> <span className="num">{p.orderedQty}</span> · {t('count.ordered')}</p>
+                <p className="mt-1 text-sm text-ink-2"><span className="eyebrow">{t('count.orderedCaption')}</span> <span className="num">{p.orderedQty}</span> · {t('count.ordered')}</p>
                 <div className="mt-3 flex justify-end">
                   <Stepper value={counts[p.sku] ?? 0} onChange={n => set(p.sku, n)} label={`${t('review.qty')} · ${p.description}`} decLabel={t('count.dec')} incLabel={t('count.inc')} />
                 </div>
@@ -202,7 +202,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
             <div className="space-y-4">
               <div>
                 <h2 className="text-xl font-semibold leading-6">{t('count.diffs', { n: result.flags.length })}</h2>
-                <p className="mt-1 flex items-baseline gap-2">{isDel && <span className="text-sm text-ink-2">{t('flag.estimate', { rm: '' }).trim()}</span>}<span className="inline-block border-b-[3px] border-double border-ink pb-1"><Money sen={shown} animate className="text-[32px] font-semibold leading-10" /></span></p>
+                <p className="mt-1 flex items-baseline gap-2">{isDel && <span className="text-sm text-ink-2">{t('flag.estimate', { rm: '' }).trim()}</span>}<span className="inline-block"><Money sen={shown} animate className="text-[32px] font-semibold leading-10" /></span></p>
               </div>
               <FlagLedger flags={result.flags} onPick={f => { nav('/flags', { replace: true }); nav('/flags/' + f.id); }} />
               <Button block onClick={() => nav('/flags', { replace: true })}>{t('count.view')}</Button>

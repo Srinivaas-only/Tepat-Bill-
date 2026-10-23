@@ -18,12 +18,12 @@ export default function OrderPo() {
       <BackButton fallback="/orders" />
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} notFound={q.error instanceof ApiError && q.error.status === 404} /> : !d ? <Skeleton className="h-48 w-full" /> : (
         <>
-          <h1 className="num text-[28px] font-semibold leading-[34px]">{d.po.poNo}</h1>
+          <h1 className="num text-title font-semibold tracking-[-0.02em]">{d.po.poNo}</h1>
           <p className="mb-5 mt-1 text-ink-2">{d.po.supplierName} · <span className="num">{new Date(d.po.orderedAt).toLocaleDateString(lang === 'en' ? 'en-GB' : 'ms-MY', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' })}</span></p>
           <div className="overflow-hidden rounded-card bg-surface shadow-card">
-            <p className="border-b border-dashed border-line px-4 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2">{t('ledger.head.price')}</p>
+            <p className="border-b border-line px-4 py-2 eyebrow">{t('ledger.head.price')}</p>
             {d.lines.map((l, i) => (
-              <div key={l.id} className="flex items-center gap-3 border-t border-dashed border-line px-4 py-3 first:border-t-0">
+              <div key={l.id} className="flex items-center gap-3 border-t border-line px-4 py-3 first:border-t-0">
                 <span className="num w-6 shrink-0 text-xs text-ink-2">{String(i + 1).padStart(2, '0')}</span>
                 <span className="min-w-0 flex-1 text-sm font-medium leading-5">{l.description}</span>
                 <span className="num shrink-0 text-right text-sm text-ink-2">{l.orderedQty}{l.unit ? ` ${l.unit}` : ''}{l.unitPriceSen !== null && <> · <Money sen={l.unitPriceSen} /></>}</span>

@@ -8,15 +8,15 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-brand text-brand-ink shadow-[0_1px_0_rgba(255,255,255,.18)_inset,0_6px_16px_-8px_rgba(36,87,214,.7)] [@media(hover:hover)]:hover:bg-brand-hover',
-        secondary: 'bg-surface text-ink ring-1 ring-ink/15 [@media(hover:hover)]:hover:bg-surface-2',
-        light: 'bg-white text-ink shadow-[0_8px_24px_-10px_rgba(0,0,0,.5)] [@media(hover:hover)]:hover:bg-white/90',
-        glass: 'bg-white/12 text-white ring-1 ring-white/20 backdrop-blur [@media(hover:hover)]:hover:bg-white/20',
-        ghost: 'bg-transparent text-ink [@media(hover:hover)]:hover:bg-surface-2',
-        destructive: 'bg-notord text-white [@media(hover:hover)]:hover:bg-notord-hover',
-        wa: 'bg-wa text-ink font-semibold [@media(hover:hover)]:hover:brightness-95',
+        primary: 'bg-brand text-brand-ink shadow-[inset_0_1px_0_rgb(255_255_255/.22),inset_0_0_0_1px_rgb(255_255_255/.08),0_8px_20px_-8px_rgb(36_87_214/.75)] [@media(hover:hover)]:hover:bg-brand-hover',
+        secondary: 'bg-white/[.08] text-ink ring-1 ring-white/10 [@media(hover:hover)]:hover:bg-white/[.12]',
+        light: 'bg-[#FAFAFA] text-[#09090B] shadow-[0_8px_24px_-10px_rgb(0_0_0/.6)] [@media(hover:hover)]:hover:bg-white',
+        glass: 'bg-white/10 text-ink ring-1 ring-white/15 backdrop-blur [@media(hover:hover)]:hover:bg-white/[.16]',
+        ghost: 'bg-transparent text-ink [@media(hover:hover)]:hover:bg-white/[.06]',
+        destructive: 'bg-danger text-white shadow-[inset_0_1px_0_rgb(255_255_255/.18)] [@media(hover:hover)]:hover:bg-danger-hover',
+        wa: 'bg-wa text-[#09090B] font-semibold [@media(hover:hover)]:hover:brightness-95',
       },
-      size: { md: 'h-[52px] px-5 text-base', sm: 'h-11 px-4 text-sm', icon: 'h-11 w-11' },
+      size: { md: 'h-[52px] px-5 text-base', sm: 'min-h-11 whitespace-normal px-4 py-2 text-center text-sm', icon: 'h-11 w-11' },
       block: { true: 'w-full', false: '' },
     },
     defaultVariants: { variant: 'primary', size: 'md', block: false },

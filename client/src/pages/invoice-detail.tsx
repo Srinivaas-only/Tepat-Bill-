@@ -52,8 +52,8 @@ export default function InvoiceDetail() {
         <div className="space-y-5">
           <div>
             <p className="text-sm text-ink-2">{t('inv.title')}{d.invoice.poNo ? ` · ${d.invoice.poNo}` : ''}</p>
-            <h1 className="num text-2xl font-semibold leading-8 tracking-tight">{d.invoice.invoiceNo}</h1>
-            <Link href={`/suppliers/${d.invoice.supplierId}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-brand">{d.invoice.supplierName}</Link>
+            <h1 className="num text-2xl font-semibold leading-8 tracking-[-0.02em]">{d.invoice.invoiceNo}</h1>
+            <Link href={`/suppliers/${d.invoice.supplierId}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-text">{d.invoice.supplierName}</Link>
           </div>
           <div className="space-y-2">
             {d.invoice.compared
@@ -70,14 +70,14 @@ export default function InvoiceDetail() {
           <section>
             <SectionLabel>{t('inv.lines')}</SectionLabel>
             <div className="overflow-hidden rounded-card bg-surface shadow-card px-4">
-              <p className="py-2 text-[11px] font-medium uppercase tracking-[.08em] text-ink-2">{t('inv.lineHead')}</p>
+              <p className="py-2 eyebrow">{t('inv.lineHead')}</p>
               {d.lines.map((l, i) => (
-                <div key={l.lineId} className="flex items-start justify-between gap-3 border-t border-dashed border-line py-3 text-sm">
+                <div key={l.lineId} className="flex items-start justify-between gap-3 border-t border-line py-3 text-sm">
                   <span className="num pt-0.5 text-xs text-ink-2">{String(i + 1).padStart(2, '0')}</span>
                   <div className="min-w-0 flex-1"><p className="font-medium">{l.description}</p><p className="num text-xs text-ink-2">{d.counts[`line:${l.lineId}`] ?? l.qty} / {l.qty} × {formatMoney(l.unitPriceSen, 'MYR')}</p></div>
                   <p className="num shrink-0 font-semibold">{formatMoney(l.lineTotalSen, 'MYR')}</p>
                 </div>))}
-              <div className="flex items-baseline justify-between border-t border-dashed border-line py-3"><span className="text-ink-2">{t('inv.total')}</span><span className="inline-block border-b-[3px] border-double border-ink pb-1"><Money sen={d.invoice.totalSen} className="text-xl font-semibold" /></span></div>
+              <div className="flex items-baseline justify-between border-t border-line py-3"><span className="text-ink-2">{t('inv.total')}</span><span className="inline-block"><Money sen={d.invoice.totalSen} className="text-xl font-semibold" /></span></div>
             </div>
           </section>
           <section>

@@ -18,7 +18,7 @@ export function LineCrop({ src, width, height, box, onOpen, label }: { src: stri
   }
   return (
     <button type="button" onClick={onOpen} aria-label={label} ref={el => { if (el && el.clientWidth !== cw) setCw(el.clientWidth); }}
-      className="relative block w-full overflow-hidden rounded-card bg-surface-2" style={{ height: H }}>
+      className="relative block w-full overflow-hidden rounded-card bg-surface-2 shadow-[0_0_0_1px_rgb(255_255_255/.15)]" style={{ height: H }}>
       <img src={src} alt={label} style={style} draggable={false} />
       {ring && <div className="rounded-md border-2 border-brand bg-brand/[.16]" style={ring} />}
     </button>

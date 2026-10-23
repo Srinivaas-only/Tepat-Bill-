@@ -10,7 +10,7 @@ export function DocImage({ src, width, height, alt, boxes = [], drawFrom, stagge
   const reduce = useReducedMotion();
   const sw = Math.max(2, width / 190);
   return (
-    <motion.div className={`relative overflow-hidden rounded-card bg-surface-2 ${className ?? ''}`} style={{ aspectRatio: `${width} / ${height}`, ...(maxHeight ? { width: `min(100%, calc(${maxHeight} * ${width / height}))`, marginInline: 'auto' } : {}) }}>
+    <motion.div className={`relative overflow-hidden rounded-card bg-surface-2 shadow-[0_0_0_1px_rgb(255_255_255/.15),0_12px_32px_-12px_rgb(36_87_214/.35)] ${className ?? ''}`} style={{ aspectRatio: `${width} / ${height}`, ...(maxHeight ? { width: `min(100%, calc(${maxHeight} * ${width / height}))`, marginInline: 'auto' } : {}) }}>
       <img src={src} alt={alt} width={width} height={height} className="absolute inset-0 h-full w-full object-fill" draggable={false} />
       <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden>
         {boxes.map((b, i) => {

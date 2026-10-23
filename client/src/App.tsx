@@ -49,19 +49,20 @@ function OfflineBanner() {
     window.addEventListener('online', on); window.addEventListener('offline', off);
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
-  return online ? null : <div role="status" className="pointer-events-none fixed inset-x-0 top-0 z-[70]"><div className="mx-auto max-w-[480px] bg-dispute px-4 pb-2 pt-[calc(8px+var(--safe-top))] text-center text-sm font-medium text-white">{t('common.offline')}</div></div>;
+  return online ? null : <div role="status" className="pointer-events-none fixed inset-x-0 top-0 z-[70]"><div className="mx-auto max-w-[480px] border-b border-line bg-surface-3 px-4 pb-2 pt-[calc(8px+var(--safe-top))] text-center text-sm font-medium text-ink">{t('common.offline')}</div></div>;
 }
 
 function AppShell() {
   const { role, loading } = useAuth();
   const [loc] = useLocation();
   if (loading) return <Fallback />;
-  if (!role) return <Suspense fallback={<Fallback />}><Login /></Suspense>;
+  if (!role) return <><div className="ambient" aria-hidden /><div className="grain" aria-hidden /><Suspense fallback={<Fallback />}><Login /></Suspense></>;
   return (
-    <div className="mx-auto min-h-dvh max-w-[480px] bg-bg pb-28 md:shadow-[0_0_0_1px_rgba(19,37,74,.08),0_40px_100px_-30px_rgba(19,37,74,.3)]">
+    <div className="mx-auto min-h-dvh max-w-[480px] pb-28 md:bg-bg md:shadow-[0_0_0_1px_rgb(255_255_255/.08),0_40px_100px_-30px_rgb(0_0_0/.9)]">
+      <div className="ambient" aria-hidden /><div className="grain" aria-hidden />
       <OfflineBanner />
       <Suspense fallback={<Fallback />}>
-        <motion.div key={loc} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}>
+        <motion.div key={loc} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
         <Switch>
           <Route path="/login"><Redirect to="/" /></Route>
           <Route path="/" component={Home} />

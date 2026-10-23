@@ -18,7 +18,7 @@ interface DelRow { id: string; doNo: string; supplierName: string; receivedAt: n
 type Tab = 'po' | 'invoice' | 'delivery';
 const stateTone = { recorded: 'neutral', has_flags: 'short', correct: 'ok' } as const;
 const delTone = { issue: 'short', correct: 'ok', waiting: 'neutral', billed: 'neutral' } as const;
-const row = 'flex min-h-[64px] items-center justify-between gap-3 border-t border-dashed border-line px-4 py-3 first:border-t-0';
+const row = 'flex min-h-[64px] items-center justify-between gap-3 border-t border-line px-4 py-3 first:border-t-0';
 
 export default function Orders() {
   const { t, lang } = useI18n();

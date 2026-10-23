@@ -38,8 +38,8 @@ export default function Compare() {
   return (
     <main className="px-5 pb-12 pt-[calc(16px+var(--safe-top))]">
       <BackButton fallback="/orders" />
-      <div className="on-dark mb-4 rounded-[20px] px-4 py-3 text-white shadow-[0_14px_32px_-16px_rgba(19,37,74,.6)]" style={{ background: 'var(--grad-band)' }}>
-        <p className="text-[11px] font-medium uppercase tracking-[.14em] text-white/70">{t('compare.title')}</p>
+      <div className="mb-4 rounded-card px-4 py-3 text-ink shadow-raised" style={{ background: 'var(--grad-band)' }}>
+        <p className="eyebrow">{t('compare.title')}</p>
         {d && <p className="mt-1 font-medium"><span className="num">{d.invoice.invoiceNo}</span> · {d.invoice.supplierName}{d.delivery && <> · <span className="num">{d.delivery.doNo}</span></>}</p>}
       </div>
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} notFound={q.error instanceof ApiError && q.error.status === 404} /> : !d ? <Skeleton className="h-64 w-full" /> : (
@@ -48,7 +48,7 @@ export default function Compare() {
             <section className="space-y-3 text-center">
               <Stamp status="ok" thunk label={t('compare.correct')} />
               <p className="text-ink-2">{t('compare.ready')}</p>
-              <p><span className="inline-block border-b-[3px] border-double border-ink pb-1"><Money sen={d.netOwedSen} animate className="text-[32px] font-semibold leading-10" /></span></p>
+              <p><span className="inline-block"><Money sen={d.netOwedSen} animate className="text-[32px] font-semibold leading-10" /></span></p>
               {d.invoice.payment !== 'paid' && role && can(role, 'mark_paid') && <Button block disabled={pay.isPending} onClick={() => pay.mutate()}>{t('compare.markPaid')}</Button>}
             </section>
           ) : (
@@ -59,13 +59,13 @@ export default function Compare() {
             </section>
           )}
           <div className="overflow-hidden rounded-card bg-surface shadow-card">
-            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 border-b border-dashed border-line px-4 py-2 text-[11px] font-medium uppercase tracking-[.08em] text-ink-2">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 border-b border-line px-4 py-2 eyebrow">
               <span>{t('ledger.head.qty').split(' · ')[0]}</span><span className="w-10 text-right" title={t('compare.ordered')} aria-label={t('compare.ordered')}>{t('compare.colPo')}</span><span className="w-10 text-right" title={t('compare.received')} aria-label={t('compare.received')}>{t('compare.colDo')}</span><span className="w-10 text-right" title={t('compare.billed')} aria-label={t('compare.billed')}>{t('compare.colInv')}</span>
             </div>
             {d.rows.map((r, i) => {
               const short = r.flagTypes.includes('short_qty'); const price = r.flagTypes.includes('price_change'); const notOrd = r.flagTypes.includes('not_ordered');
               return (
-                <div key={r.lineId} className="border-t border-dashed border-line px-4 py-3 first:border-t-0">
+                <div key={r.lineId} className="border-t border-line px-4 py-3 first:border-t-0">
                   <div className="grid grid-cols-[1fr_auto_auto_auto] items-start gap-x-3">
                     <p className="flex gap-2 text-sm font-medium leading-5"><span className="num w-5 shrink-0 text-xs leading-5 text-ink-2">{String(i + 1).padStart(2, '0')}</span><span>{r.description}</span></p>
                     <span className={`num w-10 text-right text-sm ${cell(notOrd)}`}>{r.orderedQty ?? '–'}</span>

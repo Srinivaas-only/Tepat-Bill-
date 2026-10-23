@@ -56,8 +56,8 @@ export default function Scan() {
         <SheetContent title={t('scan.what')}>
           <div className="overflow-hidden rounded-card bg-surface shadow-card">
             {kinds.map(k => (
-              <button key={k.id} type="button" onClick={() => choose(k.id)} className="press flex min-h-16 w-full items-center gap-4 border-t border-dashed border-line px-4 py-3 text-left first:border-t-0 [@media(hover:hover)]:hover:bg-surface-2/60">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-brand/10 text-brand" aria-hidden><k.icon size={22} strokeWidth={1.75} /></span>
+              <button key={k.id} type="button" onClick={() => choose(k.id)} className="press flex min-h-16 w-full items-center gap-4 border-t border-line px-4 py-3 text-left first:border-t-0 [@media(hover:hover)]:hover:bg-surface-2/60">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-brand-text/10 text-brand-text" aria-hidden><k.icon size={22} strokeWidth={1.75} /></span>
                 <span className="min-w-0"><span className="block text-base font-medium leading-5">{t(k.key)}</span><span className="block text-sm text-ink-2">{t(k.hint)}</span></span>
               </button>
             ))}

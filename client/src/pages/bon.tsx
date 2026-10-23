@@ -28,7 +28,7 @@ export default function Bon() {
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} /> : q.isLoading ? <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-[72px] w-full" />)}</div>
         : list.length === 0 ? <EmptyState text={t('bon.none')}><Button asChild size="sm"><Link href="/scan">{t('nav.scan')}</Link></Button></EmptyState>
         : <div className="overflow-hidden rounded-card bg-surface shadow-card">{list.slice(0, 12).map(v => (
-          <button key={v.id} type="button" disabled={attach.isPending} onClick={() => attach.mutate(v.id)} className="flex min-h-[72px] w-full items-center justify-between border-t border-dashed border-line p-4 text-left first:border-t-0">
+          <button key={v.id} type="button" disabled={attach.isPending} onClick={() => attach.mutate(v.id)} className="flex min-h-[72px] w-full items-center justify-between border-t border-line p-4 text-left first:border-t-0">
             <div><p className="num font-semibold">{v.invoiceNo}</p><p className="text-sm text-ink-2">{v.supplierName} · {fmtDate(v.issuedAt, lang)}</p></div>
             <p className="num font-semibold">{formatRM(v.totalSen)}</p>
           </button>))}</div>}
