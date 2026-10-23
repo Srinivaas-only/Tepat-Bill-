@@ -12,6 +12,7 @@ import { createApp, mountErrorHandlers } from './app';
 import { seedDatabase } from './seed';
 import { parseRM } from '../shared/core';
 import { mintSkus } from './core-adapters';
+import { signSession } from './auth';
 
 const owner = process.env.OWNER_PIN ?? '1234';
 const staff = process.env.STAFF_PIN ?? '5678';
@@ -278,5 +279,111 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     });
     expect(await send('https://x.example', { host: 'internal', 'x-forwarded-host': 'x.example' })).toBe(200);
     expect(await send('https://evil.example', { host: 'internal', 'x-forwarded-host': 'x.example' })).toBe(403);
+  });
+
+  it('T1 not_ordered delivery flag is carried to the invoice; a settled one is left alone', async () => {
+    const extra = { description: 'Biskut Hijau Istimewa', qty: 5, unit: 'pkt' };
+    const d = await call('POST', '/api/deliveries', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', doNo: 'DO-NO-1', lines: [...dLines('do_lim_brothers_DO-LB-0901'), extra] });
+    expect(d.status).toBe(201);
+    const c = await call('PUT', `/api/deliveries/${d.json.id}/counts`, staffCookie, { counts: {} });
+    const dflag = c.json.flags.find((f: any) => f.type === 'not_ordered');
+    expect(dflag).toBeTruthy();
+    expect((await call('POST', `/api/flags/${dflag.id}/approve`, ownerCookie, {})).status).toBe(200);
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', deliveryId: d.json.id, invoiceNo: 'LB-NO-1', currency: 'MYR', totalSen: 28560 + 5 * 200,
+      lines: [...iLines('invoice_lim_brothers_LB-7810'), { description: 'Biskut Hijau Istimewa', qty: 5, unit: 'pkt', unitPriceSen: 200 }] });
+    expect(inv.status).toBe(201);
+    const invFlag = inv.json.flags.find((f: any) => f.type === 'not_ordered');
+    expect(invFlag).toBeTruthy();
+    const row = await pool.query(`select superseded_by, status from ${SCHEMA}.flags where id = $1`, [dflag.id]);
+    expect(row.rows[0].superseded_by).toBe(invFlag.id);
+    expect(row.rows[0].status).toBe('open');
+  });
+
+  it('T1b a settled delivery not_ordered flag is untouched by a later invoice', async () => {
+    const d = await call('POST', '/api/deliveries', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', doNo: 'DO-NO-2', lines: [...dLines('do_lim_brothers_DO-LB-0901'), { description: 'Kuih Sagu Pelik', qty: 3, unit: 'pkt' }] });
+    const c = await call('PUT', `/api/deliveries/${d.json.id}/counts`, staffCookie, { counts: {} });
+    const dflag = c.json.flags.find((f: any) => f.type === 'not_ordered');
+    expect(dflag).toBeTruthy();
+    await call('POST', `/api/flags/${dflag.id}/approve`, ownerCookie, {});
+    expect((await call('POST', `/api/flags/${dflag.id}/settle`, ownerCookie, { settlement: 'credit_note' })).status).toBe(200);
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', deliveryId: d.json.id, invoiceNo: 'LB-NO-2', currency: 'MYR', totalSen: 28560 + 3 * 100,
+      lines: [...iLines('invoice_lim_brothers_LB-7810'), { description: 'Kuih Sagu Pelik', qty: 3, unit: 'pkt', unitPriceSen: 100 }] });
+    expect(inv.status).toBe(201);
+    const row = await pool.query(`select superseded_by, status from ${SCHEMA}.flags where id = $1`, [dflag.id]);
+    expect(row.rows[0].superseded_by).toBeNull();
+    expect(row.rows[0].status).toBe('settled');
+  });
+
+  it('T2 sessions signed before a PIN change are rejected', async () => {
+    const prev = process.env.OWNER_PIN;
+    const old = await signSession('owner');
+    const cookie = `tb_session=${old}`;
+    const me = (c: string) => call('GET', '/api/auth/me', c);
+    const name = (await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pin: owner }) })).headers.get('set-cookie')!.split('=')[0];
+    const ck = `${name}=${old}`;
+    expect((await me(ck)).status).toBe(200);
+    try {
+      process.env.OWNER_PIN = owner === '4321' ? '4322' : '4321';
+      expect((await me(ck)).status).toBe(401);
+      const fresh = `${name}=${await signSession('owner')}`;
+      expect((await me(fresh)).status).toBe(200);
+    } finally { if (prev === undefined) delete process.env.OWNER_PIN; else process.env.OWNER_PIN = prev; }
+    expect(cookie).toContain(old);
+  });
+
+  it('T3 gemini-check: no key -> ok:false; staff 403; logged out 401; no cache/checks/event side effects', async () => {
+    const prevKey = process.env.GEMINI_API_KEY; delete process.env.GEMINI_API_KEY;
+    try {
+      const ext0 = (await pool.query(`select count(*)::int as n from ${SCHEMA}.extractions`)).rows[0].n;
+      const ev0 = (await pool.query(`select count(*)::int as n from ${SCHEMA}.events`)).rows[0].n;
+      const checks0 = (await pool.query(`select value from ${SCHEMA}.settings where key = 'checks_left'`)).rows[0].value;
+      expect((await call('POST', '/api/gemini-check')).status).toBe(401);
+      expect((await call('POST', '/api/gemini-check', staffCookie)).status).toBe(403);
+      const r = await call('POST', '/api/gemini-check', ownerCookie);
+      expect(r.status).toBe(200); expect(r.json.ok).toBe(false);
+      expect((await pool.query(`select count(*)::int as n from ${SCHEMA}.extractions`)).rows[0].n).toBe(ext0);
+      expect((await pool.query(`select count(*)::int as n from ${SCHEMA}.events`)).rows[0].n).toBe(ev0);
+      expect((await pool.query(`select value from ${SCHEMA}.settings where key = 'checks_left'`)).rows[0].value).toEqual(checks0);
+    } finally { if (prevKey !== undefined) process.env.GEMINI_API_KEY = prevKey; }
+  });
+
+  it('T4 decimal box_2d through POST /api/invoices is stored as integers', async () => {
+    const r = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'BOX-1', totalSen: 1000, lines: [{ description: 'Teh Boh', qty: 1, unitPriceSen: 1000, box: [10.4, 20.6, 100.2, 300.9] }] });
+    expect(r.status).toBe(201);
+    const row = await pool.query(`select box from ${SCHEMA}.invoice_lines where invoice_id = $1`, [r.json.id]);
+    expect(row.rows[0].box).toEqual([10, 21, 100, 301]);
+  });
+
+  it('T5 sku minting through POST /api/pos', async () => {
+    const r = await call('POST', '/api/pos', staffCookie, { supplierId: 'sup_ali', source: 'typed', lines: [{ description: 'Gula pasir 1kg', qty: 2 }] });
+    expect(r.status).toBe(201);
+    const r2 = await call('POST', '/api/pos', staffCookie, { supplierId: 'sup_ali', source: 'typed', lines: [{ description: 'Gula perang 1kg', qty: 2 }] });
+    const row = await pool.query(`select sku from ${SCHEMA}.po_lines where po_id = $1`, [r2.json.id]);
+    expect(row.rows[0].sku).toBe('gula-perang-1kg');
+  });
+
+  it('T6 races: one new supplier row; one approve wins; one invoice wins', async () => {
+    const body = { newSupplier: { name: 'Pembekal Perlumbaan' }, source: 'typed', lines: [{ description: 'Roti', qty: 1 }] };
+    const rs = await Promise.all([call('POST', '/api/pos', staffCookie, body), call('POST', '/api/pos', staffCookie, body)]);
+    expect(rs.map(r => r.status)).toEqual([201, 201]);
+    expect((await pool.query(`select count(*)::int as n from ${SCHEMA}.suppliers where lower(name) = 'pembekal perlumbaan'`)).rows[0].n).toBe(1);
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'RACE-T6', lines: [{ description: 'Mee', qty: 4, unitPriceSen: 500 }], totalSen: 2000 });
+    const put = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 2 } });
+    const id = put.json.flags[0].id;
+    const ap = await Promise.all([call('POST', `/api/flags/${id}/approve`, ownerCookie, {}), call('POST', `/api/flags/${id}/approve`, ownerCookie, {})]);
+    expect(ap.map(r => r.status).sort()).toEqual([200, 409]);
+    expect((await pool.query(`select count(*)::int as n from ${SCHEMA}.events where ref = $1 and action = 'flag.approve'`, [id])).rows[0].n).toBe(1);
+    const ib = { supplierId: 'sup_ali', invoiceNo: 'RACE-T6B', lines: [{ description: 'Mee', qty: 4, unitPriceSen: 500 }], totalSen: 2000 };
+    const ps = await Promise.all([call('POST', '/api/invoices', staffCookie, ib), call('POST', '/api/invoices', staffCookie, ib)]);
+    expect(ps.map(r => r.status).sort()).toEqual([201, 409]);
+  });
+
+  it('T7 home summary is unchanged by 600 extra dismissed flags (the list cap never touches money)', async () => {
+    const before = (await call('GET', '/api/home', ownerCookie)).json.summary;
+    await pool.query(`insert into ${SCHEMA}.flags (id, supplier_id, invoice_id, invoice_line_id, type, amount_sen, status, evidence_token, stage)
+      select 'flg_bulk_' || g, 'sup_ali', 'inv_bulk_' || g, 'L1', 'short_qty', 0, 'dismissed', md5('bulk' || g) || md5('x' || g), 'invoice' from generate_series(1, 600) g`).catch(e => { throw e; });
+    const after = (await call('GET', '/api/home', ownerCookie)).json.summary;
+    expect(after).toEqual(before);
+    expect((await call('GET', '/api/flags', ownerCookie)).json.flags.length).toBeLessThanOrEqual(500);
   });
 });

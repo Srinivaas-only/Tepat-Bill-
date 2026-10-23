@@ -96,18 +96,35 @@ export async function attachDeliveryPhotos(db: Conn, c: Pick<DeliveryContext, 'd
 }
 
 /**
- * A new invoice-stage short_qty flag takes over the delivery-stage short_qty flag of the same sku in the linked delivery.
- * Proposed delivery flags become dismissed; open ones stay open (superseded_by hides them from the work lists).
+ * A new invoice-stage short_qty or not_ordered flag takes over the delivery-stage flag of the same type in the linked delivery:
+ * short_qty matches by sku; not_ordered by sku, else by equal normalised line description.
+ * Proposed delivery flags become dismissed; open/disputed ones keep their status (superseded_by hides them from the work lists).
  * Delivery flags already settled stay exactly as they are (the goods may have been redelivered).
  */
-export async function supersedeDeliveryFlags(db: Conn, deliveryId: string, newInvoiceFlags: { id: string; type: string; sku: string | null }[]) {
-  const shorts = newInvoiceFlags.filter(f => f.type === 'short_qty' && f.sku);
-  if (!shorts.length) return;
-  const open = await db.select().from(S.flags).where(and(eq(S.flags.deliveryId, deliveryId), eq(S.flags.stage, 'delivery'), eq(S.flags.type, 'short_qty'),
+export async function supersedeDeliveryFlags(db: Conn, deliveryId: string, newInvoiceFlags: { id: string; type: string; sku: string | null; invoiceId?: string | null; invoiceLineId?: string }[]) {
+  const carried = newInvoiceFlags.filter(f => f.type === 'short_qty' ? !!f.sku : f.type === 'not_ordered');
+  if (!carried.length) return;
+  const open = await db.select().from(S.flags).where(and(eq(S.flags.deliveryId, deliveryId), eq(S.flags.stage, 'delivery'), inArray(S.flags.type, ['short_qty', 'not_ordered']),
     inArray(S.flags.status, ['proposed', 'open', 'disputed']), isNull(S.flags.supersededBy)));
+  if (!open.length) return;
+  const needDesc = carried.some(f => f.type === 'not_ordered');
+  const delDesc = new Map<string, string>(), invDesc = new Map<string, string>();
+  if (needDesc) {
+    for (const l of await db.select().from(S.deliveryLines).where(eq(S.deliveryLines.deliveryId, deliveryId))) delDesc.set(l.lineId, normalise(l.description));
+    const invIds = [...new Set(carried.map(f => f.invoiceId).filter((x): x is string => !!x))];
+    if (invIds.length) for (const l of await db.select().from(S.invoiceLines).where(inArray(S.invoiceLines.invoiceId, invIds))) invDesc.set(`${l.invoiceId}:${l.lineId}`, normalise(l.description));
+  }
+  const used = new Set<string>();
   for (const d of open) {
-    const by = shorts.find(f => f.sku === d.sku);
+    const by = carried.find(f => {
+      if (f.type !== d.type || used.has(f.id)) return false;
+      if (f.sku && d.sku) return f.sku === d.sku;
+      if (d.type === 'short_qty') return false;
+      const a = delDesc.get(d.invoiceLineId), b = f.invoiceId && f.invoiceLineId ? invDesc.get(`${f.invoiceId}:${f.invoiceLineId}`) : undefined;
+      return !!a && a === b;
+    });
     if (!by) continue;
+    used.add(by.id);
     await db.update(S.flags).set({ supersededBy: by.id, ...(d.status === 'proposed' ? { status: 'dismissed' } : {}) }).where(eq(S.flags.id, d.id));
   }
 }

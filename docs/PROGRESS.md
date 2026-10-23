@@ -56,3 +56,9 @@ Not verified: the WhatsApp chat picker on a real phone; the evidence-line pulse 
 - Limiter: a successful login never clears the count and, while the IP has recent failures, counts as an attempt. So 4 wrong + staff login + wrong = 429. Verified with curl through the dev proxy and in an API test.
 - Verified: `npm test` 140/140, typecheck ok, build ok, production build loaded at 390px: no CSP console errors (only the expected 401 from /auth/me), /api/health `seeded:true`. App Test: scenarios 1, 2 ok; scenario 4 ok (Borong Ali Pay now RM0.00 before the invoice, RM962.00 after, RM872.00 after Nota kredit; "2 perbezaan · RM110.00"); extras a, b, c, e ok.
 - Not verified in a browser: extra d (the tester's wrong guesses were more than 60 s apart, so the window had expired; the same sequence returns 429 with curl); the scenario-3 "Anggaran RM90.00" text (two tester runs saved the counts in a way that does not match the scenario; the API test asserts estimateSen 9000); the Buka WhatsApp popup (blocked in headless).
+
+## Fix round 5
+- Done: B1, B2, B3, B4, T1–T7 (T1b added for the settled case).
+- Verified: `npm test` 148/148, typecheck ok, build ok, `git diff` of shared/core, fixtures and client is empty. Production smoke: `/api/health` seeded:true; `POST /api/gemini-check` as owner returned `{"ok":false,"error":"GEMINI_API_KEY not set"}`; a cookie from before restart with a changed OWNER_PIN returned 401. 390px App Test: scenarios 1, 2, 4 ok (RM285.60; "2 perbezaan · RM110.00"; RM962.00 then RM872.00; Home shows "Dibawa ke invois").
+- Scenario 3: the result card's total was read as RM0.00 by the tester while the Maggi card showed RM90.00; the total counts up from 0 after 250 ms and was most likely read mid-animation. The API returns estimateSen 9000 (tested). Not confirmed in a browser.
+- Not verified: the real Gemini call in `/api/gemini-check` (no key here; the route is only tested without a key), the WhatsApp popup (blocked in headless).

@@ -132,7 +132,7 @@ export function countsRouter(deps: AppDeps) {
   r.get('/flags', async (req, res) => {
     const status = typeof req.query.status === 'string' ? req.query.status.split(',') : undefined;
     const supplierId = typeof req.query.supplierId === 'string' ? req.query.supplierId : undefined;
-    const rows = await db.select().from(S.flags).where(and(status ? inArray(S.flags.status, status) : undefined, supplierId ? eq(S.flags.supplierId, supplierId) : undefined)).orderBy(desc(S.flags.createdAt));
+    const rows = await db.select().from(S.flags).where(and(status ? inArray(S.flags.status, status) : undefined, supplierId ? eq(S.flags.supplierId, supplierId) : undefined)).orderBy(desc(S.flags.createdAt)).limit(500);
     res.json({ flags: await toViews(db, rows) });
   });
   return r;

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { SignJWT, jwtVerify } from 'jose';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { can, type Action, type Role } from '../shared/core';
 import { ApiError } from './app';
 
@@ -25,15 +25,19 @@ const secretKey = () => {
   return new TextEncoder().encode(s);
 };
 
+/** Session version: changes whenever the secret or that role's PIN changes, which invalidates old cookies. */
+const sessionVersion = (role: Role) => createHash('sha256').update(`${process.env.SESSION_SECRET ?? ''}:${role}:${getPins()[role]}`).digest('hex').slice(0, 16);
+
 export const signSession = (role: Role) =>
-  new SignJWT({ role }).setProtectedHeader({ alg: 'HS256' }).setIssuedAt().setExpirationTime('30d').sign(secretKey());
+  new SignJWT({ role, v: sessionVersion(role) }).setProtectedHeader({ alg: 'HS256' }).setIssuedAt().setExpirationTime('30d').sign(secretKey());
 
 export async function readSession(req: Request): Promise<Role | null> {
   const t = req.cookies?.[COOKIE];
   if (!t) return null;
   try {
     const { payload } = await jwtVerify(t, secretKey(), { algorithms: ['HS256'] });
-    return payload.role === 'owner' || payload.role === 'staff' ? payload.role : null;
+    if (payload.role !== 'owner' && payload.role !== 'staff') return null;
+    return payload.v === sessionVersion(payload.role) ? payload.role : null;
   } catch { return null; }
 }
 

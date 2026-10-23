@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import * as S from '../../shared/schema';
 import { last30Days } from '../../shared/core';
 import type { AppDeps } from '../app';
@@ -15,10 +15,11 @@ export function homeRouter(deps: AppDeps) {
 
   r.get('/home', async (_req, res) => {
     const now = Date.now();
-    const all = await db.select().from(S.flags);
+    const invoiceFlags = await db.select().from(S.flags).where(eq(S.flags.stage, 'invoice')); // money: never capped
+    const all = await db.select().from(S.flags).orderBy(desc(S.flags.createdAt)).limit(500); // work lists only
     // money (summary) sees invoice-stage flags only; work lists skip flags a later invoice superseded
     const rows = all.filter(f => !f.supersededBy);
-    const summary = last30Days(all.filter(f => f.stage === 'invoice').map(f => flagRowToCore(f)), now);
+    const summary = last30Days(invoiceFlags.map(f => flagRowToCore(f)), now);
     const proposed = rows.filter(f => f.status === 'proposed').sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     const dueIds = await reminderDueIds(db, rows, now);
     const due = rows.filter(f => dueIds.has(f.id));
@@ -30,7 +31,7 @@ export function homeRouter(deps: AppDeps) {
     const ev = await db.select().from(S.events).orderBy(desc(S.events.at), desc(S.events.id)).limit(5);
     const recent = ev.map(e => ({ id: e.id, at: e.at.getTime(), role: e.role, action: e.action, ref: e.ref, meta: e.meta }));
     const dels = await db.select({ d: S.deliveries, supplierName: S.suppliers.name }).from(S.deliveries).innerJoin(S.suppliers, eq(S.suppliers.id, S.deliveries.supplierId)).orderBy(desc(S.deliveries.receivedAt)).limit(5);
-    const dflags = dels.length ? all.filter(f => f.deliveryId && dels.some(x => x.d.id === f.deliveryId)) : [];
+    const dflags = dels.length ? await db.select().from(S.flags).where(inArray(S.flags.deliveryId, dels.map(x => x.d.id))) : [];
     const deliveries = dels.map(x => {
       const all = dflags.filter(f => f.deliveryId === x.d.id);
       const live = all.filter(f => !f.supersededBy);

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { APICallError, wrapLanguageModel, type LanguageModel } from 'ai';
+import { APICallError, generateText, wrapLanguageModel, type LanguageModel } from 'ai';
 import { eq, sql } from 'drizzle-orm';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -8,7 +8,7 @@ import { cacheKey, extractWithFallback, makeGemini, MODELS, type ExtractedDoc, t
 import * as S from '../../shared/schema';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
-import { requireAuth } from '../auth';
+import { requireAuth, requireCan } from '../auth';
 import { logEvent } from '../events';
 
 const envTimeout = Number(process.env.EXTRACT_TIMEOUT_MS ?? 38_000);
@@ -64,6 +64,30 @@ export function extractRouter(deps: AppDeps) {
       await logEvent(deps.db, role, 'ai.read', ref, { model });
     }
   };
+
+  /** Demo-morning check: one tiny text call per model. Touches neither the extractions cache, checks_left nor the events log. */
+  let lastCheckAt = 0;
+  r.post('/gemini-check', requireAuth, requireCan('edit_supplier'), async (_req, res) => {
+    if (!process.env.GEMINI_API_KEY && !deps.gemini) { res.json({ ok: false, error: 'GEMINI_API_KEY not set' }); return; }
+    const now = Date.now();
+    if (now - lastCheckAt < 10_000) throw new ApiError(429, 'rate_limited', 'Cuba lagi sebentar');
+    lastCheckAt = now;
+    let models;
+    try { models = deps.gemini ? deps.gemini() : makeGemini(process.env.GEMINI_API_KEY); }
+    catch { res.json({ ok: false, error: 'Gemini setup failed' }); return; }
+    const probe = async (name: string, model: LanguageModel) => {
+      const t0 = Date.now();
+      try {
+        await generateText({ model: budget(model, 10_000), prompt: 'ping', maxOutputTokens: 16, maxRetries: 0 });
+        return { model: name, ok: true, ms: Date.now() - t0 };
+      } catch (e) {
+        const status = APICallError.isInstance(e) ? e.statusCode : undefined;
+        return { model: name, ok: false, ms: Date.now() - t0, error: status ? `HTTP ${status}` : (e instanceof Error ? e.name : 'error').slice(0, 80) };
+      }
+    };
+    const [primary, fallback] = await Promise.all([probe(MODELS.primary, models.primary), probe(MODELS.fallback, models.fallback)]);
+    res.json({ ok: primary.ok && fallback.ok, primary, fallback });
+  });
 
   r.post('/documents/:id/extract', async (req, res) => {
     const doc = await getDoc(String(req.params.id));

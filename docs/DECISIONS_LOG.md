@@ -33,3 +33,7 @@
 - 2026-10-23 · decision · scenario e: a reminder flag (sent 15 days ago) legitimately logs flag.remind when the owner taps Buka WhatsApp; only drafting (GET) logs nothing.
 - 2026-10-23 · decision · P0.8 delivery evidence picks the signed_bon photo (a delivery_note document maps to signed_bon on the evidence route), falling back to a delivery photo.
 - 2026-10-23 · decision · P0.3 documents with deliveryId cannot be attached to an invoice; the attach update is conditional so two parallel attaches cannot move a document.
+- 2026-10-24 · decision · B1 not_ordered carry: matched by equal sku, else by equal normalised description (delivery line vs invoice line); each new invoice flag supersedes at most one delivery flag.
+- 2026-10-24 · decision · B2 the session version also depends on SESSION_SECRET, so rotating the secret or either PIN logs everyone out once.
+- 2026-10-24 · decision · B4 Home keeps an uncapped read of invoice-stage flags for money and a separate newest-500 read for the work lists; delivery flags for the latest 5 deliveries are read by delivery id.
+- 2026-10-24 · decision · scenario 3 "Anggaran RM0.00": the tester read the count-up animation (it starts at 0, count.tsx setShown 250 ms) before it finished; the API returns estimateSen 9000 (asserted in tests). Client untouched this round.
