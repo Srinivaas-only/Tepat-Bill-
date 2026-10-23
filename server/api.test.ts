@@ -225,6 +225,12 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
       expect(att.status).toBe(409);
       const reuse = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', documentId: gz.documentId, invoiceNo: 'LEAK-1', lines: [{ description: 'x', qty: 1, unitPriceSen: 100 }] });
       expect(reuse.status).toBe(422);
+      const pos = (await call('GET', '/api/pos', ownerCookie)).json.pos as { id: string; supplierId: string }[];
+      const other = pos.find(x => x.supplierId !== 'sup_ali');
+      if (other) {
+        const mix = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', poId: other.id, invoiceNo: 'MIX-1', lines: [{ description: 'x', qty: 1, unitPriceSen: 100 }] });
+        expect(mix.status).toBe(422);
+      }
       const po = await call('POST', '/api/pos', staffCookie, { supplierId: 'sup_ali', source: 'typed', documentId: gz.documentId, lines: [{ description: 'x', qty: 1 }] });
       expect(po.status).toBe(422);
     });

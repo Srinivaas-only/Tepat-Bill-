@@ -145,8 +145,9 @@ export function ordersRouter(deps: AppDeps) {
       if (dup) throw new ApiError(409, 'duplicate_invoice', 'Invois ini sudah ada', { invoiceId: dup.id });
       let po: ReturnType<typeof poLineRowToCore>[] = [];
       if (b.poId) {
-        const [p] = await tx.select({ id: S.purchaseOrders.id }).from(S.purchaseOrders).where(eq(S.purchaseOrders.id, b.poId));
+        const [p] = await tx.select({ id: S.purchaseOrders.id, supplierId: S.purchaseOrders.supplierId }).from(S.purchaseOrders).where(eq(S.purchaseOrders.id, b.poId));
         if (!p) throw new ApiError(404, 'not_found', 'PO tiada');
+        if (p.supplierId !== supplierId) throw new ApiError(422, 'po_supplier_mismatch', 'PO bukan daripada pembekal ini');
         po = (await tx.select().from(S.poLines).where(eq(S.poLines.poId, b.poId))).map(poLineRowToCore);
       }
       const aliases = aliasTableFromRows(await tx.select().from(S.aliases).where(eq(S.aliases.supplierId, supplierId)));
