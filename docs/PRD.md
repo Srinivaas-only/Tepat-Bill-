@@ -166,9 +166,12 @@ Navigation:
 | `/invoices/:id/einvoice` | Self-billed e-invoice preview | Document-style card with all fields, the red "Pratonton" ribbon, Approve and Release buttons. |
 | `/activity` | Activity log | Day-grouped timeline with role avatars. |
 | `/settings` | Settings | Language, switch user, checks left, export CSV, "Reset demo" (owner, dev only), about. |
-| `/e/:token` | **Public evidence page** | Branded "Bukti · Tepat Bill", the shop and supplier names, "Aduan: Kurang 2 unit · RM90.00". Invoice image with the **pulsing highlighted line**. Signed bon and delivery photos (tap to zoom). PO lines vs invoice line comparison. Status badge. BM/EN toggle. Footer "Halaman baca sahaja" (Read-only page). No nav, no app chrome. |
+| `/e/:token` | **Public evidence page** | Branded "Bukti · Tepat Bill", the shop and supplier names, "Aduan: Kurang 2 unit · RM90.00". Invoice image with the **static highlighted line**. Signed bon and delivery photos (tap to zoom). PO lines vs invoice line comparison. Status badge. BM/EN toggle. Footer "Halaman baca sahaja" (Read-only page). No nav, no app chrome. |
 
 ## 6. Design system and UX: the premium bar
+
+> **Superseded.** Section 6 describes the original blue/white fintech look. The shipped design is **Paper, Ink, Stamp** (paper `#F5F3EC`, ink `#13254A`, one 14px radius, no shadows/gradients/pulses, IBM Plex Mono for numbers, ledger rows, outline chips, the Stamp). See `docs/FIX_PROMPT_2.md`, `docs/FIX_PROMPT_3.md` and `HANDOFF.md` §4. Motion budget: box draw-in, NumberFlow, sheets, the stamp thunk and the scan sweep only.
+
 
 **Feel:** calm, confident, money-first, like a fintech app. Generous whitespace, one accent colour, big numbers, soft depth, fast springy motion. **Every screen must pass the polish checklist (6.8).**
 
@@ -208,7 +211,7 @@ Navigation:
 - **Icons:** `lucide-react` 1.5px stroke. Flag type icons: PackageMinus (short) · Tag (price) · PackageX (not ordered) · Repeat (substituted).
 - **Chips:** pill status chips with the semantic bg/fg colours.
 - **Steppers:** 56px circular −/+ with the number centred at 28px. Long-press repeats.
-- **Images:** `react-zoom-pan-pinch` in a full-screen viewer, with the box overlay as an absolutely-positioned SVG using `box_2d` / 10 as % coordinates. Highlighted line: `--brand` 2px stroke plus a 15% fill and a soft pulse.
+- **Images:** `react-zoom-pan-pinch` in a full-screen viewer, with the box overlay as an absolutely-positioned SVG using `box_2d` / 10 as % coordinates. Highlighted line: `--brand` 2px stroke plus a 15% fill (static; the pulse was cut as gimmicky).
 - **Empty states:** a simple inline SVG line illustration (receipt / box) plus one sentence plus one CTA.
 - **Skeletons:** shimmer placeholders that match the final layout. Never a lone spinner over 300 ms.
 

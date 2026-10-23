@@ -17,7 +17,7 @@
 ## Folder layout
 ```
 client/src/  pages/ components/ features/ lib/ i18n/      React app
-server/      index.ts routes/ db.ts storage.ts gemini.ts auth.ts seed.ts
+server/      index.ts app.ts routes/ db.ts storage.ts auth.ts seed.ts   (the Gemini reader lives in shared/core/extract.ts, server-only)
 shared/schema.ts                                         Drizzle tables + zod insert schemas
 shared/core/                                             GOLDEN LOGIC: tested, READ-ONLY (see below)
 fixtures/    docs/*.png + *.expected.json, seed.json     synthetic demo data
@@ -25,7 +25,7 @@ docs/        PRD.md BUILD_PROMPT.md PROGRESS.md DECISIONS_LOG.md
 ```
 
 ## `shared/core/` is read-only golden logic
-`rules.ts` (flags), `ledger.ts` (status, amount owed, reminders, home summary), `roles.ts`, `messages.ts` (supplier message + `wa.me` link), `evidence.ts` (evidence page whitelist), `einvoice.ts` (stub), `extract.ts` (Gemini reader, **server-only**), with 82 passing tests.
+`rules.ts` (flags), `ledger.ts` (status, amount owed, reminders, home summary), `roles.ts`, `messages.ts` (supplier message + `wa.me` link), `evidence.ts` (evidence page whitelist), `einvoice.ts` (stub), `extract.ts` (Gemini reader, **server-only**), with 130 passing core tests (hardening regressions in `hardening.test.ts`).
 - **Import and call these functions. Never re-implement flag, money, role, message or evidence logic anywhere else.**
 - Never edit `shared/core/*` or `fixtures/*` to make something pass. If you truly believe core is wrong, write it in `docs/DECISIONS_LOG.md` and work around it at the call site.
 - Client code imports from `shared/core/index.ts` only (browser-safe). Only the server imports `shared/core/extract.ts`.

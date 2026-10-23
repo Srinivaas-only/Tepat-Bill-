@@ -1,6 +1,6 @@
 # HANDOFF: Tepat Bill (full context for a new Claude Code chat)
 
-> Written 2026-10-23 at `main` = `baf6bc1` (Replit's Fix Round 3 push). Everything a new chat needs to continue without asking: the product, the repo, the history, how to verify, how to work with Replit, what's left, and how the user likes to work.
+> Written 2026-10-23 at `main` = `baf6bc1` (Replit's Fix Round 3 push). **Status update:** Rounds 4 and 5 (backend) were independently verified by Claude, the core was hardened (`be6ce31`, 130 core / 180 total tests) and Round 6 wires it into the server (`docs/FIX_PROMPT_6.md`). UI/UX polish is deferred until the owner asks. Team name: Alt+Win+R. Everything a new chat needs to continue without asking: the product, the repo, the history, how to verify, how to work with Replit, what's left, and how the user likes to work.
 
 ---
 
