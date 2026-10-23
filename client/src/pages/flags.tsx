@@ -18,14 +18,16 @@ export default function Flags() {
   const [tab, setTab] = useState<Tab>('review');
   const q = useQuery({ queryKey: ['flags'], queryFn: () => api.get<{ flags: FlagView[] }>('/flags') });
   const all = q.data?.flags ?? [];
-  const flags = all.filter(f => (groups[tab] as readonly string[]).includes(f.status));
-  const n = (k: Tab) => all.filter(f => (groups[k] as readonly string[]).includes(f.status)).length;
+  // superseded delivery flags (brought to the invoice) live under Selesai, never in the open tabs
+  const inTab = (k: Tab) => (f: FlagView) => k === 'done' ? (groups.done as readonly string[]).includes(f.status) || !!f.supersededBy : !f.supersededBy && (groups[k] as readonly string[]).includes(f.status);
+  const flags = all.filter(inTab(tab));
+  const n = (k: Tab) => all.filter(inTab(k)).length;
   const label = (k: Tab) => ({ review: t('flags.tab.review'), open: t('flags.tab.open'), disputed: t('status.disputed'), done: t('flags.tab.done') })[k];
   return (
     <Page title={t('nav.flags')}>
       <Tabs value={tab} onValueChange={v => setTab(v as Tab)} className="mb-4">
         <TabsList>
-          {(Object.keys(groups) as Tab[]).map(k => <TabsTrigger key={k} value={k} className="min-h-14 flex-col gap-0 px-1 py-1.5 text-[11px] leading-[13px]"><span className="num text-base font-semibold leading-5">{n(k)}</span><span>{label(k)}</span></TabsTrigger>)}
+          {(Object.keys(groups) as Tab[]).map(k => <TabsTrigger key={k} value={k} aria-label={`${label(k)} ${n(k)}`} className="min-h-14 whitespace-nowrap flex-col gap-0 px-1 py-1.5 text-[11px] leading-[13px]"><span className="num text-base font-semibold leading-5">{n(k)}</span><span>{label(k)}</span></TabsTrigger>)}
         </TabsList>
       </Tabs>
       {q.isError ? <ErrorState onRetry={() => void q.refetch()} /> : q.isLoading ? <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-[72px] w-full" />)}</div>

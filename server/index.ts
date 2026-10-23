@@ -2,6 +2,7 @@ import http from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';
 import express from 'express';
+import compression from 'compression';
 import { createApp, mountErrorHandlers } from './app';
 import { getDb } from './db';
 import { makeStorage } from './storage';
@@ -19,10 +20,15 @@ async function main() {
   assertProductionConfig();
   const { db } = getDb();
   const storage = makeStorage();
-  if (process.env.SEED_ON_BOOT === '1') await seedIfEmpty(db, storage);
+  if (process.env.SEED_ON_BOOT === '1') {
+    try { await seedIfEmpty(db, storage); } catch (e) { console.error('[seed] failed, continuing without it:', (e as Error).message); }
+  }
+  for (const k of ['GEMINI_API_KEY', 'DEMO_FIXTURES', 'PUBLIC_BASE_URL']) if (!process.env[k]) console.warn(`[config] ${k} is not set`);
 
-  const app = createApp({ db, storage });
+  const app = createApp({ db, storage }, [compression()]);
   const server = http.createServer(app);
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout = 66_000;
   const isProd = process.env.NODE_ENV === 'production';
   const root = process.cwd();
 
@@ -40,8 +46,16 @@ async function main() {
     });
   } else {
     const dist = path.join(root, 'dist/public');
-    app.use(express.static(dist, { index: false, maxAge: '1h' }));
-    app.get('/{*splat}', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+    app.use((_req, res, next) => {
+      res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-hashes' 'sha256-MhtPZXr7+LpJUY5qtMutB+qWfQtMaPccfe7QXtCcEYc='; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'");
+      next();
+    });
+    app.use('/assets', express.static(path.join(dist, 'assets'), { immutable: true, maxAge: '1y', fallthrough: false }));
+    app.use(express.static(dist, { index: false, maxAge: 0 }));
+    app.get('/{*splat}', (req, res) => {
+      if (/\.[a-z0-9]+$/i.test(req.path)) { res.status(404).end(); return; }
+      res.sendFile(path.join(dist, 'index.html'));
+    });
   }
 
   const port = Number(process.env.PORT ?? 5000);

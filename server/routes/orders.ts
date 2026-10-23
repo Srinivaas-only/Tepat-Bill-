@@ -1,25 +1,31 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import * as S from '../../shared/schema';
-import { defaultDueAt, matchLine, normalise, poNumber, rankPoCandidates, can } from '../../shared/core';
+import { defaultDueAt, matchLine, normalise, poNumber, rankPoCandidates, can, orderState, readyToPay, receivedFromDelivery } from '../../shared/core';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
 import { logEvent } from '../events';
-import { aliasTableFromRows, mintSkus, poLineRowToCore, toMyrSen } from '../core-adapters';
+import { aliasTableFromRows, cleanPriceList, flagRowToCore, mintSkus, poLineRowToCore, toMyrSen } from '../core-adapters';
+import { firstSaveAutofill, loadContext, replaceProposedFlags, runDetection } from '../flags';
+import { defaultDeliveryCounts, loadDeliveryContext, supersedeDeliveryFlags } from '../delivery-ctx';
+import { toViews } from '../flag-view';
 import type { Db } from '../db';
 import type { Role } from '../../shared/core';
 
 const DAY = 86_400_000;
-const Box = z.array(z.number().int()).length(4).nullish();
-const Sen = z.number().int().nonnegative();
-const SupplierRef = z.object({ supplierId: z.string().optional(), newSupplier: z.object({ name: z.string().trim().min(1).max(120), isForeign: z.boolean().optional(), country: z.string().max(4).optional() }).optional() });
+/** Postgres error code, whether drizzle wrapped the driver error or not. */
+export const pgCode = (e: unknown): string | undefined => (e as { code?: string })?.code ?? (e as { cause?: { code?: string } })?.cause?.code;
+export const Box = z.array(z.number().min(-10).max(1010)).length(4).transform(a => a.map(v => Math.max(0, Math.min(1000, Math.round(v))))).nullish();
+const Country = z.string().trim().max(60).optional().transform(c => (c && /^[A-Za-z]{2}$/.test(c) ? c.toUpperCase() : undefined));
+export const Sen = z.number().int().nonnegative();
+export const SupplierRef = z.object({ supplierId: z.string().optional(), newSupplier: z.object({ name: z.string().trim().min(1).max(120), isForeign: z.boolean().optional(), country: Country }).optional() });
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
-async function resolveSupplier(tx: Tx | Db, ref: z.infer<typeof SupplierRef>, role: Role): Promise<string> {
+export async function resolveSupplier(tx: Tx | Db, ref: z.infer<typeof SupplierRef>, role: Role): Promise<string> {
   if (ref.supplierId) {
     const [s] = await tx.select({ id: S.suppliers.id }).from(S.suppliers).where(eq(S.suppliers.id, ref.supplierId));
     if (!s) throw new ApiError(404, 'not_found', 'Pembekal tiada');
@@ -50,7 +56,7 @@ export function ordersRouter(deps: AppDeps) {
   r.patch('/suppliers/:id', requireCan('edit_supplier'), async (req, res) => {
     const body = z.object({
       name: z.string().trim().min(1).max(120).optional(), whatsapp: z.string().trim().max(30).nullable().optional(),
-      isForeign: z.boolean().optional(), country: z.string().trim().max(4).nullable().optional(), policyNote: z.string().trim().max(500).nullable().optional(),
+      isForeign: z.boolean().optional(), country: z.string().trim().max(60).nullable().transform(c => (c && /^[A-Za-z]{2}$/.test(c) ? c.toUpperCase() : null)).optional(), policyNote: z.string().trim().max(500).nullable().optional(),
     }).safeParse(req.body);
     if (!body.success || Object.keys(body.data).length === 0) throw new ApiError(400, 'bad_request', 'Data tidak sah');
     const id = String(req.params.id);
@@ -129,7 +135,7 @@ export function ordersRouter(deps: AppDeps) {
   // ---- invoices
   r.post('/invoices', requireCan('correct_extraction'), async (req, res) => {
     const body = SupplierRef.extend({
-      documentId: z.string().optional(), poId: z.string().nullish(), invoiceNo: z.string().trim().min(1).max(60), docDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      documentId: z.string().optional(), poId: z.string().nullish(), deliveryId: z.string().optional(), invoiceNo: z.string().trim().min(1).max(60), docDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       currency: z.string().trim().length(3).default('MYR'), exchangeRateBp: z.number().int().positive().optional(),
       totalSen: Sen.optional(), totalForeignMinor: Sen.optional(),
       lines: z.array(z.object({ description: z.string().trim().min(1), qty: z.number().int().min(0).max(100000), unit: z.string().trim().max(20).optional(), unitPriceSen: Sen.optional(), unitPriceForeignMinor: Sen.optional(), box: Box })).min(1),
@@ -141,8 +147,10 @@ export function ordersRouter(deps: AppDeps) {
     if (foreign && !b.exchangeRateBp) throw new ApiError(422, 'rate_required', 'Kadar tukaran diperlukan');
     if (!foreign && b.lines.some(l => l.unitPriceSen === undefined)) throw new ApiError(422, 'price_required', 'Harga diperlukan');
     if (foreign && b.lines.some(l => l.unitPriceForeignMinor === undefined)) throw new ApiError(422, 'price_required', 'Harga diperlukan');
+    let supId: string | undefined;
     const out = await db.transaction(async tx => {
       const supplierId = await resolveSupplier(tx, b, req.role!);
+      supId = supplierId;
       const dup = (await tx.select({ id: S.invoices.id, no: S.invoices.invoiceNo }).from(S.invoices).where(eq(S.invoices.supplierId, supplierId))).find(i => i.no.trim().toLowerCase() === b.invoiceNo.toLowerCase());
       if (dup) throw new ApiError(409, 'duplicate_invoice', 'Invois ini sudah ada', { invoiceId: dup.id });
       let po: ReturnType<typeof poLineRowToCore>[] = [];
@@ -180,14 +188,41 @@ export function ordersRouter(deps: AppDeps) {
       })));
       if (b.documentId) await tx.update(S.documents).set({ invoiceId: id }).where(eq(S.documents.id, b.documentId));
       await logEvent(tx, req.role!, 'invoice.create', id, { invoiceNo: b.invoiceNo });
-      return { id };
+      if (!b.deliveryId) return { id };
+      // compare flow: the invoice is checked against what the linked delivery received (no recount)
+      const [del] = await tx.select().from(S.deliveries).where(eq(S.deliveries.id, b.deliveryId));
+      if (!del) throw new ApiError(404, 'not_found', 'Penghantaran tiada');
+      if (del.supplierId !== supplierId) throw new ApiError(422, 'delivery_supplier_mismatch', 'Penghantaran bukan daripada pembekal ini');
+      const [linked] = await tx.update(S.deliveries).set({ invoiceId: id }).where(and(eq(S.deliveries.id, del.id), isNull(S.deliveries.invoiceId))).returning({ id: S.deliveries.id });
+      if (!linked) throw new ApiError(409, 'delivery_linked', 'Penghantaran ini sudah dibandingkan dengan invois lain');
+      const c = await loadContext(tx, id);
+      const dc = await loadDeliveryContext(tx, del.id);
+      if (!c || !dc) throw new ApiError(404, 'not_found', 'Invois tiada');
+      const received = receivedFromDelivery({ supplierId, po: c.po, deliveryLines: dc.delLines, deliveryReceived: { ...defaultDeliveryCounts(dc), ...dc.saved }, invoiceLines: c.invLines, aliases: c.aliases });
+      const detected = runDetection(c, received, c.priceNow);
+      await tx.update(S.invoices).set({ priceListSnapshot: cleanPriceList(c.priceNow) }).where(eq(S.invoices.id, id));
+      await firstSaveAutofill(tx, c, detected);
+      await tx.insert(S.receivedCounts).values(Object.entries(received).map(([key, qty]) => ({ invoiceId: id, key, qty, recordedByRole: req.role! })));
+      await replaceProposedFlags(tx, c, detected);
+      const rows = await tx.select().from(S.flags).where(eq(S.flags.invoiceId, id));
+      await supersedeDeliveryFlags(tx, del.id, rows);
+      await logEvent(tx, req.role!, 'invoice.compare', id, { deliveryId: del.id, flags: detected.length });
+      const flags = await toViews(tx, rows);
+      return { id, compared: true, flags, totalSen, readyToPay: readyToPay(detected) };
+    }).catch(async e => {
+      if (pgCode(e) === '23505' && supId) {
+        const [dup] = (await db.select({ id: S.invoices.id, no: S.invoices.invoiceNo }).from(S.invoices).where(eq(S.invoices.supplierId, supId))).filter(i => i.no.trim().toLowerCase() === b.invoiceNo.toLowerCase());
+        if (dup) throw new ApiError(409, 'duplicate_invoice', 'Invois ini sudah ada', { invoiceId: dup.id });
+      }
+      throw e;
     });
     res.status(201).json(out);
   });
 
   r.get('/invoices', async (_req, res) => {
     const rows = await db.select({ inv: S.invoices, supplierName: S.suppliers.name }).from(S.invoices).innerJoin(S.suppliers, eq(S.suppliers.id, S.invoices.supplierId)).orderBy(desc(S.invoices.issuedAt)).limit(100);
-    res.json({ invoices: rows.map(x => ({ id: x.inv.id, invoiceNo: x.inv.invoiceNo, supplierId: x.inv.supplierId, supplierName: x.supplierName, totalSen: x.inv.totalSen, currency: x.inv.currency, issuedAt: x.inv.issuedAt.getTime(), payment: x.inv.payment })) });
+    const fl = rows.length ? (await db.select().from(S.flags).where(inArray(S.flags.invoiceId, rows.map(x => x.inv.id)))).map(f => flagRowToCore(f)) : [];
+    res.json({ invoices: rows.map(x => ({ state: orderState(x.inv.id, fl, x.inv.ownerMarkedCorrect), id: x.inv.id, invoiceNo: x.inv.invoiceNo, supplierId: x.inv.supplierId, supplierName: x.supplierName, totalSen: x.inv.totalSen, currency: x.inv.currency, issuedAt: x.inv.issuedAt.getTime(), payment: x.inv.payment })) });
   });
   return r;
 }

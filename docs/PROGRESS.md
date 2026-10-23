@@ -44,3 +44,9 @@ Not verified: the WhatsApp chat picker on a real phone; the evidence-line pulse 
 - Flags tabs at 360px failed in that pass (count and label overlapped because the trigger was not display:flex). I added `flex items-center justify-center` to the tab trigger afterwards. This fix is NOT re-tested in a browser.
 - Screenshots: only 09-evidence.jpg is saved (public page). The other pages sit behind login, which the capture tool cannot do, so they were seen in the tester's run but not saved to disk.
 - Not verified: Lighthouse, WhatsApp chat picker on a real phone.
+
+## Fix round 3
+- Done: P0.1–P0.14, P1 (S1–S6, T1–T12 in server/scenarios.test.ts), P2 U1–U18, U20 (mostly), P3 F1–F20, P4 L1–L10. Not done: U19 key deletion.
+- Verified: `npm test` 131/131, typecheck ok, build ok, production smoke (health shows db/storage/gemini/demo; / gzipped); 390px App Testing pass: a, b, c, d, f, g, h, i ok; e ok on a reminder flag (drafting logs nothing; the send tap logs a reminder, as designed).
+- A tester run found a 500 when drafting a message for a superseded delivery flag; fixed (409) and the action bar is hidden for superseded flags.
+- Not verified: the superseded-flag UI after that fix (no re-run), the 360px layout of the new supplier settings card, WhatsApp chat picker on a real phone, Lighthouse, App Storage in production (smoke used local disk).

@@ -1,5 +1,6 @@
 // Drizzle schema. Money = integer sen. Quantities = integer. Times = timestamptz.
-import { pgTable, text, integer, boolean, timestamp, jsonb, primaryKey, serial } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, boolean, timestamp, jsonb, primaryKey, serial, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 
@@ -24,6 +25,7 @@ export const documents = pgTable('documents', {
   height: integer('height'),
   pageCount: integer('page_count'),
   invoiceId: text('invoice_id'),
+  deliveryId: text('delivery_id'),
   uploadedByRole: text('uploaded_by_role').notNull(),
   createdAt: ts('created_at').notNull().defaultNow(),
 });
@@ -78,7 +80,7 @@ export const invoices = pgTable('invoices', {
   extractionModel: text('extraction_model'),
   priceListSnapshot: jsonb('price_list_snapshot').$type<Record<string, { lastInvoiceSen?: number; agreedSen?: number }> | null>(),
   createdAt: ts('created_at').notNull().defaultNow(),
-});
+}, t => [uniqueIndex('invoices_supplier_no_uq').on(t.supplierId, sql`lower(${t.invoiceNo})`)]);
 
 export const invoiceLines = pgTable('invoice_lines', {
   id: text('id').primaryKey(),
@@ -103,6 +105,39 @@ export const receivedCounts = pgTable('received_counts', {
   recordedAt: ts('recorded_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.invoiceId, t.key] })]);
 
+export const deliveries = pgTable('deliveries', {
+  id: text('id').primaryKey(),
+  supplierId: text('supplier_id').notNull(),
+  poId: text('po_id'),
+  documentId: text('document_id'),
+  doNo: text('do_no').notNull(),
+  docDate: text('doc_date'),
+  receivedAt: ts('received_at').notNull(),
+  ownerMarkedCorrect: boolean('owner_marked_correct').notNull().default(false),
+  invoiceId: text('invoice_id').unique(),
+  createdAt: ts('created_at').notNull().defaultNow(),
+}, t => [uniqueIndex('deliveries_supplier_no_uq').on(t.supplierId, sql`lower(${t.doNo})`)]);
+
+export const deliveryLines = pgTable('delivery_lines', {
+  id: text('id').primaryKey(),
+  deliveryId: text('delivery_id').notNull(),
+  lineId: text('line_id').notNull(),
+  sku: text('sku'),
+  description: text('description').notNull(),
+  qty: integer('qty').notNull(),
+  unit: text('unit'),
+  box: jsonb('box').$type<Box | null>(),
+  position: integer('position').notNull(),
+});
+
+export const deliveryCounts = pgTable('delivery_counts', {
+  deliveryId: text('delivery_id').notNull(),
+  key: text('key').notNull(),
+  qty: integer('qty').notNull(),
+  recordedByRole: text('recorded_by_role').notNull(),
+  recordedAt: ts('recorded_at').notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.deliveryId, t.key] })]);
+
 export const priceList = pgTable('price_list', {
   supplierId: text('supplier_id').notNull(),
   sku: text('sku').notNull(),
@@ -119,7 +154,10 @@ export const aliases = pgTable('aliases', {
 export const flags = pgTable('flags', {
   id: text('id').primaryKey(),
   supplierId: text('supplier_id').notNull(),
-  invoiceId: text('invoice_id').notNull(),
+  invoiceId: text('invoice_id'),
+  stage: text('stage').notNull().default('invoice'), // invoice | delivery
+  deliveryId: text('delivery_id'),
+  supersededBy: text('superseded_by'),
   poId: text('po_id'),
   invoiceLineId: text('invoice_line_id').notNull(),
   sku: text('sku'),
@@ -141,7 +179,10 @@ export const flags = pgTable('flags', {
   sentAt: ts('sent_at'),
   settledAt: ts('settled_at'),
   createdAt: ts('created_at').notNull().defaultNow(),
-});
+}, t => [
+  uniqueIndex('flags_invoice_line_type_uq').on(t.invoiceId, t.invoiceLineId, t.type).where(sql`stage = 'invoice'`),
+  uniqueIndex('flags_delivery_line_type_uq').on(t.deliveryId, t.invoiceLineId, t.type).where(sql`stage = 'delivery'`),
+]);
 
 export const flagPhotos = pgTable('flag_photos', {
   flagId: text('flag_id').notNull(),
@@ -172,6 +213,6 @@ export const settings = pgTable('settings', {
 });
 
 export const ALL_TABLES = [
-  'flag_photos', 'flags', 'einvoice_drafts', 'received_counts', 'invoice_lines', 'invoices', 'po_lines',
+  'flag_photos', 'flags', 'einvoice_drafts', 'received_counts', 'delivery_counts', 'delivery_lines', 'deliveries', 'invoice_lines', 'invoices', 'po_lines',
   'purchase_orders', 'aliases', 'price_list', 'documents', 'extractions', 'suppliers', 'events', 'settings',
 ] as const;

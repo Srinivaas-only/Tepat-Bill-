@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { APICallError, wrapLanguageModel, type LanguageModel } from 'ai';
 import { eq, sql } from 'drizzle-orm';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -10,8 +11,23 @@ import { ApiError } from '../app';
 import { requireAuth } from '../auth';
 import { logEvent } from '../events';
 
-const envTimeout = Number(process.env.EXTRACT_TIMEOUT_MS ?? 45_000);
-const EXTRACT_TIMEOUT_MS = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 45_000;
+const envTimeout = Number(process.env.EXTRACT_TIMEOUT_MS ?? 38_000);
+const EXTRACT_TIMEOUT_MS = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 38_000;
+
+/** Per-model time budget: a slow primary is cut off (retryable 504) so the fallback still gets its turn inside the overall timeout. */
+const budget = (m: LanguageModel, ms: number): LanguageModel => wrapLanguageModel({
+  model: m as Parameters<typeof wrapLanguageModel>[0]['model'],
+  middleware: {
+    wrapGenerate: async ({ doGenerate }) => {
+      let t: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([doGenerate(), new Promise<never>((_, rej) => {
+          t = setTimeout(() => rej(new APICallError({ message: 'timeout', url: 'gemini', requestBodyValues: {}, statusCode: 504, isRetryable: true })), ms);
+        })]);
+      } finally { clearTimeout(t); }
+    },
+  },
+});
 /** One Gemini call per file even when the same bytes are extracted concurrently. */
 const inflight = new Map<string, Promise<ExtractResult | { ok: false; needsManualEntry: true; reason: string }>>();
 const DOC_TYPE: Record<string, ExtractedDoc['docType']> = { po: 'purchase_order', invoice: 'invoice', delivery_note: 'delivery_note' };
@@ -52,7 +68,7 @@ export function extractRouter(deps: AppDeps) {
   r.post('/documents/:id/extract', async (req, res) => {
     const doc = await getDoc(String(req.params.id));
     const [cached] = await deps.db.select().from(S.extractions).where(eq(S.extractions.sha256, doc.sha256));
-    if (cached) { res.json({ status: 'ok', model: cached.model, cached: true, doc: view(cached.model, cached.doc as ExtractedDoc) }); return; }
+    if (cached) { console.log('[extract]', { ms: 0, model: cached.model, ok: true, cached: true }); res.json({ status: 'ok', model: cached.model, cached: true, doc: view(cached.model, cached.doc as ExtractedDoc) }); return; }
 
     const bytes = await deps.storage.get(doc.storageKey);
     if (!bytes) throw new ApiError(404, 'not_found', 'Fail tiada');
@@ -62,7 +78,9 @@ export function extractRouter(deps: AppDeps) {
       let models;
       try { models = deps.gemini ? deps.gemini() : makeGemini(process.env.GEMINI_API_KEY); }
       catch (e) { return { ok: false as const, needsManualEntry: true as const, reason: `setup: ${(e as Error).name}` }; }
-      const out = await extractWithFallback(models.primary, models.fallback, bytes, doc.mime);
+      const t0 = Date.now();
+      const out = await extractWithFallback(budget(models.primary, 20_000), budget(models.fallback, 15_000), bytes, doc.mime);
+      console.log('[extract]', { ms: Date.now() - t0, model: out.ok ? MODELS[out.model] : null, ok: out.ok, cached: false });
       if (out.ok) await record(doc.sha256, MODELS[out.model], out.doc, doc.id, role);
       return out;
     })();
@@ -86,6 +104,10 @@ export function extractRouter(deps: AppDeps) {
     const name = body.success ? listFixtures().find(f => f.name === body.data.fixture)?.name : undefined;
     if (!name) throw new ApiError(400, 'bad_request', 'Fixture tidak sah');
     const doc = await getDoc(String(req.params.id));
+    const [usedInv] = await deps.db.select({ id: S.invoices.id }).from(S.invoices).where(eq(S.invoices.documentId, doc.id));
+    const [usedPo] = await deps.db.select({ id: S.purchaseOrders.id }).from(S.purchaseOrders).where(eq(S.purchaseOrders.documentId, doc.id));
+    const [usedDel] = await deps.db.select({ id: S.deliveries.id }).from(S.deliveries).where(eq(S.deliveries.documentId, doc.id));
+    if (usedInv || usedPo || usedDel || doc.invoiceId || doc.deliveryId) throw new ApiError(409, 'document_in_use', 'Dokumen ini sudah digunakan');
     const want = DOC_TYPE[doc.kind];
     const expected = JSON.parse(readFileSync(path.join(fixturesDir(), `${name}.expected.json`), 'utf8')) as ExtractedDoc;
     if (want && expected.docType !== want) throw new ApiError(422, 'wrong_type', 'Jenis dokumen tidak sepadan');

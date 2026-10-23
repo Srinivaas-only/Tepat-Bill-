@@ -48,7 +48,7 @@
   --color-notord-hover: var(--notord-hover);
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-  --radius-card: 20px;
+  --radius-card: 14px;
   --radius-btn: 14px;
   --radius-sheet: 28px;
   --shadow-card: var(--shadow-card);
@@ -66,22 +66,17 @@ body {
   font-family: var(--font-sans); font-size: 16px; line-height: 24px;
   -webkit-font-smoothing: antialiased; overscroll-behavior-y: none;
 }
+@media (min-width: 768px) { body { background: var(--surface-2); } }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 img { max-width: 100%; }
 }
 
-.tnum { font-variant-numeric: tabular-nums; }
-
-@keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }
-.skeleton {
-  background: linear-gradient(90deg, var(--surface-2) 0, #f8faff 40%, var(--surface-2) 80%);
-  background-size: 200px 100%; background-color: var(--surface-2);
-  animation: shimmer 1.2s infinite linear; border-radius: 12px;
-}
+@utility tnum { font-variant-numeric: tabular-nums; }
+@utility num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+@layer components { .skeleton { background: var(--surface-2); border-radius: 14px; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
 
-.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }

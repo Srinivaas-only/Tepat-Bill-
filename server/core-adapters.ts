@@ -22,7 +22,7 @@ export const slug = (desc: string) => normalise(desc).replace(/ /g, '-');
 
 export function flagRowToCore(r: FlagRow, photoIds: string[] = []): Flag {
   return {
-    id: r.id, supplierId: r.supplierId, invoiceId: r.invoiceId, poId: r.poId ?? '', invoiceLineId: r.invoiceLineId,
+    id: r.id, supplierId: r.supplierId, invoiceId: r.invoiceId ?? r.deliveryId ?? '', poId: r.poId ?? '', invoiceLineId: r.invoiceLineId,
     type: r.type as FlagType, amountSen: r.amountSen, status: r.status as FlagStatus,
     settlement: (r.settlement ?? undefined) as Settlement | undefined,
     request: (r.request ?? undefined) as FlagRequest | undefined,
@@ -68,23 +68,51 @@ export function aliasTableFromRows(rows: AliasRow[]): AliasTable {
 }
 
 /** DetectedFlag -> flag insert values (id/token supplied by caller). */
-export const detectedToRow = (d: DetectedFlag, base: { id: string; token: string; supplierId: string; invoiceId: string; poId: string | null }) => ({
+export const detectedToRow = (d: DetectedFlag, base: { id: string; token: string; supplierId: string; invoiceId: string | null; poId: string | null; stage?: 'invoice' | 'delivery'; deliveryId?: string | null }) => ({
   id: base.id, evidenceToken: base.token, supplierId: base.supplierId, invoiceId: base.invoiceId, poId: base.poId,
+  stage: base.stage ?? 'invoice', deliveryId: base.deliveryId ?? null,
   invoiceLineId: d.invoiceLineId, sku: d.sku ?? null, type: d.type, amountSen: d.amountSen, status: 'proposed' as const,
   missingQty: d.missingQty ?? null, invoiceUnitSen: d.invoiceUnitSen ?? null, baselineUnitSen: d.baselineUnitSen ?? null,
   baselineSource: d.baselineSource ?? null, pricedQty: d.pricedQty ?? null, direction: d.direction ?? null,
   possibleSubstituteFor: d.possibleSubstituteFor ?? null,
 });
 
-/** sku minting (notes 18): reuse an existing supplier sku when its words overlap >= 0.6, else slug; duplicates within one PO get -2, -3. */
+/**
+ * Best near-match of a description among skus: the words must overlap >= 0.6 in BOTH directions and by Jaccard (overlap alone lets
+ * "gula perang 1kg" match "gula pasir 1kg"). Highest Jaccard wins; `exclude` skips skus already taken.
+ */
+export function nearSku(description: string, skus: string[], exclude: Set<string> = new Set()): string | undefined {
+  let best = 0; let near: string | undefined;
+  for (const sku of skus) {
+    if (exclude.has(sku)) continue;
+    const text = sku.replace(/[-_]/g, ' ');
+    const a = tokenOverlap(description, text), b = tokenOverlap(text, description);
+    const A = new Set(normalise(description).split(' ')), B = new Set(normalise(text).split(' '));
+    const jac = [...A].filter(x => B.has(x)).length / new Set([...A, ...B]).size;
+    if (a >= MATCH_THRESHOLD && b >= MATCH_THRESHOLD && jac >= MATCH_THRESHOLD && jac > best) { best = jac; near = sku; }
+  }
+  return near;
+}
+
+/** sku minting (notes 18): reuse an existing supplier sku on a near-match, else slug; duplicates within one PO get -2, -3. */
 export function mintSkus(descriptions: string[], existingSkus: string[]): string[] {
   const used = new Set<string>();
   return descriptions.map(d => {
-    const reuse = existingSkus.find(s => tokenOverlap(d, s.replace(/-/g, ' ')) >= MATCH_THRESHOLD);
-    const base = reuse ?? (slug(d) || 'item');
+    const base = nearSku(d, existingSkus) ?? (slug(d) || 'item');
     let sku = base, n = 2;
     while (used.has(sku)) sku = `${base}-${n++}`;
     used.add(sku);
     return sku;
   });
 }
+
+// ---- Asia/Kuala_Lumpur wall clock, independent of the process TZ
+const KL = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+/** A Date whose LOCAL getters read Kuala Lumpur time (feed it to poNumber, dmy, ymd). */
+export function kl(d: Date): Date {
+  const p = Object.fromEntries(KL.formatToParts(d).map(x => [x.type, x.value]));
+  return new Date(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
+}
+const two = (n: number) => String(n).padStart(2, '0');
+export const dmy = (d: Date) => { const k = kl(d); return `${two(k.getDate())}/${two(k.getMonth() + 1)}/${k.getFullYear()}`; };
+export const ymd = (d: Date) => { const k = kl(d); return `${k.getFullYear()}-${two(k.getMonth() + 1)}-${two(k.getDate())}`; };

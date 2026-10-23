@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web"]
+modules = ["nodejs-20", "web", "python-base-3.13"]
 
 [nix]
 channel = "stable-25_05"
@@ -37,10 +37,14 @@ outputType = "webview"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 5099
+externalPort = 3000
+
 
 
 
 [deployment]
 deploymentTarget = "vm"
-run = ["sh", "-c", "npm run db:push && npm run start"]
+run = ["sh", "-c", "npm run db:push || echo '[deploy] db:push FAILED'; npm run start"]
 build = ["npm", "run", "build"]

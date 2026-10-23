@@ -2,12 +2,14 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import * as S from '../../shared/schema';
-import { matchLine } from '../../shared/core';
+import { baseline, canMarkCorrect, matchLine, orderState, readyToPay } from '../../shared/core';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
 import { logEvent } from '../events';
-import { cleanPriceList } from '../core-adapters';
+import { cleanPriceList, flagRowToCore } from '../core-adapters';
+import { lockInvoice } from '../flag-ops';
+import { ledgerFor } from '../ledger-data';
 import { defaultCounts, firstSaveAutofill, loadContext, replaceProposedFlags, attachPhotos, runDetection, snapshotOf } from '../flags';
 import { toViews } from '../flag-view';
 
@@ -44,12 +46,18 @@ export function countsRouter(deps: AppDeps) {
     const lines = c.lines.map(l => {
       const m = matchLine(c.inv.supplierId, { lineId: l.lineId, description: l.description, qty: l.qty, unitPriceSen: l.unitPriceSen }, c.po, c.aliases);
       if (m) matchedSkus.add(m.sku);
-      return { lineId: l.lineId, description: l.description, qty: l.qty, unit: l.unit, unitPriceSen: l.unitPriceSen, unitPriceForeignMinor: l.unitPriceForeignMinor, box: l.box, matchedSku: m?.sku ?? null };
+      return { lineId: l.lineId, description: l.description, qty: l.qty, unit: l.unit, unitPriceSen: l.unitPriceSen, unitPriceForeignMinor: l.unitPriceForeignMinor, lineTotalSen: l.lineTotalSen ?? l.qty * l.unitPriceSen, box: l.box, matchedSku: m?.sku ?? null };
     });
     const poOnly = c.implicitPo ? [] : c.po.filter(p => !matchedSkus.has(p.sku)).map(p => ({ sku: p.sku, description: p.description, orderedQty: p.orderedQty }));
-    const flags = await toViews(db, await db.select().from(S.flags).where(eq(S.flags.invoiceId, c.inv.id)));
+    const flagRows = await db.select().from(S.flags).where(eq(S.flags.invoiceId, c.inv.id));
+    const flags = await toViews(db, flagRows);
+    const core = flagRows.map(f => flagRowToCore(f));
+    const [draft] = await db.select({ id: S.einvoiceDrafts.id }).from(S.einvoiceDrafts).where(eq(S.einvoiceDrafts.invoiceId, c.inv.id));
+    const [delivery] = await db.select({ id: S.deliveries.id, doNo: S.deliveries.doNo }).from(S.deliveries).where(eq(S.deliveries.invoiceId, c.inv.id));
     res.json({
       invoice: {
+        state: orderState(c.inv.id, core, c.inv.ownerMarkedCorrect), canMarkCorrect: canMarkCorrect(c.inv.id, core), hasDraft: !!draft,
+        ownerMarkedCorrect: c.inv.ownerMarkedCorrect, paidAt: c.inv.paidAt?.getTime() ?? null, delivery: delivery ?? null, compared: !!delivery,
         id: c.inv.id, invoiceNo: c.inv.invoiceNo, supplierId: c.inv.supplierId, supplierName: sup?.name ?? '', poId: c.inv.poId, poNo: c.poRow?.poNo ?? null,
         currency: c.inv.currency, totalSen: c.inv.totalSen, docDate: c.inv.docDate, issuedAt: c.inv.issuedAt.getTime(), dueAt: c.inv.dueAt.getTime(), payment: c.inv.payment,
         documentId: c.inv.documentId, doc: doc ? { width: doc.width, height: doc.height } : null,
@@ -62,9 +70,13 @@ export function countsRouter(deps: AppDeps) {
     const body = z.object({ counts: z.record(z.string(), z.number().int().min(0).max(100000)).default({}) }).safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Kiraan tidak sah');
     const id = String(req.params.id);
+    if (Object.keys(body.data.counts).length > 500) throw new ApiError(400, 'bad_request', 'Terlalu banyak kiraan');
     const out = await db.transaction(async tx => {
+      await lockInvoice(tx, id);
       const c = await loadContext(tx, id);
       if (!c) throw new ApiError(404, 'not_found', 'Invois tiada');
+      const allowedKeys = new Set([...c.lines.map(l => `line:${l.lineId}`), ...c.po.map(p => p.sku)]);
+      if (Object.keys(body.data.counts).some(k => !allowedKeys.has(k))) throw new ApiError(400, 'bad_request', 'Kiraan tidak sah');
       const first = c.inv.priceListSnapshot === null;
       const snapshot = snapshotOf(c);
       const merged = { ...defaultCounts(c), ...c.saved, ...body.data.counts };
@@ -83,6 +95,36 @@ export function countsRouter(deps: AppDeps) {
     // claimable = everything except price decreases (those are good news, nothing to claim)
     const totalSen = flags.filter(f => f.status === 'proposed' && !(f.type === 'price_change' && f.direction === 'down')).reduce((a, f) => a + f.amountSen, 0);
     res.json({ flags, totalSen });
+  });
+
+  /** Three-way view of a compared invoice: ordered (PO) / received (delivery) / billed (invoice) per line. */
+  r.get('/invoices/:id/compare', async (req, res) => {
+    const c = await loadContext(db, String(req.params.id));
+    if (!c) throw new ApiError(404, 'not_found', 'Invois tiada');
+    const [delivery] = await db.select().from(S.deliveries).where(eq(S.deliveries.invoiceId, c.inv.id));
+    const [sup] = await db.select({ name: S.suppliers.name }).from(S.suppliers).where(eq(S.suppliers.id, c.inv.supplierId));
+    const counts = { ...defaultCounts(c), ...c.saved };
+    const snapshot = snapshotOf(c);
+    const flagRows = await db.select().from(S.flags).where(eq(S.flags.invoiceId, c.inv.id));
+    const matched = new Set<string>();
+    const rows = c.lines.map(l => {
+      const m = matchLine(c.inv.supplierId, { lineId: l.lineId, description: l.description, qty: l.qty, unitPriceSen: l.unitPriceSen }, c.po, c.aliases);
+      if (m) matched.add(m.sku);
+      const ref = m ? baseline(snapshot[m.sku], m) : undefined;
+      return { lineId: l.lineId, description: l.description, orderedQty: m && !c.implicitPo ? m.orderedQty : null, receivedQty: counts[`line:${l.lineId}`] ?? null,
+        billedQty: l.qty, unitPriceSen: l.unitPriceSen, refUnitSen: ref?.sen ?? null, refSource: ref?.source ?? null, flagTypes: flagRows.filter(f => f.invoiceLineId === l.lineId && f.status !== 'dismissed').map(f => f.type) };
+    });
+    const poOnly = c.implicitPo ? [] : c.po.filter(p => !matched.has(p.sku)).map(p => ({ lineId: p.sku, description: p.description, orderedQty: p.orderedQty, receivedQty: counts[p.sku] ?? 0, billedQty: 0, unitPriceSen: null, refUnitSen: null, refSource: null, flagTypes: [] as string[] }));
+    const live = flagRows.filter(f => f.status !== 'dismissed');
+    const { ledger } = await ledgerFor(db, c.inv.supplierId);
+    const claimable = live.filter(f => !(f.type === 'price_change' && f.direction === 'down')).reduce((a, f) => a + f.amountSen, 0);
+    res.json({
+      invoice: { id: c.inv.id, invoiceNo: c.inv.invoiceNo, supplierId: c.inv.supplierId, supplierName: sup?.name ?? '', totalSen: c.inv.totalSen, payment: c.inv.payment, docDate: c.inv.docDate, poNo: c.poRow?.poNo ?? null },
+      delivery: delivery ? { id: delivery.id, doNo: delivery.doNo, docDate: delivery.docDate } : null,
+      rows: [...rows, ...poOnly], flags: await toViews(db, flagRows), flagCount: live.filter(f => !(f.type === 'price_change' && f.direction === 'down')).length, claimableSen: claimable,
+      readyToPay: readyToPay(live.map(f => ({ amountSen: f.amountSen, type: f.type as 'short_qty' | 'price_change' | 'not_ordered', direction: (f.direction ?? undefined) as 'up' | 'down' | undefined }))),
+      netOwedSen: ledger.rows.find(x => x.id === c.inv.id)?.netOwedSen ?? c.inv.totalSen,
+    });
   });
 
   r.get('/flags', async (req, res) => {

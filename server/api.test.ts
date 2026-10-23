@@ -165,7 +165,7 @@ describe.skipIf(!process.env.DATABASE_URL)('api (test schema)', () => {
       const ev = await call('GET', `/api/public/evidence/${tok}`);
       expect(ev.status).toBe(200);
       expect(ev.headers.get('x-robots-tag')).toContain('noindex');
-      expect(Object.keys(ev.json).sort()).toEqual(['baseline', 'flag', 'highlight', 'invoice', 'invoiceDoc', 'invoiceDocDate', 'photos', 'po', 'shopName', 'siblings', 'supplierName']);
+      expect(Object.keys(ev.json).sort()).toEqual(['baseline', 'flag', 'highlight', 'invoice', 'invoiceDoc', 'invoiceDocDate', 'photos', 'po', 'shopName', 'siblings', 'stage', 'supplierName']);
       expect(ev.json.flag.amountSen).toBe(9000);
       expect(ev.json.siblings.every((s: any) => Object.keys(s).sort().join() === 'amountSen,description,status,type')).toBe(true);
       expect(JSON.stringify(ev.json)).not.toMatch(/evidenceToken|owed|supplierId/);

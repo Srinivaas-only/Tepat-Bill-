@@ -25,13 +25,18 @@ export function MessageSheet({ flagId, open, onOpenChange, reminder }: { flagId:
   const q = useQuery({ queryKey: ['message', flagId, lang, rem], enabled: open, gcTime: 0,
     queryFn: () => api.get<Msg>(`/flags/${flagId}/message?lang=${lang}${rem ? '&reminder=1' : ''}`) });
   const sent = useMutation({
-    mutationFn: (ids: string[]) => api.post('/flags/sent', { flagIds: ids }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['flag', flagId] }); void qc.invalidateQueries({ queryKey: ['flags'] }); },
+    // keepalive: the request must survive the browser being backgrounded by WhatsApp
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch('/api/flags/sent', { method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ flagIds: ids, reminder: rem }) });
+      if (!res.ok) throw new Error(`sent ${res.status}`);
+    },
+    onError: () => toast.error(t('common.error')),
+    onSuccess: () => { for (const k of ['flag', 'flags', 'home', 'invoice']) void qc.invalidateQueries({ queryKey: [k] }); },
   });
   const m = q.data;
   const [text, setText] = useState('');
   useEffect(() => { if (m) setText(m.text); }, [m?.text]);
-  const now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur' });
   const copy = async () => { if (!m) return; try { await navigator.clipboard.writeText(text); toast.success(t('flag.copied')); } catch { toast.error(t('common.error')); } };
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -40,10 +45,10 @@ export function MessageSheet({ flagId, open, onOpenChange, reminder }: { flagId:
           <Tabs value={lang} onValueChange={v => setLang(v as 'ms' | 'en')}><TabsList><TabsTrigger value="ms">{t('flag.langMs')}</TabsTrigger><TabsTrigger value="en">{t('flag.langEn')}</TabsTrigger></TabsList></Tabs>
           {!m ? <Skeleton className="h-56 w-full" /> : (
             <>
-              <div className="rounded-2xl bg-surface-2 p-3">
-                <div className="relative ml-auto max-w-[94%] rounded-2xl rounded-tr-sm bg-surface p-3">
+              <div className="rounded-card bg-surface-2 p-3">
+                <div className="relative ml-auto max-w-[94%] rounded-card rounded-tr-sm bg-surface p-3">
                   <textarea aria-label={t('flag.msgTitle')} value={text} onChange={e => setText(e.target.value)} rows={9}
-                    className="max-h-[36dvh] w-full resize-none bg-transparent font-sans text-sm leading-5 outline-none" />
+                    className="max-h-[36dvh] w-full resize-none rounded-md bg-transparent font-sans text-sm leading-5 outline-none focus-visible:outline-2 focus-visible:outline-brand" />
                   <span className="num block text-right text-[11px] text-ink-2">{now}</span>
                 </div>
               </div>

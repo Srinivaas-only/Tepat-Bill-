@@ -3,9 +3,10 @@ import { Link, useLocation, useParams } from 'wouter';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
-import { ArrowLeft, Clock } from 'lucide-react';
+import { Clock, Copy, ExternalLink } from 'lucide-react';
 import { can } from '@shared/core';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
+import { fmtDate } from '@/lib/dates';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
 import type { Key } from '@/i18n/ms';
@@ -13,8 +14,9 @@ import { formatMoney, toSen } from '@/lib/money-input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { RadioRow } from '@/components/radio-row';
 import { Badge } from '@/components/ui/badge';
-import { ErrorState } from '@/components/page';
+import { ErrorState, BackButton, SectionLabel } from '@/components/page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { buzz } from '@/lib/haptics';
@@ -27,7 +29,7 @@ import { MessageSheet } from '@/components/message-sheet';
 import type { Box } from '@shared/schema';
 
 interface Detail {
-  flag: FlagView & { baselineUnitSen: number | null; baselineSource: string | null; invoiceUnitSen: number | null; pricedQty: number | null };
+  flag: FlagView & { note?: string | null; baselineUnitSen: number | null; baselineSource: string | null; invoiceUnitSen: number | null; pricedQty: number | null };
   evidenceToken?: string;
   policyNote: string | null;
   events: { id: number; at: number; role: string; action: string }[];
@@ -36,6 +38,8 @@ interface Detail {
   invoiceDoc: { id: string; width: number; height: number } | null;
   substituteFor: { sku: string; description: string } | null;
   allowedRequests: string[];
+  poOptions?: { sku: string; description: string; orderedQty: number }[];
+  delivery?: { id: string; doNo: string; invoiceId: string | null } | null;
   photos: { id: string; kind: string; url: string }[];
 }
 const reqKey: Record<string, Key> = { send_missing: 'flag.req.send', deduct: 'flag.req.deduct', collect_back: 'flag.req.collect', agreed_price: 'flag.req.agreed' };
@@ -53,7 +57,10 @@ export default function FlagDetail() {
   const [, nav] = useLocation();
   const qc = useQueryClient();
   const title = useFlagTitle();
-  const q = useQuery({ queryKey: ['flag', id], queryFn: () => api.get<Detail>(`/flags/${id}`) });
+  const q = useQuery({ queryKey: ['flag', id], refetchOnWindowFocus: true, queryFn: () => api.get<Detail>(`/flags/${id}`) });
+  const [justStamped, setJustStamped] = useState(false);
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeNote, setDisputeNote] = useState('');
   const [request, setRequest] = useState<string | null>(null);
   const [agreed, setAgreed] = useState('');
   const [viewer, setViewer] = useState<string | null>(null);
@@ -76,16 +83,31 @@ export default function FlagDetail() {
     ]);
   };
   const act = useMutation({
-    mutationFn: ({ path, body }: { path: string; body?: unknown }) => api.post(`/flags/${id}/${path}`, body ?? {}),
-    onSuccess: async (_r, v) => {
+    mutationFn: ({ path, body }: { path: string; body?: unknown }) => api.post<{ dismissed?: boolean }>(`/flags/${id}/${path}`, body ?? {}),
+    onMutate: async v => {
+      const optimistic: Record<string, string> = { approve: 'open', settle: 'settled' };
+      if (!optimistic[v.path]) return { prev: undefined };
+      await qc.cancelQueries({ queryKey: ['flag', id] });
+      const prev = qc.getQueryData<Detail>(['flag', id]);
+      if (prev) qc.setQueryData<Detail>(['flag', id], { ...prev, flag: { ...prev.flag, status: optimistic[v.path] } });
+      return { prev };
+    },
+    onSuccess: async (r, v) => {
       if (v.path === 'approve' || v.path === 'settle') buzz(12);
       await done();
-      setSettleOpen(false);
+      setSettleOpen(false); setDisputeOpen(false);
+      if (v.path === 'report-price' && r.dismissed) { toast.success(t('flag.priceSame')); nav('/flags', { replace: true }); return; }
       if (v.path === 'dismiss' || v.path === 'link-substitute') nav('/flags', { replace: true });
-      else if (v.path === 'settle' && sid) nav(`/suppliers/${sid}`);
+      else if (v.path === 'settle') { window.scrollTo({ top: 0, behavior: 'smooth' }); setJustStamped(true); if (sid) setTimeout(() => nav(`/suppliers/${sid}`), 900); }
+      else if (v.path === 'approve' || v.path === 'dispute') { window.scrollTo({ top: 0, behavior: 'smooth' }); setJustStamped(true); }
     },
-    onError: () => toast.error(t('common.error')),
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['flag', id], ctx.prev);
+      if (e instanceof ApiError && e.status === 409) { void q.refetch(); void qc.invalidateQueries({ queryKey: ['flags'] }); toast.error(t('flag.alreadyDone'), { position: 'top-center' }); }
+      else toast.error(t('common.error'), { position: 'top-center' });
+    },
   });
+  const copyLink = async () => { try { await navigator.clipboard.writeText(`${location.origin}/e/${q.data!.evidenceToken}`); toast.success(t('flag.linkCopied'), { position: 'top-center' }); } catch { toast.error(t('common.error')); } };
   const evLabel = (a: string) => { const k = `act.${a}` as Key; const x = t(k); return x === k ? a : x; };
   const d = q.data;
   const f = d?.flag;
@@ -96,26 +118,28 @@ export default function FlagDetail() {
   const agreedSen = toSen(agreed);
 
   return (
-    <main className="px-5 pb-48 pt-4">
-      <Button variant="ghost" size="sm" className="-ml-3 mb-2" onClick={() => (history.length > 1 ? history.back() : nav('/flags'))}><ArrowLeft size={18} aria-hidden />{t('common.back')}</Button>
+    <main className="px-5 pb-56 pt-[calc(16px+var(--safe-top))]">
+      <BackButton fallback="/flags" />
       {q.isError ? <ErrorState notFound onRetry={() => void q.refetch()} /> : !d || !f ? <div className="space-y-3"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-[220px] w-full" /></div> : (
         <div className="space-y-4">
           <div>
             <div className="mb-1 flex flex-wrap items-center gap-2">
-              <motion.span layoutId={`flag-chip-${f.id}`}><Stamp key={f.status} status={f.status} thunk={f.status === 'settled'} /></motion.span>
-              <span className="text-sm text-ink-2">
-                <Link href={`/suppliers/${f.supplierId}`} className="font-medium text-brand">{f.supplierName}</Link> · <Link href={`/invoices/${f.invoiceId}`} className="num font-medium text-brand">{f.invoiceNo}</Link>
-                {f.poNo && <> · <Link href="/orders" className="num font-medium text-brand">{f.poNo}</Link></>}
-              </span>
+              <motion.span layoutId={`flag-chip-${f.id}`}><Stamp key={f.status} status={f.status} thunk={justStamped} /></motion.span>
+              {f.supersededBy && <Badge tone="neutral">{t('flag.broughtToInvoice')}</Badge>}
+            </div>
+            <div className="mb-2 flex flex-wrap items-center gap-x-4 text-sm text-ink-2">
+              <Link href={`/suppliers/${f.supplierId}`} className="inline-flex min-h-11 items-center font-medium text-brand">{f.supplierName}</Link>
+              <Link href={f.stage === 'delivery' && f.deliveryId ? `/deliveries/${f.deliveryId}/count` : `/invoices/${f.invoiceId}`} className="num inline-flex min-h-11 items-center font-medium text-brand">{f.invoiceNo}</Link>
+              {f.poNo && <Link href={f.poId ? `/orders/po/${f.poId}` : '/orders'} className="num inline-flex min-h-11 items-center font-medium text-brand">{f.poNo}</Link>}
             </div>
             <h1 className="text-2xl font-semibold leading-8">{title(f)} · {f.lineDescription}</h1>
-            <p className="mt-2 text-sm text-ink-2">{t('flag.amount')}</p>
-            <motion.div layoutId={`flag-amt-${f.id}`} className="inline-block"><Money sen={f.amountSen} className="text-[40px] font-semibold leading-[48px]" /></motion.div>
+            <p className="mt-2 text-sm text-ink-2">{f.stage === 'delivery' ? t('flag.estimate', { rm: '' }).trim() : t('flag.amount')}</p>
+            <motion.div layoutId={`flag-amt-${f.id}`} className="inline-block"><span className="inline-block border-b-[3px] border-double border-ink pb-1"><Money sen={f.amountSen} className="text-[40px] font-semibold leading-[48px]" /></span></motion.div>
           </div>
 
           {d.invoiceDoc && <LineCrop src={`/api/documents/${d.invoiceDoc.id}/file`} width={d.invoiceDoc.width || 900} height={d.invoiceDoc.height || 1180} box={d.line?.box ?? null} onOpen={() => setViewer(`/api/documents/${d.invoiceDoc!.id}/file`)} label={t('flag.zoomHint')} />}
 
-          <Card className="px-4 py-2"><dl className="divide-y divide-line">
+          <Card className="px-4 py-2"><dl className="divide-y divide-dashed divide-line">
             {f.type === 'short_qty' && d.line && <>
               <Fact k={t('flag.billed')} v={String(d.line.qty)} /><Fact k={t('flag.received')} v={String(d.receivedQty ?? 0)} /><Fact k={t('flag.missing')} v={String(f.missingQty ?? 0)} />
               <Fact k={t('flag.invoicePrice')} v={formatMoney(d.line.unitPriceSen, 'MYR')} />
@@ -129,31 +153,43 @@ export default function FlagDetail() {
           </dl></Card>
 
           <section>
-            <h2 className="mb-2 text-lg font-semibold">{t('flag.photos')}</h2>
+            <SectionLabel>{t('flag.photos')}</SectionLabel>
             {d.photos.length === 0 ? <p className="text-ink-2">{t('flag.noPhotos')}</p> : (
               <div className="flex gap-3 overflow-x-auto pb-1">{d.photos.map(p => (
-                <button key={p.id} type="button" onClick={() => setViewer(p.url)} className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-surface-2" aria-label={t('flag.zoomHint')}><img src={p.url} alt={t('flag.photos')} className="h-full w-full object-cover" loading="lazy" /></button>
+                <button key={p.id} type="button" onClick={() => setViewer(p.url)} className="h-24 w-24 shrink-0 overflow-hidden rounded-card bg-surface-2" aria-label={t('flag.zoomHint')}><img src={p.url} alt={`${t('flag.photos')} ${p.kind}`} className="h-full w-full object-cover" loading="lazy" /></button>
               ))}</div>
             )}
           </section>
 
-          {d.policyNote && <Card className="bg-surface-2 px-4 py-3 shadow-none"><p className="text-xs font-semibold text-ink-2">{t('flag.policy')}</p><p className="text-sm">{d.policyNote}</p></Card>}
+          {d.policyNote && <Card className="bg-surface-2 px-4 py-3"><p className="text-xs font-semibold text-ink-2">{t('flag.policy')}</p><p className="text-sm">{d.policyNote}</p></Card>}
 
           {d.events.length > 0 && (
             <section>
-              <h2 className="mb-2 text-lg font-semibold">{t('flag.history')}</h2>
+              <SectionLabel>{t('flag.history')}</SectionLabel>
               <ol className="space-y-2 border-l border-line pl-4">{d.events.map(e => (
                 <li key={e.id} className="relative text-sm"><span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-line" aria-hidden />
-                  <span className="font-medium">{evLabel(e.action)}</span> <span className="num text-xs text-ink-2">{new Date(e.at).toLocaleString(loc, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></li>))}</ol>
+                  <span className="font-medium">{evLabel(e.action)}</span> <span className="num text-xs text-ink-2">{`${fmtDate(e.at, lang)} ${new Date(e.at).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur' })}`}</span></li>))}</ol>
             </section>
           )}
 
-          {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="ok" className="num">{t('flag.sentOn', { date: new Date(f.sentAt).toLocaleDateString(loc) })}</Badge>}
+          {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="ok" className="num">{t('flag.sentOn', { date: fmtDate(f.sentAt, lang) })}</Badge>}
+          {f.reminderDue && <p className="text-sm font-medium text-dispute">{t('flag.reminderCaption')}</p>}
+          {f.note && <Card className="px-4 py-3"><p className="text-[11px] font-medium uppercase tracking-[.08em] text-ink-2">{t('flag.noteLabel')}</p><p className="text-sm">{f.note}</p></Card>}
+          {owner && f.status !== 'proposed' && d.evidenceToken && (
+            <div className="flex flex-wrap gap-x-4">
+              <a href={`/e/${d.evidenceToken}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-brand"><ExternalLink size={16} aria-hidden />{t('flag.viewEvidence')}</a>
+              <button type="button" onClick={copyLink} className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-brand"><Copy size={16} aria-hidden />{t('flag.copyLink')}</button>
+            </div>
+          )}
 
-          {proposed && !owner && <div className="space-y-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-medium text-ink-2"><Clock size={16} aria-hidden />{t('owner.only')}</span><p className="rounded-2xl bg-surface-2 px-4 py-3 text-ink-2">{t('flag.ownerReview')}</p></div>}
+          {proposed && !owner && <div className="space-y-2"><span className="inline-flex items-center gap-1.5 rounded-[4px] border border-line px-2 py-1 text-sm font-medium text-ink-2"><Clock size={16} aria-hidden />{t('owner.only')}</span><p className="rounded-card bg-surface-2 px-4 py-3 text-ink-2">{t('flag.ownerReview')}</p></div>}
 
           {proposed && owner && (
             <div className="space-y-4">
+              {f.type === 'not_ordered' && !d.substituteFor && (d.poOptions?.length ?? 0) > 0 && f.stage !== 'delivery' && (
+                <Card className="space-y-2 p-4"><p className="font-medium">{t('flag.subQ')}</p>
+                  <div role="radiogroup" aria-label={t('flag.linkPo')} className="overflow-hidden rounded-card border border-line">{d.poOptions!.map(o => <RadioRow key={o.sku} checked={false} onClick={() => act.mutate({ path: 'link-substitute', body: { sku: o.sku } })}><span className="text-sm font-medium">{o.description}</span></RadioRow>)}</div></Card>
+              )}
               {f.type === 'not_ordered' && d.substituteFor && !subClosed && (
                 <Card className="space-y-3 p-4"><p className="font-medium">{t('flag.subQ')}</p>
                   <Button variant="secondary" block className="h-auto py-3" disabled={act.isPending} onClick={() => act.mutate({ path: 'link-substitute', body: { sku: d.substituteFor!.sku } })}>{t('flag.subYes', { item: d.substituteFor.description })}</Button>
@@ -161,28 +197,29 @@ export default function FlagDetail() {
               )}
               {f.type === 'price_change' && !decrease && (
                 <Card className="space-y-3 p-4"><label className="font-medium" htmlFor="agreed">{t('flag.agreedPrice')}</label>
-                  <div className="flex gap-2"><Input id="agreed" inputMode="decimal" value={agreed} onChange={e => setAgreed(e.target.value)} className="num" />
-                    <Button variant="secondary" disabled={agreedSen === undefined || act.isPending} onClick={() => act.mutate({ path: 'report-price', body: { agreedSen } })}>{t('flag.useAgreed')}</Button></div></Card>
+                  <div className="grid grid-cols-[1fr_auto] gap-2"><div className="relative"><span className="num pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-2" aria-hidden>RM</span><Input id="agreed" inputMode="decimal" value={agreed} onChange={e => setAgreed(e.target.value)} className="num pl-12" /></div>
+                    <Button variant="secondary" disabled={agreedSen === undefined || act.isPending} onClick={() => act.mutate({ path: 'report-price', body: { agreedSen } })}>{t('flag.useAgreed')}</Button></div>
+                  {f.direction === 'up' && <Button variant="ghost" block disabled={act.isPending} onClick={() => act.mutate({ path: 'dismiss', body: { asInflation: true } })}>{t('flag.inflation')}</Button>}</Card>
               )}
-              {decrease ? <p className="rounded-2xl bg-surface-2 px-4 py-3 text-ink-2">{t('flag.decrease')}</p> : (
+              {decrease ? <p className="rounded-card bg-surface-2 px-4 py-3 text-ink-2">{t('flag.decrease')}</p> : (
                 <div><p className="mb-2 font-medium">{t('flag.requestLabel')}</p>
-                  <div className="flex flex-col gap-2">{d.allowedRequests.map(r => (
-                    <Button key={r} variant={chosen === r ? 'primary' : 'secondary'} block className="justify-start" aria-pressed={chosen === r} onClick={() => setRequest(r)}>{t(reqKey[r])}</Button>))}</div></div>
+                  <div role="radiogroup" aria-label={t('flag.requestLabel')} className="overflow-hidden rounded-card border border-line bg-surface">{d.allowedRequests.map(r => (
+                    <RadioRow key={r} checked={chosen === r} onClick={() => setRequest(r)}><span className="font-medium">{t(reqKey[r])}</span></RadioRow>))}</div></div>
               )}
             </div>
           )}
         </div>
       )}
-      {d && f && owner && (proposed || f.status === 'open' || f.status === 'disputed') && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface px-5 pt-3" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
-          <div className={`mx-auto max-w-[480px] gap-2 ${proposed ? "flex" : "grid grid-cols-2"}`}>
+      {d && f && owner && !f.supersededBy && (proposed || f.status === 'open' || f.status === 'disputed') && (
+        <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pt-3" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
+          <div className={`mx-auto max-w-[480px] gap-2 border-t border-line px-5 pt-3 ${proposed ? "flex" : "grid grid-cols-2"}`}>
             {proposed ? <>
               {!decrease && <Button className="flex-1" disabled={act.isPending} onClick={() => act.mutate({ path: 'approve', body: { request: chosen } })}>{t('flag.approve')}</Button>}
-              <Button variant="ghost" className="flex-1 bg-surface-2" disabled={act.isPending} onClick={() => setDismissOpen(true)}>{t('flag.dismissFull')}</Button>
+              <Button variant="secondary" className="flex-1" disabled={act.isPending} onClick={() => setDismissOpen(true)}>{t('flag.dismissFull')}</Button>
             </> : <>
               <Button className="col-span-2" onClick={openMsg}>{!f.sentAt ? t('flag.send') : f.reminderDue ? t('flag.remind') : t('flag.resend')}</Button>
               {f.status === 'open'
-                ? <Button variant="secondary" disabled={act.isPending} onClick={() => act.mutate({ path: 'dispute' })}>{t('flag.dispute')}</Button>
+                ? <Button variant="secondary" disabled={act.isPending} onClick={() => setDisputeOpen(true)}>{t('flag.dispute')}</Button>
                 : <Button variant="secondary" disabled={act.isPending} onClick={() => act.mutate({ path: 'reopen' })}>{t('flag.reopen')}</Button>}
               <Button variant="secondary" onClick={() => setSettleOpen(true)}>{t('flag.settle')}</Button>
             </>}
@@ -197,8 +234,17 @@ export default function FlagDetail() {
           </SheetContent>
         </Sheet>
       )}
+      <Sheet open={disputeOpen} onOpenChange={setDisputeOpen}>
+        <SheetContent title={t('flag.disputeTitle')}>
+          <div className="space-y-3">
+            <label htmlFor="dnote" className="block text-sm font-medium text-ink-2">{t('flag.disputeNote')}</label>
+            <textarea id="dnote" value={disputeNote} onChange={e => setDisputeNote(e.target.value)} rows={4} maxLength={500} className="w-full rounded-btn border border-line bg-surface p-3 text-base focus-visible:border-brand" />
+            <Button block disabled={act.isPending} onClick={() => act.mutate({ path: 'dispute', body: disputeNote.trim() ? { note: disputeNote.trim() } : {} })}>{t('flag.disputeConfirm')}</Button>
+          </div>
+        </SheetContent>
+      </Sheet>
       <Sheet open={dismissOpen} onOpenChange={setDismissOpen}>
-        <SheetContent title={t('flag.dismissQ')} description={t('flag.dismissFull')}>
+        <SheetContent title={t('flag.dismissQ')} description={t('flag.dismissBody')}>
           <div className="space-y-2">
             <Button block variant="destructive" disabled={act.isPending} onClick={() => { setDismissOpen(false); act.mutate({ path: 'dismiss' }); }}>{t('flag.dismissFull')}</Button>
             <Button block variant="secondary" onClick={() => setDismissOpen(false)}>{t('common.cancel')}</Button>

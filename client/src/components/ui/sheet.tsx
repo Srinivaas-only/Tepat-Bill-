@@ -14,7 +14,7 @@ export function SheetContent({ className, children, title, description, ...p }: 
       <D.Content
         className={cn(
           'fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[480px] max-h-[92dvh] overflow-y-auto rounded-t-sheet bg-surface p-5 pb-[calc(20px+var(--safe-bottom))] shadow-elev',
-          'data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-[420ms] data-[state=open]:ease-[cubic-bezier(0.22,1.25,0.36,1)] data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-200',
+          'data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-300 data-[state=open]:ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-200',
           className,
         )}
         {...p}

@@ -9,6 +9,8 @@ import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth } from '../auth';
 import { logEvent } from '../events';
+import { attachPhotos, loadContext } from '../flags';
+import { attachDeliveryPhotos, loadDeliveryContext } from '../delivery-ctx';
 import { docExt } from '../storage';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024, files: 1 } });
@@ -21,6 +23,7 @@ const Body = z.object({
   height: z.coerce.number().int().positive().optional(),
   pageCount: z.coerce.number().int().positive().optional(),
   invoiceId: z.string().optional(),
+  deliveryId: z.string().optional(),
 });
 
 export function documentsRouter(deps: AppDeps) {
@@ -37,6 +40,17 @@ export function documentsRouter(deps: AppDeps) {
     if (!magicOk) throw new ApiError(415, 'unsupported_type', 'Fail bukan imej yang sah');
     const body = Body.safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Data tidak sah');
+    const late = !!(body.data.invoiceId || body.data.deliveryId);
+    if (late && !['photo', 'delivery_note'].includes(body.data.kind)) throw new ApiError(422, 'bad_document', 'Hanya gambar atau bon boleh dilampirkan');
+    if (body.data.invoiceId && body.data.deliveryId) throw new ApiError(400, 'bad_request', 'Data tidak sah');
+    if (body.data.invoiceId) {
+      const [inv] = await deps.db.select({ id: S.invoices.id }).from(S.invoices).where(eq(S.invoices.id, body.data.invoiceId));
+      if (!inv) throw new ApiError(404, 'not_found', 'Invois tiada');
+    }
+    if (body.data.deliveryId) {
+      const [del] = await deps.db.select({ id: S.deliveries.id }).from(S.deliveries).where(eq(S.deliveries.id, body.data.deliveryId));
+      if (!del) throw new ApiError(404, 'not_found', 'Penghantaran tiada');
+    }
     const sha256 = cacheKey(req.file.buffer);
     const key = `docs/${sha256}.${docExt(req.file.mimetype)}`;
     if (!(await deps.storage.exists(key))) await deps.storage.put(key, req.file.buffer);
@@ -44,8 +58,11 @@ export function documentsRouter(deps: AppDeps) {
     await deps.db.insert(S.documents).values({
       id, kind: body.data.kind, photoKind: body.data.photoKind ?? null, storageKey: key, mime: req.file.mimetype, sha256,
       width: body.data.width ?? null, height: body.data.height ?? null, pageCount: body.data.pageCount ?? 1,
-      invoiceId: body.data.invoiceId ?? null, uploadedByRole: req.role!,
+      invoiceId: body.data.invoiceId ?? null, deliveryId: body.data.deliveryId ?? null, uploadedByRole: req.role!,
     });
+    // a late photo must reach the flags that already exist
+    if (body.data.invoiceId) { const c = await loadContext(deps.db, body.data.invoiceId); if (c) await attachPhotos(deps.db, c); }
+    if (body.data.deliveryId) { const c = await loadDeliveryContext(deps.db, body.data.deliveryId); if (c) await attachDeliveryPhotos(deps.db, c); }
     await logEvent(deps.db, req.role!, 'document.upload', id, { kind: body.data.kind });
     res.status(201).json({ id, sha256, width: body.data.width ?? null, height: body.data.height ?? null });
   });

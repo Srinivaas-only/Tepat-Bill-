@@ -1,7 +1,10 @@
-import { Link, useParams } from 'wouter';
+import { useParams } from 'wouter';
+import { can } from '@shared/core';
+import { useAuth } from '@/lib/auth';
+import { BackButton, EmptyState, ErrorState, SectionLabel } from '@/components/page';
+import { Stamp } from '@/components/stamp';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft } from 'lucide-react';
 import type { SelfBilledDraft } from '@shared/core';
 import { api } from '@/lib/api';
 import { useI18n } from '@/i18n';
@@ -22,16 +25,19 @@ export default function EInvoice() {
     mutationFn: (p: 'approve' | 'release') => api.post<{ draft: SelfBilledDraft }>(`/invoices/${id}/einvoice/${p}`, {}),
     onSuccess: r => qc.setQueryData(['einvoice', id], r), onError: () => toast.error(t('common.error')),
   });
+  const { role } = useAuth();
   const d = q.data?.draft;
   const f = d?.fields;
   return (
-    <main className="px-5 pb-10 pt-4">
-      <Link href={`/invoices/${id}`} className="-ml-3 mb-2 inline-flex h-11 items-center gap-2 px-3 text-sm font-semibold"><ArrowLeft size={18} aria-hidden />{t('common.back')}</Link>
-      {!d || !f ? <Skeleton className="h-80 w-full" /> : (
+    <main className="px-5 pb-10 pt-[calc(16px+var(--safe-top))]">
+      <BackButton fallback={`/invoices/${id}`} />
+      {role && !can(role, 'approve_einvoice') ? <p className="rounded-card border border-line px-4 py-3 text-ink-2">{t('owner.only')}</p>
+      : q.isError ? <ErrorState onRetry={() => void q.refetch()} />
+      : q.data && !d ? <EmptyState text={t('common.error')} />
+      : !d || !f ? <Skeleton className="h-80 w-full" /> : (
         <Card className="relative overflow-hidden p-5">
-          <div className="-mx-5 -mt-5 mb-4 bg-notord px-5 py-2 text-center text-sm font-semibold text-white">{t('einv.ribbon')}</div>
-          <p className="text-sm text-ink-2">{t(`einv.status.${d.status}` as Key)}</p>
-          <dl className="divide-y divide-line text-sm">
+          <div className="mb-4 flex items-start justify-between gap-3"><p className="text-[11px] font-medium uppercase tracking-[.08em] text-notord">{t('einv.ribbon')}</p><Stamp status="ok" label={t(`einv.status.${d.status}` as Key)} /></div>
+          <dl className="divide-y divide-dashed divide-line text-sm">
             <Row k={t('einv.type')} v={t('einv.typeVal')} />
             <Row k={t('einv.no')} v={f.eInvoiceNo} />
             <Row k={t('einv.supplier')} v={f.supplierName} />
@@ -41,14 +47,14 @@ export default function EInvoice() {
             <Row k={t('einv.buyerTin')} v={`${f.buyer.tin} / ${f.buyer.brn}`} />
             {f.exchangeRateToMYR && <Row k={t('einv.rate')} v={f.exchangeRateToMYR.toFixed(2)} />}
           </dl>
-          <h2 className="mb-1 mt-4 font-semibold">{t('einv.items')}</h2>
-          <div className="divide-y divide-line text-sm">{f.lines.map((l, i) => (
+          <div className="mt-4"><SectionLabel>{t('einv.items')}</SectionLabel></div>
+          <div className="divide-y divide-dashed divide-line text-sm">{f.lines.map((l, i) => (
             <div key={i} className="flex justify-between gap-3 py-2"><span>{l.description}<span className="num block text-xs text-ink-2">{l.qty} × {formatMoney(l.unitPriceSen, f.currency)}</span></span><span className="num font-semibold">{formatMoney(l.totalSen, f.currency)}</span></div>))}</div>
           <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3"><span className="font-semibold">{t('einv.total', { cur: f.currency })}</span><span className="num text-2xl font-semibold">{formatMoney(f.totalSen, f.currency)}</span></div>
           <div className="mt-5 space-y-2">
             {d.status === 'draft' && <Button block disabled={act.isPending} onClick={() => act.mutate('approve')}>{t('einv.approve')}</Button>}
             {d.status === 'approved' && <Button block disabled={act.isPending} onClick={() => act.mutate('release')}>{t('einv.release')}</Button>}
-            {d.status === 'released_stub' && <p className="rounded-2xl bg-surface-2 px-4 py-3 text-ink-2">{t('einv.releasedNote')}</p>}
+            {d.status === 'released_stub' && <p className="rounded-card bg-surface-2 px-4 py-3 text-ink-2">{t('einv.releasedNote')}</p>}
           </div>
         </Card>
       )}

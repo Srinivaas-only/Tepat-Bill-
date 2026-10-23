@@ -5,6 +5,8 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 
 export interface Storage {
+  /** Which backend is serving (set after the first probe for the Replit client). */
+  driver: 'replit' | 'disk' | 'memory';
   put(key: string, buf: Buffer): Promise<void>;
   get(key: string): Promise<Buffer | null>;
   stream(key: string): Promise<Readable | null>;
@@ -14,7 +16,7 @@ export interface Storage {
 export function memoryStorage(): Storage & { map: Map<string, Buffer> } {
   const map = new Map<string, Buffer>();
   return {
-    map,
+    map, driver: 'memory',
     async put(k, b) { map.set(k, b); },
     async get(k) { return map.get(k) ?? null; },
     async stream(k) { const b = map.get(k); return b ? Readable.from([b]) : null; },
@@ -26,6 +28,7 @@ function diskStorage(): Storage {
   const root = path.resolve(process.cwd(), '.data', 'objects');
   const p = (k: string) => path.join(root, k.replace(/[^a-zA-Z0-9._/-]/g, '_'));
   return {
+    driver: 'disk',
     async put(k, b) { await fs.mkdir(path.dirname(p(k)), { recursive: true }); await fs.writeFile(p(k), b); },
     async get(k) { try { return await fs.readFile(p(k)); } catch { return null; } },
     async stream(k) { try { await fs.access(p(k)); return createReadStream(p(k)); } catch { return null; } },
@@ -36,6 +39,7 @@ function diskStorage(): Storage {
 function replitClient(): { client: Client; storage: Storage } {
   const c = new Client();
   const storage: Storage = {
+    driver: 'replit',
     async put(k, b) {
       const r = await c.uploadFromBytes(k, b);
       if (!r.ok) throw new Error(`storage put failed: ${r.error?.message}`);
@@ -59,20 +63,28 @@ function replitClient(): { client: Client; storage: Storage } {
 
 /** Lazy wrapper: `new Client()` never throws, so probe once on first use and fall back to local disk if App Storage is unreachable. */
 export function makeStorage(): Storage {
-  if (process.env.STORAGE_DRIVER === 'disk') return diskStorage();
+  if (process.env.STORAGE_DRIVER === 'disk') {
+    if (process.env.NODE_ENV === 'production') console.error('[storage] PRODUCTION IS USING LOCAL DISK – photos will be lost on redeploy');
+    return diskStorage();
+  }
   let impl: Promise<Storage> | null = null;
+  let driver: Storage['driver'] = process.env.NODE_ENV === 'production' ? 'replit' : 'disk';
   const pick = () => impl ??= (async () => {
     try {
       const r = replitClient();
       const probe = await r.client.exists('__probe__');
       if (!probe.ok) throw new Error(probe.error?.message ?? 'probe failed');
+      driver = 'replit';
       return r.storage;
     } catch (e) {
       console.warn('[storage] App Storage unavailable, using local disk:', (e as Error).message);
+      if (process.env.NODE_ENV === 'production') console.error('[storage] PRODUCTION IS USING LOCAL DISK – photos will be lost on redeploy');
+      driver = 'disk';
       return diskStorage();
     }
   })();
   return {
+    get driver() { return driver; },
     async put(k, b) { return (await pick()).put(k, b); },
     async get(k) { return (await pick()).get(k); },
     async stream(k) { return (await pick()).stream(k); },

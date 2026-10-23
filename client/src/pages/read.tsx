@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DocImage } from '@/components/doc-image';
+import { BackButton } from '@/components/page';
 import { ScanBeam } from '@/components/scan-beam';
 import { buzz } from '@/lib/haptics';
 import type { Key } from '@/i18n/ms';
@@ -42,7 +43,7 @@ export default function Read() {
 
   const meta = useQuery({ queryKey: ['doc', id, rev], queryFn: () => api.get<DocMeta>(`/documents/${id}`) });
   const demo = useQuery({ queryKey: ['fixtures-on'], queryFn: () => api.get<{ fixtures: Fixture[] }>('/fixtures'), retry: false, staleTime: Infinity });
-  const kind = meta.data?.kind === 'po' ? 'po' : 'invoice';
+  const kind = meta.data?.kind === 'po' ? 'po' : meta.data?.kind === 'delivery_note' ? 'delivery' : 'invoice';
 
   const extract = useMutation({
     mutationFn: async () => {
@@ -87,11 +88,13 @@ export default function Read() {
   const boxes = useMemo(() => lines.map(l => l.box_2d ?? null), [lines]);
   const goReview = () => nav(`/review/${kind}/${id}`, { replace: true });
   const imgSrc = `/api/documents/${id}/file?v=${rev}`;
-  const fixtures = (demo.data?.fixtures ?? []).filter(f => (kind === 'po' ? f.docType === 'purchase_order' : f.docType === 'invoice'));
+  const fixtures = (demo.data?.fixtures ?? []).filter(f => (kind === 'po' ? f.docType === 'purchase_order' : kind === 'delivery' ? f.docType === 'delivery_note' : f.docType === 'invoice'))
+    .sort((a, b) => Number(b.docNo === (result?.status === 'ok' ? result.doc.docNo : null)) - Number(a.docNo === (result?.status === 'ok' ? result.doc.docNo : null)));
   const reading = !result;
 
   return (
-    <main className="px-5 pb-32 pt-5">
+    <main className="px-5 pb-32 pt-[calc(16px+var(--safe-top))]">
+      <BackButton fallback="/scan" />
       <div className="mb-3 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{reading ? t('read.reading') : doc ? t('read.lines', { n: lines.length }) : t('read.manual')}</h1>
         {result?.status === 'ok' && result.model === 'fixture' && <Badge tone="brand"><FlaskConical size={12} aria-hidden />{t('read.demoChip')}</Badge>}
@@ -99,7 +102,7 @@ export default function Read() {
 
       {meta.data ? (
         <div className="relative">
-          <DocImage src={imgSrc} width={meta.data.width || 900} height={meta.data.height || 1180} alt={t(kind === 'po' ? 'scan.po' : 'scan.invoice')}
+          <DocImage src={imgSrc} width={meta.data.width || 900} height={meta.data.height || 1180} alt={t(kind === 'po' ? 'scan.po' : kind === 'delivery' ? 'scan.bon' : 'scan.invoice')}
             layoutId={`doc-image-${id}`} boxes={boxes} drawFrom={doc ? 0 : undefined} maxHeight="52dvh" />
           {beamOn && !reduce && <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-card"><ScanBeam fading={!reading} /></div>}
         </div>
@@ -120,25 +123,26 @@ export default function Read() {
       )}
 
       {doc && (
-        <ul className="mt-4 space-y-2">
-          {lines.length === 0 && <li className="text-ink-2">{t('read.noLines')}</li>}
+        <div className="mt-4 overflow-hidden rounded-card border border-line bg-surface">
+          <p className="border-b border-dashed border-line px-4 py-2 text-[11px] font-medium uppercase tracking-[.1em] text-ink-2">{t(kind === 'delivery' ? 'ledger.head.qty' : 'ledger.head.price')}</p>
+          {lines.length === 0 && <p className="px-4 py-3 text-ink-2">{t('read.noLines')}</p>}
           {lines.map((l, i) => (
-            <motion.li key={i} initial={{ opacity: 0, y: reduce ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : i * 0.12, duration: 0.3 }}
-              className="flex items-center justify-between gap-3 rounded-[14px] border border-line bg-surface px-4 py-3">
+            <div key={i} className="flex items-center justify-between gap-3 border-t border-dashed border-line px-4 py-3 first:border-t-0">
+              <span className="num w-6 shrink-0 text-xs text-ink-2">{String(i + 1).padStart(2, '0')}</span>
               <span className="min-w-0 flex-1 text-sm font-medium leading-5">{l.description}</span>
               <span className="num shrink-0 text-right text-sm text-ink-2">
-                {l.qty}{l.unit ? ` ${l.unit}` : ''}{l.unitPrice ? ` · ${formatRM(parseRM(l.unitPrice))}` : ''}
+                {l.qty}{l.unit ? ` ${l.unit}` : ''}{l.unitPrice && kind !== 'delivery' ? ` · ${formatRM(parseRM(l.unitPrice))}` : ''}
               </span>
-            </motion.li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
       {doc && result?.status === 'ok' && result.model !== 'fixture' && demo.data && (
         <Button variant="secondary" size="sm" className="mt-3" onClick={() => setPicker(true)}><FlaskConical size={16} aria-hidden />{t('read.useDemo')}</Button>
       )}
 
       {result?.status === 'manual' && (
-        <div className="mt-4 space-y-3 rounded-[14px] border border-line bg-surface p-4">
+        <div className="mt-4 space-y-3 rounded-card border border-line bg-surface p-4">
           <p className="font-medium">{t('review.manualNote')}</p>
           <Button block onClick={() => nav(`/review/${kind}/new?doc=${id}`, { replace: true })}><PenLine size={18} aria-hidden />{t('read.manual')}</Button>
           {demo.data && <Button variant="secondary" block onClick={() => setPicker(true)}><FlaskConical size={18} aria-hidden />{t('read.useDemo')}</Button>}

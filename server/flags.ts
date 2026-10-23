@@ -3,9 +3,9 @@ import { and, eq, inArray, ne } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { randomBytes } from 'node:crypto';
 import * as S from '../shared/schema';
-import { autofillPriceList, detectFlags, matchLine, normalise, tokenOverlap, type DetectedFlag, type InvLine, type PoLine, type PriceList } from '../shared/core';
+import { autofillPriceList, detectFlags, matchLine, normalise, type DetectedFlag, type InvLine, type PoLine, type PriceList } from '../shared/core';
 import type { Db } from './db';
-import { aliasTableFromRows, cleanPriceList, detectedToRow, invLineRowToCore, poLineRowToCore, priceListFromRows, slug } from './core-adapters';
+import { aliasTableFromRows, cleanPriceList, detectedToRow, invLineRowToCore, nearSku, poLineRowToCore, priceListFromRows, slug } from './core-adapters';
 
 type Conn = Pick<Db, 'select' | 'insert' | 'update' | 'delete'>;
 
@@ -37,21 +37,10 @@ export async function loadContext(db: Conn, invoiceId: string): Promise<InvoiceC
   const priceNow = priceListFromRows(await db.select().from(S.priceList).where(eq(S.priceList.supplierId, inv.supplierId)));
   if (implicit) {
     const known = Object.keys(priceNow);
-    const skuDesc = new Map(known.map(sku => [sku, sku.replace(/[-_]/g, ' ')]));
     const used = new Set<string>();
     po = invLines.map(l => {
       const aliased = aliases[inv.supplierId]?.[normalise(l.description)];
-      let near: string | undefined; let best = 0;
-      for (const sku of known) {
-        if (used.has(sku)) continue;
-        const text = skuDesc.get(sku)!;
-        const a = tokenOverlap(l.description, text); const b = tokenOverlap(text, l.description);
-        // overlap coefficient alone lets "gula perang 1kg" match "gula pasir 1kg" (2/3), so also require Jaccard >= 0.6
-        const A = new Set(normalise(l.description).split(' ')); const B = new Set(normalise(text).split(' '));
-        const jac = [...A].filter(x => B.has(x)).length / new Set([...A, ...B]).size;
-        if (a >= 0.6 && b >= 0.6 && jac >= 0.6 && jac > best) { best = jac; near = sku; }
-      }
-      let sku = aliased ?? near ?? slug(l.description);
+      let sku = aliased ?? nearSku(l.description, known, used) ?? slug(l.description);
       if (used.has(sku)) sku = slug(l.description);
       used.add(sku);
       return { sku, description: l.description, orderedQty: l.qty };

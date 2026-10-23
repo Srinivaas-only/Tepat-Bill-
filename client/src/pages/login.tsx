@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, useAnimationControls } from 'motion/react';
 import { Delete } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
@@ -33,6 +33,15 @@ export default function Login() {
     if (next.length === 4) void submit(next);
   };
 
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (/^[0-9]$/.test(e.key)) press(e.key);
+      else if (e.key === 'Backspace') { setPin(p => p.slice(0, -1)); setMsg(''); }
+    };
+    window.addEventListener('keydown', on);
+    return () => window.removeEventListener('keydown', on);
+  });
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center px-5 pb-8 pt-14">
       <Logo />
@@ -61,9 +70,9 @@ export default function Login() {
 
 function Key({ children, onClick, ...p }: { children: React.ReactNode; onClick: () => void } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <motion.button whileTap={{ scale: 0.92 }} transition={{ type: 'spring', stiffness: 420, damping: 32 }} onClick={onClick}
+    <button type="button" onClick={onClick}
       className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-surface-2 text-[28px] font-semibold text-ink" {...(p as object)}>
       {children}
-    </motion.button>
+    </button>
   );
 }

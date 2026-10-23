@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useEffect, useContext, useMemo, useState, type ReactNode } from 'react';
 import { ms, type Key } from './ms';
 import { en } from './en';
 
@@ -12,6 +12,7 @@ const initial = (): Lang => (typeof localStorage !== 'undefined' && localStorage
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(initial);
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   const setLang = useCallback((l: Lang) => {
     localStorage.setItem('tb_lang', l);
     document.documentElement.lang = l;

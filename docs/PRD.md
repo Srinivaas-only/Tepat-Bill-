@@ -409,14 +409,14 @@ Rules:
   - Lim Brothers: one Open flag 15 days after sending (reminder) and one Disputed (Under dispute RM12.50).
   - Guangzhou: foreign, e-invoice preview available.
 
-### Demo script (90 s, two phones + projector mirror of the owner phone)
-1. Owner phone on Home. Hero shows this month's numbers; Lim Brothers is in "Perlu susulan".
-2. Scan → Invois → photograph the printed INV-2291. **The reading moment**: lines and boxes draw in. The PO chip suggests PO-2610-004. Save.
-3. Count screen (owner records it, so there's no user switch mid-demo): change Maggi 10 → **8**, attach the signed bon photo. "Simpan kiraan" → **"2 perbezaan ditemui · RM110.00"**.
-4. Open the Maggi flag: the invoice crops to the highlighted Maggi line. Lulus → Tolak jumlah (Deduct). Gula flag: tap **Laporkan harga**, enter RM2.80 (this approves it; don't tap Lulus first).
-5. Message → BM preview → **Buka WhatsApp** → WhatsApp's contact picker opens (seed suppliers have no number) → choose the judge's chat → send.
-6. Judge taps the link → evidence page with the pulsing highlighted line and the signed bon.
-7. Owner: Settle → Nota kredit. Supplier page **Pay now rolls RM962.00 → RM872.00**. Home "Selesai" ticks up.
+### Demo script (120 s, four scenarios, owner phone mirrored)
+1. **Correct delivery.** Scan → Bon/DO → Penghantaran baru → `do_lim_brothers_DO-LB-0901.png` → save → counts unchanged → stamp **PENGHANTARAN TEPAT** → Sahkan tepat.
+2. **Correct invoice.** Scan → Invois → `invoice_lim_brothers_LB-7810.png`; the delivery chip suggests DO-LB-0901 → save → **INVOIS TEPAT · Sedia untuk dibayar RM285.60** → Tandakan sudah dibayar.
+3. **Wrong delivery.** Scan → Bon/DO → `bon_signed_DO-5512.png` → save → Maggi 10 → **8** → **"1 perbezaan · Anggaran RM90.00"** (an estimate; the ledger is untouched) → Lulus.
+4. **Wrong invoice.** Scan → Invois → `invoice_borong_ali_INV-2291.png`, compare with DO-5512 → **"2 perbezaan · RM110.00"**. Maggi: Lulus → Tolak jumlah. Gula: Laporkan harga RM2.80. The scenario-3 delivery flag now reads "Dibawa ke invois".
+5. **Send.** Message → BM preview → Buka WhatsApp (nothing is logged until the owner taps it).
+6. **Evidence.** The link opens logged out: document page, static highlighted line, signed bon.
+7. **Settle.** Maggi → Selesaikan → Nota kredit → SELESAI stamp → supplier page **Pay now rolls RM962.00 → RM872.00**.
 
 ## 13. Non-functional
 - **Mobile-first.** Works on Android Chrome and iOS Safari. HTTPS (Replit gives it).

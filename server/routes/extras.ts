@@ -8,6 +8,7 @@ import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
 import { logEvent } from '../events';
 import { seedDatabase } from '../seed';
+import { dmy as dmyKl } from '../core-adapters';
 
 const csvCell = (v: string | number | null | undefined) => {
   let s = v === null || v === undefined ? '' : String(v);
@@ -15,7 +16,8 @@ const csvCell = (v: string | number | null | undefined) => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 const rm = (sen: number) => formatRM(sen).replace('RM', '');
-const dmy = (d: Date | null) => (d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` : '');
+const dmy = (d: Date | null) => (d ? dmyKl(d) : '');
+const isoDmy = (s: string | null) => (s ? s.split('-').reverse().join('/') : '');
 
 export function extrasRouter(deps: AppDeps) {
   const r = Router();
@@ -85,13 +87,13 @@ export function extrasRouter(deps: AppDeps) {
   r.get('/export.csv', requireCan('export_csv'), async (req, res) => {
     const invs = await db.select().from(S.invoices).orderBy(S.invoices.issuedAt);
     const sups = await db.select().from(S.suppliers);
-    const flags = (await db.select().from(S.flags)).filter(f => f.status !== 'proposed' && f.status !== 'dismissed');
+    const flags = (await db.select().from(S.flags)).filter(f => f.stage === 'invoice' && f.status !== 'proposed' && f.status !== 'dismissed');
     const lines = await db.select().from(S.invoiceLines);
-    const head = ['Supplier', 'Invoice no', 'Invoice date', 'Currency', 'Invoice total (RM)', 'Payment', 'Flag type', 'Item', 'Flag amount (RM)', 'Flag status', 'Request', 'Settlement'];
+    const head = ['Supplier', 'Invoice no', 'Invoice date', 'Printed date (Tarikh cetak)', 'Currency', 'Invoice total (RM)', 'Payment', 'Flag type', 'Item', 'Flag amount (RM)', 'Flag status', 'Request', 'Settlement'];
     const out = [head.map(csvCell).join(',')];
     for (const i of invs) {
       const sup = sups.find(s => s.id === i.supplierId)?.name ?? '';
-      const base = [sup, i.invoiceNo, dmy(i.issuedAt), i.currency, rm(i.totalSen), i.payment === 'paid' ? 'Paid' : 'Unpaid'];
+      const base = [sup, i.invoiceNo, dmy(i.issuedAt), isoDmy(i.docDate), i.currency, rm(i.totalSen), i.payment === 'paid' ? 'Paid' : 'Unpaid'];
       const fl = flags.filter(f => f.invoiceId === i.id);
       if (!fl.length) out.push([...base, '', '', '', '', '', ''].map(csvCell).join(','));
       for (const f of fl) out.push([...base, f.type, lines.find(l => l.invoiceId === i.id && l.lineId === f.invoiceLineId)?.description ?? '', rm(f.amountSen), f.status, f.request ?? '', f.settlement ?? ''].map(csvCell).join(','));

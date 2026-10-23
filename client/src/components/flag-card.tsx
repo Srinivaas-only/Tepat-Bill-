@@ -9,6 +9,7 @@ export interface FlagView {
   id: string; type: 'short_qty' | 'price_change' | 'not_ordered'; status: string; amountSen: number; lineDescription: string; missingQty: number | null;
   direction: string | null; supplierId: string; invoiceId: string; poId: string | null; poNo: string | null; reminderDue: boolean; supplierName: string; invoiceNo: string;
   createdAt: number; sentAt: number | null; openedAt: number | null; settledAt: number | null; request: string | null; settlement: string | null;
+  note?: string | null; stage?: 'invoice' | 'delivery'; deliveryId?: string | null; supersededBy?: string | null;
 }
 export const statusTone = { proposed: 'neutral', open: 'brand', disputed: 'dispute', settled: 'ok', dismissed: 'neutral' } as const;
 
@@ -41,7 +42,8 @@ export function FlagCard({ flag }: { flag: FlagView; index?: number }) {
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         <motion.span layoutId={`flag-amt-${flag.id}`}><Money sen={flag.amountSen} className="text-lg font-semibold" /></motion.span>
-        <motion.span layoutId={`flag-chip-${flag.id}`}><Badge tone={statusTone[flag.status as keyof typeof statusTone]}>{t(`status.${flag.status}` as Key)}</Badge></motion.span>
+        {flag.stage === 'delivery' && <span className="num text-[11px] text-ink-2">{t('flag.estimate', { rm: '' }).trim()}</span>}
+        <motion.span layoutId={`flag-chip-${flag.id}`}>{flag.supersededBy ? <Badge tone="neutral">{t('flag.broughtToInvoice')}</Badge> : <Badge tone={statusTone[flag.status as keyof typeof statusTone]}>{t(`status.${flag.status}` as Key)}</Badge>}</motion.span>
       </div>
     </div>
   );
@@ -50,7 +52,7 @@ export function FlagCard({ flag }: { flag: FlagView; index?: number }) {
 /** A group of flags in one bordered container, rows split by dashed hairlines (like a bon). */
 export function FlagLedger({ flags, onPick }: { flags: FlagView[]; onPick?: (f: FlagView) => void }) {
   return (
-    <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
+    <div className="overflow-hidden rounded-card border border-line bg-surface">
       {flags.map(f => (onPick
         ? <button key={f.id} type="button" onClick={() => onPick(f)} className="block w-full border-t border-dashed border-line text-left first:border-t-0"><FlagCard flag={f} /></button>
         : <Link key={f.id} href={`/flags/${f.id}`} className="block border-t border-dashed border-line first:border-t-0"><FlagCard flag={f} /></Link>))}

@@ -25,3 +25,9 @@
 - 2026-10-23 · decision · item 21 price_list has no description column, so near-match uses the sku slug text as description; item 27 CSV rm() uses formatRM minus "RM" (thousands separators now appear in quoted cells)
 - 2026-10-23 · decision · B2 · tokenOverlap is symmetric (overlap coefficient) so 'gula perang 1kg' scored 0.67 against 'gula pasir 1kg'; added Jaccard >= 0.6 so the required test passes
 - 2026-10-23 · SKIPPED · items U9 (ErrorState only on home, flag-detail, supplier-detail, flags, activity; not invoice-detail, count, suppliers, orders, einvoice), U10 (back buttons, empty-state CTAs; OfflineBanner done), U12 · P3 optional, not attempted (budget)
+- 2026-10-23 · fix-round-3 · started (docs/FIX_PROMPT_3.md). Items done are listed in docs/PROGRESS.md "Fix round 3".
+- 2026-10-23 · decision · L8 CSP also carries `script-src 'self' 'unsafe-hashes' 'sha256-…'` for the non-blocking font `onload="this.media='all'"` (U16); the spec'd CSP alone would block that inline handler and fonts would never apply in production.
+- 2026-10-23 · decision · supersede rule: only a new invoice-stage short_qty flag with the same sku supersedes the delivery short_qty flag of the linked delivery. Proposed ones become dismissed; open/disputed keep their status and get superseded_by; settled ones are untouched. A superseded flag cannot be messaged (409) and its action bar is hidden.
+- 2026-10-23 · decision · L7 the 7 s fixture delay stays on purpose (demo ladder); the fixture picker sorts the matching fixture first.
+- 2026-10-23 · decision · U19 unused i18n keys were not deleted (risk of removing keys still referenced via dynamic keys).
+- 2026-10-23 · decision · scenario e: a reminder flag (sent 15 days ago) legitimately logs flag.remind when the owner taps Buka WhatsApp; only drafting (GET) logs nothing.
