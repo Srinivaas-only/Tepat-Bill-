@@ -58,7 +58,7 @@ export function evidenceRouter(deps: AppDeps) {
     const [shop] = await db.select().from(S.settings).where(eq(S.settings.key, 'shop'));
     const [idoc] = parent.documentId ? await db.select({ width: S.documents.width, height: S.documents.height }).from(S.documents).where(eq(S.documents.id, parent.documentId)) : [];
     const [sup] = await db.select({ name: S.suppliers.name }).from(S.suppliers).where(eq(S.suppliers.id, row.supplierId));
-    res.json({ ...payload, siblings, stage: row.stage, shopName: (shop?.value as { name?: string } | undefined)?.name ?? '', supplierName: sup?.name ?? '',
+    res.json({ ...payload, missingQty: row.type === 'short_qty' ? row.missingQty : null, siblings, stage: row.stage, shopName: (shop?.value as { name?: string } | undefined)?.name ?? '', supplierName: sup?.name ?? '',
       invoiceDocDate: parent.docDate ?? ymd(parent.issuedAt), invoiceDoc: idoc ? { width: idoc.width, height: idoc.height } : null });
   });
 

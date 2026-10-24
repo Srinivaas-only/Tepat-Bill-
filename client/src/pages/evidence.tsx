@@ -20,7 +20,7 @@ interface Payload {
   flag: { type: 'short_qty' | 'price_change' | 'not_ordered'; amountSen: number; status: string };
   po: { poNo: string; lines: { sku: string; description: string; orderedQty: number }[] } | null;
   invoice: { invoiceNo: string; lines: { lineId: string; description: string; qty: number; unitPriceSen: number }[] };
-  baseline: { unitSen: number; source: string } | null;
+  baseline: { unitSen: number; source: string } | null; missingQty?: number | null;
   photos: { id: string; kind: string; url: string }[];
   highlight: { invoiceLineId: string; box_2d: [number, number, number, number] | null };
   siblings: { type: string; description: string; amountSen: number; status: string }[];
@@ -76,6 +76,7 @@ export default function Evidence() {
             <Money sen={d.flag.amountSen} className="mt-2 text-[32px] font-semibold leading-10" />
             <dl className="mt-3 divide-y divide-dashed divide-line text-sm">
               {line && <div className="flex justify-between py-2"><dt className="text-ink-2">{t(bon ? 'flag.onBon' : 'flag.billed')}</dt><dd className="num font-semibold">{bon ? line.qty : <>{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</>}</dd></div>}
+              {d.flag.type === 'short_qty' && line && d.missingQty != null && <><div className="flex justify-between py-2"><dt className="text-ink-2">{t('flag.received')}</dt><dd className="num font-semibold">{line.qty - d.missingQty}</dd></div><div className="flex justify-between py-2"><dt className="text-ink-2">{t('flag.missing')}</dt><dd className="num font-semibold">{d.missingQty}</dd></div></>}
               {d.baseline && <div className="flex justify-between py-2"><dt className="text-ink-2">{t('ev.baseline')} ({t(`flag.src.${d.baseline.source}` as Key)})</dt><dd className="num font-semibold">{formatMoney(d.baseline.unitSen, 'MYR')}</dd></div>}
               {d.baseline && d.baseline.source !== 'agreed' && <p className="py-2 text-xs text-ink-2">{t('ev.unverified')}</p>}
             </dl>
