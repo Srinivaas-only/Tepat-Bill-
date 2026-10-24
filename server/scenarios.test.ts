@@ -398,6 +398,13 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(L.rows.find((r: any) => r.id === inv.json.id).netOwedSen).toBe(6000);   // only the accepted RM40 is off the bill
     const ev = JSON.stringify((await call('GET', '/api/activity', ownerCookie)).json);
     expect(ev).toContain('flag.settle.partial');
+    // the residue is never split again, has no message of its own, and settling it (even for 0) closes it
+    expect((await call('GET', `/api/flags/${kid.id}/message?lang=ms`, ownerCookie)).status).toBe(409);
+    const closed = await call('POST', `/api/flags/${kid.id}/settle`, ownerCookie, { settlement: 'credit_note', acceptedSen: 0 });
+    expect(closed.status).toBe(200);
+    expect(closed.json.flag.childFlagId).toBeNull();
+    const claim = await call('GET', `/api/invoices/${inv.json.id}/compare`, ownerCookie);
+    if (claim.status === 200) expect(claim.json.claimableSen).toBeLessThanOrEqual(10000);
     // a full acceptance creates no child
     const inv2 = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'PART-2', lines: [{ description: 'Milo Tin', qty: 10, unitPriceSen: 1000 }], totalSen: 10000 });
     const g = (await call('PUT', `/api/invoices/${inv2.json.id}/counts`, staffCookie, { counts: { 'line:L1': 8 }, confirmed: 'all' })).json.flags[0];

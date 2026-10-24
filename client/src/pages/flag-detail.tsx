@@ -235,7 +235,7 @@ export default function FlagDetail() {
               {!decrease && <Button className="flex-1" disabled={act.isPending} onClick={() => act.mutate({ path: 'approve', body: { request: chosen } })}>{t('flag.approve')}</Button>}
               <Button variant="secondary" className="flex-1" disabled={act.isPending} onClick={() => setDismissOpen(true)}>{t('flag.dismissFull')}</Button>
             </> : <>
-              <Button className="col-span-2" onClick={openMsg}>{!f.sentAt ? t('flag.send') : f.reminderDue ? t('flag.remind') : t('flag.resend')}</Button>
+              {!f.parentFlagId && <Button className="col-span-2" onClick={openMsg}>{!f.sentAt ? t('flag.send') : f.reminderDue ? t('flag.remind') : t('flag.resend')}</Button>}
               {f.status === 'open'
                 ? <Button variant="secondary" disabled={act.isPending} onClick={() => setDisputeOpen(true)}>{t('flag.dispute')}</Button>
                 : <Button variant="secondary" disabled={act.isPending} onClick={() => act.mutate({ path: 'reopen' })}>{t('flag.reopen')}</Button>}

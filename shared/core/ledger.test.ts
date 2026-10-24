@@ -142,6 +142,19 @@ describe('supplier acceptance (deck slide 6: credit only after the supplier acce
   });
 });
 
+describe('residue of a partially accepted claim (audit round 3)', () => {
+  it('flagged money is counted once: parent + residue child never sum to more than the claim', () => {
+    const parent = transition(open(flag('p', 'A', 10_000)), 'settled', 3 * DAY, 'credit_note', 4_000);
+    const child = { ...open(flag('c', 'A', 6_000)), parentId: 'p' } as Flag;
+    const kid = transition(child, 'disputed', 3 * DAY);
+    const r = last30Days([parent, kid], 5 * DAY);
+    expect(r.flaggedSen).toBe(10_000);
+    expect(r.settledSen).toBe(4_000);
+    expect(r.openSen).toBe(6_000);
+    expect(r.flaggedSen).toBe(r.settledSen + r.openSen);
+  });
+});
+
 describe('order state', () => {
   it('has_flags while anything unresolved; correct only after owner marks it', () => {
     const p = flag('F', 'I1', 1);

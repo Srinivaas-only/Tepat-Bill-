@@ -16,7 +16,7 @@ export interface AccountingPayload {
     id: string; name: string;
     payNowSen: number; disputedSen: number; owedSen: number; creditCarrySen: number; recoveredSen: number;
     invoices: { id: string; invoiceNo: string; payment: string; grossSen: number; reductionSen: number; creditAppliedSen: number; netOwedSen: number }[];
-    flags: { id: string; invoiceNo: string; type: string; status: string; flaggedSen: number; acceptedSen: number | null; recoveredSen: number; settlement: string | null; reference: string | null; parentFlagId: string | null }[];
+    flags: { id: string; invoiceNo: string; type: string; status: string; flaggedSen: number; residueSen: number; acceptedSen: number | null; recoveredSen: number; settlement: string | null; reference: string | null; parentFlagId: string | null }[];
   }[];
 }
 
@@ -33,7 +33,7 @@ export async function buildAccountingPayload(db: Pick<Db, 'select'>, now = new D
       flags: flagRows.map(f => {
         const core = flagRowToCore(f);
         const money = f.status === 'settled' && (f.settlement === 'credit_note' || f.settlement === 'deducted');
-        return { id: f.id, invoiceNo: invRows.find(i => i.id === f.invoiceId)?.invoiceNo ?? '', type: f.type, status: f.status, flaggedSen: f.amountSen, acceptedSen: f.acceptedSen,
+        return { id: f.id, invoiceNo: invRows.find(i => i.id === f.invoiceId)?.invoiceNo ?? '', type: f.type, status: f.status, flaggedSen: f.parentFlagId ? 0 : f.amountSen, residueSen: f.parentFlagId ? f.amountSen : 0, acceptedSen: f.acceptedSen,
           recoveredSen: money ? recoveredOf(core) : 0, settlement: f.settlement, reference: f.settlementRef, parentFlagId: f.parentFlagId };
       }),
     });
@@ -57,7 +57,7 @@ export function webhookConnector(url: string, secret: string, fetchImpl: typeof 
     async send(p) {
       const body = JSON.stringify(p);
       try {
-        const res = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-tepat-signature': signBody(secret, body) }, body, signal: AbortSignal.timeout(10_000) });
+        const res = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-tepat-signature': signBody(secret, body) }, body, redirect: 'error', signal: AbortSignal.timeout(10_000) });
         return { mode: 'webhook', ok: res.ok, detail: `HTTP ${res.status}` };
       } catch (e) { return { mode: 'webhook', ok: false, detail: (e as Error).message }; }
     },

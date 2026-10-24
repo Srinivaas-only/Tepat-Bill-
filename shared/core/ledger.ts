@@ -15,6 +15,8 @@ export interface Flag {
   sentAt?: number;     // ms epoch, set when owner taps "Open WhatsApp"
   settledAt?: number;  // ms epoch
   photoIds: string[];
+  /** set on the unrecovered balance of a partially accepted claim: counted as open/settled money but never as new flagged money */
+  parentId?: string;
 }
 export interface Invoice {
   id: string; supplierId: string; poId: string; invoiceNo: string; totalSen: Sen;
@@ -146,7 +148,7 @@ export function rangeSummary(flags: Flag[], from: number, to: number) {
   const counted = flags.filter(f => f.status !== 'proposed' && f.status !== 'dismissed' && f.openedAt !== undefined && f.openedAt >= from && f.openedAt < to);
   const sum = (xs: Flag[]) => xs.reduce((s, f) => s + f.amountSen, 0);
   return {
-    flaggedSen: sum(counted),
+    flaggedSen: sum(counted.filter(f => !f.parentId)),
     settledSen: counted.filter(f => f.status === 'settled').reduce((s, f) => s + (reducesOwed(f) ? recoveredOf(f) : f.amountSen), 0),
     openSen: sum(counted.filter(f => f.status === 'open' || f.status === 'disputed')),
   };
@@ -158,7 +160,7 @@ export function monthSummary(flags: Flag[], year: number, month0: number) {
   const counted = flags.filter(f => f.status !== 'proposed' && f.status !== 'dismissed' && inMonth(f.openedAt));
   const sum = (xs: Flag[]) => xs.reduce((s, f) => s + f.amountSen, 0);
   return {
-    flaggedSen: sum(counted),
+    flaggedSen: sum(counted.filter(f => !f.parentId)),
     settledSen: counted.filter(f => f.status === 'settled').reduce((s, f) => s + (reducesOwed(f) ? recoveredOf(f) : f.amountSen), 0),
     openSen: sum(counted.filter(f => f.status === 'open' || f.status === 'disputed')),
   };

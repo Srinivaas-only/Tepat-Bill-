@@ -24,7 +24,7 @@ export default function SettingsPage() {
   const showPayload = async () => { try { const r = await api.get<{ mode: string; payload: unknown }>('/accounting/payload'); setPreview(JSON.stringify(r.payload, null, 2)); } catch { toast.error(t('common.error')); } };
   const simulate = async () => {
     setHandoff(true);
-    try { const r = await api.post<{ invoices: number; approvedFlags: number; mode: string }>('/accounting/handoff', {}); toast.success(t('settings.handoffDone', { i: r.invoices, f: r.approvedFlags })); } catch { toast.error(t('common.error')); } finally { setHandoff(false); }
+    try { const r = await api.post<{ invoices: number; approvedFlags: number; mode: string; ok: boolean }>('/accounting/handoff', {}); if (r.ok) toast.success(t('settings.handoffDone', { i: r.invoices, f: r.approvedFlags })); else toast.error(t('settings.handoffFail')); } catch { toast.error(t('common.error')); } finally { setHandoff(false); }
   };
   const reset = async () => {
     setConfirm(false);

@@ -136,7 +136,7 @@ export function countsRouter(deps: AppDeps) {
         billedQty: l.qty, unitPriceSen: l.unitPriceSen, refUnitSen: ref?.sen ?? null, refSource: ref?.source ?? null, flagTypes: flagRows.filter(f => f.invoiceLineId === l.lineId && f.status !== 'dismissed').map(f => f.type) };
     });
     const poOnly = c.implicitPo ? [] : c.po.filter(p => !matched.has(p.sku)).map(p => ({ lineId: p.sku, description: p.description, orderedQty: p.orderedQty, receivedQty: counts[p.sku] ?? 0, billedQty: 0, unitPriceSen: null, refUnitSen: null, refSource: null, flagTypes: [] as string[] }));
-    const live = flagRows.filter(f => f.status !== 'dismissed');
+    const live = flagRows.filter(f => f.status !== 'dismissed' && !f.parentFlagId);
     const { ledger } = await ledgerFor(db, c.inv.supplierId);
     const claimable = live.filter(f => !(f.type === 'price_change' && f.direction === 'down')).reduce((a, f) => a + f.amountSen, 0);
     res.json({

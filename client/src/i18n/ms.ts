@@ -501,5 +501,6 @@ export const ms = {
   'flag.residueOf': "Baki daripada aduan asal yang diterima sebahagian",
   'settings.payload': "Pratonton muatan serahan",
   'settings.payloadNote': "Inilah data tepat yang akan dihantar kepada rakan perakaunan apabila sambungan sebenar dikonfigurasikan. Skema draf, bukan kontrak sebenar.",
+  'settings.handoffFail': "Serahan gagal: rakan perakaunan tidak menerima data.",
 } as const;
 export type Key = keyof typeof ms;

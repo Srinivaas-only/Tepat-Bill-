@@ -47,6 +47,7 @@ export function messagesRouter(deps: AppDeps) {
     const preview = flag.status === 'proposed';
     if (!preview && flag.status !== 'open' && flag.status !== 'disputed') throw new ApiError(409, 'bad_state', 'Aduan ini belum boleh dihantar');
     if (preview && flag.type === 'price_change' && flag.direction === 'down') throw new ApiError(409, 'no_draft', 'Tiada tuntutan untuk didraf');
+    if (flag.parentFlagId) throw new ApiError(409, 'residue_no_message', 'Ini baki aduan asal: ikuti melalui mesej aduan asal');
     if (flag.supersededBy) throw new ApiError(409, 'superseded', 'Aduan ini sudah dibawa ke invois');
     const p = await parentOf(flag);
     const live = p.siblings.filter(s => !s.supersededBy);

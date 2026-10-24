@@ -27,7 +27,7 @@ export function flagRowToCore(r: FlagRow, photoIds: string[] = []): Flag {
     settlement: (r.settlement ?? undefined) as Settlement | undefined,
     request: (r.request ?? undefined) as FlagRequest | undefined, acceptedSen: r.acceptedSen ?? undefined,
     baselineUnitSen: r.baselineUnitSen ?? undefined, baselineSource: (r.baselineSource ?? undefined) as BaselineSource | undefined,
-    openedAt: ms(r.openedAt), sentAt: ms(r.sentAt), settledAt: ms(r.settledAt), photoIds,
+    openedAt: ms(r.openedAt), sentAt: ms(r.sentAt), settledAt: ms(r.settledAt), photoIds, parentId: r.parentFlagId ?? undefined,
   };
 }
 

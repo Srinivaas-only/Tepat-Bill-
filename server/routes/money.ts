@@ -32,15 +32,14 @@ export function moneyRouter(deps: AppDeps) {
       const out = await updateFlagAtomic(tx, row, { ...flagCoreToPatch(next), ...(opts.note !== undefined ? { note: opts.note } : {}),
         ...(to === 'settled' ? { settlementRef: opts.ref ?? null, settlementNote: opts.settleNote ?? null } : {}) });
       // a claim the supplier accepted only in part: the unrecovered balance stays tracked as its own DISPUTED flag (still owed, never assumed recovered)
-      if (to === 'settled' && out.stage === 'invoice' && opts.acceptedSen !== undefined && opts.acceptedSen < out.amountSen) {
+      if (to === 'settled' && out.stage === 'invoice' && !out.parentFlagId && opts.acceptedSen !== undefined && opts.acceptedSen < out.amountSen) {   // a residue is never split again: settling it for less simply closes it
         const residue = out.amountSen - opts.acceptedSen;
         const childId = `flg_${nanoid(10)}`;
         const now = new Date();
         const { id: _i, evidenceToken: _t, ...rest } = out;
         await tx.insert(S.flags).values({ ...rest, id: childId, evidenceToken: randomBytes(16).toString('hex'), parentFlagId: out.id, status: 'disputed', amountSen: residue,
-          missingQty: out.missingQty ? Math.max(1, Math.round(out.missingQty * residue / out.amountSen)) : out.missingQty,
-          settlement: null, acceptedSen: null, settlementRef: null, settlementNote: null, settledAt: null, sentAt: null, needsRecheck: false,
-          openedAt: now, createdAt: now, note: 'Baki tidak diterima pembekal' });
+          settlement: null, acceptedSen: null, settlementRef: null, settlementNote: null, settledAt: null, needsRecheck: false,
+          openedAt: out.openedAt, sentAt: out.sentAt, createdAt: now, note: 'Baki tidak diterima pembekal' });
         const ph = await tx.select({ documentId: S.flagPhotos.documentId }).from(S.flagPhotos).where(eq(S.flagPhotos.flagId, out.id));
         if (ph.length) await tx.insert(S.flagPhotos).values(ph.map(p => ({ flagId: childId, documentId: p.documentId }))).onConflictDoNothing();
         await logEvent(tx, role, 'flag.settle.partial', out.id, { acceptedSen: opts.acceptedSen, residueSen: residue, childId });
