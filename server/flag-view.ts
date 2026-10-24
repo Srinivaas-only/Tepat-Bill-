@@ -12,7 +12,7 @@ export interface FlagView {
   lineDescription: string; supplierId: string; supplierName: string; poId: string | null; poNo: string | null;
   missingQty: number | null; invoiceUnitSen: number | null; baselineUnitSen: number | null; baselineSource: string | null; pricedQty: number | null;
   direction: string | null; possibleSubstituteFor: string | null; request: string | null; settlement: string | null; acceptedSen: number | null; settlementRef: string | null; settlementNote: string | null; note: string | null;
-  reminderDue: boolean; needsRecheck: boolean; openedAt: number | null; sentAt: number | null; settledAt: number | null; createdAt: number;
+  reminderDue: boolean; needsRecheck: boolean; parentFlagId: string | null; childFlagId: string | null; openedAt: number | null; sentAt: number | null; settledAt: number | null; createdAt: number;
 }
 
 const DAY = 86_400_000;
@@ -39,6 +39,8 @@ export async function toViews(db: Pick<Db, 'select'>, rows: FlagRow[]): Promise<
   const lines = invIds.length ? await db.select().from(S.invoiceLines).where(inArray(S.invoiceLines.invoiceId, invIds)) : [];
   const dlines = delIds.length ? await db.select().from(S.deliveryLines).where(inArray(S.deliveryLines.deliveryId, delIds)) : [];
   const dueIds = await reminderDueIds(db, rows, Date.now());
+  const kids = await db.select({ id: S.flags.id, parent: S.flags.parentFlagId }).from(S.flags).where(inArray(S.flags.parentFlagId, rows.map(r => r.id)));
+  const childOf = new Map(kids.map(k => [k.parent!, k.id]));
   return rows.map(r => ({
     id: r.id, type: r.type, status: r.status, amountSen: r.amountSen, sku: r.sku, invoiceId: r.invoiceId,
     stage: r.stage, deliveryId: r.deliveryId, supersededBy: r.supersededBy,
@@ -49,6 +51,6 @@ export async function toViews(db: Pick<Db, 'select'>, rows: FlagRow[]): Promise<
     supplierId: r.supplierId, supplierName: sup.find(s => s.id === r.supplierId)?.name ?? '', poId: r.poId, poNo: pos.find(p => p.id === r.poId)?.poNo ?? null,
     missingQty: r.missingQty, invoiceUnitSen: r.invoiceUnitSen, baselineUnitSen: r.baselineUnitSen, baselineSource: r.baselineSource, pricedQty: r.pricedQty,
     direction: r.direction, possibleSubstituteFor: r.possibleSubstituteFor, request: r.request, settlement: r.settlement, acceptedSen: r.acceptedSen, settlementRef: r.settlementRef, settlementNote: r.settlementNote, note: r.note,
-    needsRecheck: r.needsRecheck, reminderDue: dueIds.has(r.id) && !r.supersededBy, openedAt: r.openedAt?.getTime() ?? null, sentAt: r.sentAt?.getTime() ?? null, settledAt: r.settledAt?.getTime() ?? null, createdAt: r.createdAt.getTime(),
+    needsRecheck: r.needsRecheck, parentFlagId: r.parentFlagId, childFlagId: childOf.get(r.id) ?? null, reminderDue: dueIds.has(r.id) && !r.supersededBy, openedAt: r.openedAt?.getTime() ?? null, sentAt: r.sentAt?.getTime() ?? null, settledAt: r.settledAt?.getTime() ?? null, createdAt: r.createdAt.getTime(),
   }));
 }

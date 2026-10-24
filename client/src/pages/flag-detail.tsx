@@ -188,6 +188,8 @@ export default function FlagDetail() {
           {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="neutral" className="num">{t('flag.sentOn', { date: fmtDate(f.sentAt, lang) })}</Badge>}
           {f.needsRecheck && <Card className="px-4 py-3"><p className="text-sm font-medium text-dispute">{t('flag.recheck')}</p></Card>}
           {f.status === 'settled' && f.acceptedSen != null && <Card className="px-4 py-3"><p className="eyebrow">{t('flag.acceptedLabel')}</p><p className="text-sm"><span className="num font-semibold">{formatMoney(f.acceptedSen, 'MYR')}</span>{f.settlementRef ? ` · ${f.settlementRef}` : ''}</p></Card>}
+          {f.childFlagId && <Card className="px-4 py-3"><Link href={`/flags/${f.childFlagId}`} className="block"><p className="text-sm font-medium text-dispute">{t('flag.residueOpen', { rm: formatMoney(f.amountSen - (f.acceptedSen ?? f.amountSen), 'MYR') })}</p><p className="text-xs text-ink-2">{t('flag.residueLink')}</p></Link></Card>}
+          {f.parentFlagId && <Card className="px-4 py-3"><Link href={`/flags/${f.parentFlagId}`} className="block"><p className="text-sm font-medium">{t('flag.residueOf')}</p></Link></Card>}
           {f.reminderDue && <p className="text-sm font-medium text-dispute">{t('flag.reminderCaption')}</p>}
           {f.note && <Card className="px-4 py-3"><p className="eyebrow">{t('flag.noteLabel')}</p><p className="text-sm">{f.note}</p></Card>}
           {owner && f.status !== 'proposed' && d.evidenceToken && (
@@ -248,7 +250,7 @@ export default function FlagDetail() {
             {settleKind === null ? (
               <div className="space-y-2">{(f.type === 'short_qty' ? ['redelivered', 'credit_note', 'deducted'] as const : ['credit_note', 'deducted'] as const).map(sv => (
                 <Button key={sv} variant="secondary" block className="justify-start" disabled={act.isPending} onClick={() => {
-                  if (sv === 'redelivered') act.mutate({ path: 'settle', body: { settlement: sv } });
+                  if (sv === 'redelivered' || f.stage === 'delivery') act.mutate({ path: 'settle', body: { settlement: sv } });
                   else { setSettleKind(sv); setAcceptedRM((f.amountSen / 100).toFixed(2)); setSettleRef(''); }
                 }}>{t(settleKey[sv])}</Button>))}</div>
             ) : (

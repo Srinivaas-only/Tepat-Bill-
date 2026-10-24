@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { randomBytes } from 'node:crypto';
 import * as S from '../../shared/schema';
 import { canMarkCorrect, orderState, transition, type Settlement } from '../../shared/core';
 import type { AppDeps } from '../app';
@@ -24,10 +26,25 @@ export function moneyRouter(deps: AppDeps) {
       const [row] = await tx.select().from(S.flags).where(eq(S.flags.id, id));
       if (!row) throw new ApiError(404, 'not_found', 'Aduan tiada');
       await lockParent(tx, row);
+      if (opts.acceptedSen !== undefined && row.stage === 'delivery') throw new ApiError(422, 'bad_request', 'Penghantaran hanya anggaran: jumlah diterima dicatat pada invois');
       let next;
       try { next = transition(flagRowToCore(row), to, Date.now(), opts.settlement, opts.acceptedSen); } catch (e) { throw new ApiError(409, 'bad_state', (e as Error).message); }
       const out = await updateFlagAtomic(tx, row, { ...flagCoreToPatch(next), ...(opts.note !== undefined ? { note: opts.note } : {}),
         ...(to === 'settled' ? { settlementRef: opts.ref ?? null, settlementNote: opts.settleNote ?? null } : {}) });
+      // a claim the supplier accepted only in part: the unrecovered balance stays tracked as its own DISPUTED flag (still owed, never assumed recovered)
+      if (to === 'settled' && out.stage === 'invoice' && opts.acceptedSen !== undefined && opts.acceptedSen < out.amountSen) {
+        const residue = out.amountSen - opts.acceptedSen;
+        const childId = `flg_${nanoid(10)}`;
+        const now = new Date();
+        const { id: _i, evidenceToken: _t, ...rest } = out;
+        await tx.insert(S.flags).values({ ...rest, id: childId, evidenceToken: randomBytes(16).toString('hex'), parentFlagId: out.id, status: 'disputed', amountSen: residue,
+          missingQty: out.missingQty ? Math.max(1, Math.round(out.missingQty * residue / out.amountSen)) : out.missingQty,
+          settlement: null, acceptedSen: null, settlementRef: null, settlementNote: null, settledAt: null, sentAt: null, needsRecheck: false,
+          openedAt: now, createdAt: now, note: 'Baki tidak diterima pembekal' });
+        const ph = await tx.select({ documentId: S.flagPhotos.documentId }).from(S.flagPhotos).where(eq(S.flagPhotos.flagId, out.id));
+        if (ph.length) await tx.insert(S.flagPhotos).values(ph.map(p => ({ flagId: childId, documentId: p.documentId }))).onConflictDoNothing();
+        await logEvent(tx, role, 'flag.settle.partial', out.id, { acceptedSen: opts.acceptedSen, residueSen: residue, childId });
+      }
       // goods that were redelivered after a short delivery now count as received
       if (to === 'settled' && opts.settlement === 'redelivered' && out.stage === 'delivery' && out.deliveryId && out.missingQty) {
         const lines = await tx.select().from(S.deliveryLines).where(eq(S.deliveryLines.deliveryId, out.deliveryId));

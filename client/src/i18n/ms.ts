@@ -496,5 +496,8 @@ export const ms = {
   'settings.handoffNote': "Simulasi: sambungan Orbyte / rakan perakaunan belum wujud. Tiada apa dihantar keluar; hanya dicatat. Serahan sebenar: CSV di atas.",
   'settings.handoffDone': "Simulasi dicatat: {i} invois, {f} aduan. Tiada data dihantar keluar.",
   'act.accounting.handoff_sim': "Serahan perakaunan (simulasi) dicatat",
+  'flag.residueOpen': "Baki {rm} belum dipulihkan",
+  'flag.residueLink': "Dijejaki sebagai aduan dipertikai. Ketik untuk buka.",
+  'flag.residueOf': "Baki daripada aduan asal yang diterima sebahagian",
 } as const;
 export type Key = keyof typeof ms;

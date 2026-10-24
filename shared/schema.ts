@@ -162,6 +162,8 @@ export const flags = pgTable('flags', {
   supersededBy: text('superseded_by'),
   /** a recount changed the quantities behind this (already approved/settled) flag: the owner must review it */
   needsRecheck: boolean('needs_recheck').notNull().default(false),
+  /** the unrecovered balance of a partially accepted claim is its own (disputed) flag, linked to the one that was settled */
+  parentFlagId: text('parent_flag_id'),
   poId: text('po_id'),
   invoiceLineId: text('invoice_line_id').notNull(),
   sku: text('sku'),
@@ -188,7 +190,7 @@ export const flags = pgTable('flags', {
   settledAt: ts('settled_at'),
   createdAt: ts('created_at').notNull().defaultNow(),
 }, t => [
-  uniqueIndex('flags_invoice_line_type_uq').on(t.invoiceId, t.invoiceLineId, t.type).where(sql`stage = 'invoice'`),
+  uniqueIndex('flags_invoice_line_type_root_uq').on(t.invoiceId, t.invoiceLineId, t.type).where(sql`stage = 'invoice' and parent_flag_id is null`),
   uniqueIndex('flags_delivery_line_type_uq').on(t.deliveryId, t.invoiceLineId, t.type).where(sql`stage = 'delivery'`),
 ]);
 

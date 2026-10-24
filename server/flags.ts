@@ -152,7 +152,7 @@ export async function firstSaveAutofill(db: Conn, c: InvoiceContext, detected: D
  * Returns how many flags now need a recheck.
  */
 export async function markStaleFlags(db: Conn, invoiceId: string, detected: DetectedFlag[]): Promise<number> {
-  const rows = await db.select().from(S.flags).where(and(eq(S.flags.invoiceId, invoiceId), eq(S.flags.stage, 'invoice'), ne(S.flags.status, 'proposed'), ne(S.flags.status, 'dismissed'), isNull(S.flags.supersededBy)));
+  const rows = await db.select().from(S.flags).where(and(eq(S.flags.invoiceId, invoiceId), eq(S.flags.stage, 'invoice'), ne(S.flags.status, 'proposed'), ne(S.flags.status, 'dismissed'), isNull(S.flags.supersededBy), isNull(S.flags.parentFlagId)));
   let stale = 0;
   for (const f of rows) {
     const d = detected.find(x => x.invoiceLineId === f.invoiceLineId && x.type === f.type);

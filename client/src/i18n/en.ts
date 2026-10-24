@@ -497,4 +497,7 @@ export const en: Record<Key, string> = {
   'settings.handoffNote': "Simulation: the Orbyte / accounting-partner link does not exist yet. Nothing leaves the app, it is only logged. The real handoff is the CSV above.",
   'settings.handoffDone': "Simulation logged: {i} invoices, {f} flags. Nothing was sent out.",
   'act.accounting.handoff_sim': "Accounting handoff (simulation) logged",
+  'flag.residueOpen': "{rm} not recovered",
+  'flag.residueLink': "Tracked as a disputed flag. Tap to open.",
+  'flag.residueOf': "Balance of an original claim that was only partly accepted",
 };

@@ -377,6 +377,36 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(m.json.text).not.toContain('agreed price');
   });
 
+  it('partial acceptance: the unrecovered balance becomes a linked DISPUTED flag (still owed, never assumed recovered)', async () => {
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'PART-1', lines: [{ description: 'Milo Tin', qty: 10, unitPriceSen: 1000 }], totalSen: 10000 });
+    const f = (await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 0 }, confirmed: 'all' })).json.flags.find((x: any) => x.type === 'short_qty');
+    expect(f.amountSen).toBe(10000);
+    await call('POST', `/api/flags/${f.id}/approve`, ownerCookie, { request: 'deduct' });
+    const ok = await call('POST', `/api/flags/${f.id}/settle`, ownerCookie, { settlement: 'credit_note', acceptedSen: 4000, ref: 'CN-7' });
+    expect(ok.status).toBe(200);
+    expect(ok.json.flag.childFlagId).toBeTruthy();
+    const kid = (await call('GET', `/api/flags/${ok.json.flag.childFlagId}`, ownerCookie)).json.flag;
+    expect(kid).toMatchObject({ status: 'disputed', amountSen: 6000, parentFlagId: f.id });
+    const L = (await call('GET', '/api/suppliers/sup_ali/ledger', ownerCookie)).json.ledger;
+    expect(L.rows.find((r: any) => r.id === inv.json.id).netOwedSen).toBe(6000);   // only the accepted RM40 is off the bill
+    const ev = JSON.stringify((await call('GET', '/api/activity', ownerCookie)).json);
+    expect(ev).toContain('flag.settle.partial');
+    // a full acceptance creates no child
+    const inv2 = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'PART-2', lines: [{ description: 'Milo Tin', qty: 10, unitPriceSen: 1000 }], totalSen: 10000 });
+    const g = (await call('PUT', `/api/invoices/${inv2.json.id}/counts`, staffCookie, { counts: { 'line:L1': 8 }, confirmed: 'all' })).json.flags[0];
+    await call('POST', `/api/flags/${g.id}/approve`, ownerCookie, { request: 'deduct' });
+    const full = await call('POST', `/api/flags/${g.id}/settle`, ownerCookie, { settlement: 'credit_note', acceptedSen: 2000 });
+    expect(full.json.flag.childFlagId).toBeNull();
+  });
+
+  it('delivery-stage flags are estimates: an accepted amount is rejected', async () => {
+    const d = await call('POST', '/api/deliveries', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', doNo: 'DO-ACC-1', lines: dLines('do_lim_brothers_DO-LB-0901') });
+    const f = (await call('PUT', `/api/deliveries/${d.json.id}/counts`, staffCookie, { counts: { 'line:L1': 1 } })).json.flags.find((x: any) => x.type === 'short_qty');
+    await call('POST', `/api/flags/${f.id}/approve`, ownerCookie, {});
+    expect((await call('POST', `/api/flags/${f.id}/settle`, ownerCookie, { settlement: 'credit_note', acceptedSen: 100 })).status).toBe(422);
+    expect((await call('POST', `/api/flags/${f.id}/settle`, ownerCookie, { settlement: 'credit_note' })).status).toBe(200);
+  });
+
   it('T3 a delivery document cannot be attached to an invoice', async () => {
     const fd = new FormData();
     fd.append('kind', 'delivery_note');
