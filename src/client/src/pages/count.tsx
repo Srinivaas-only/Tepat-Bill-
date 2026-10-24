@@ -66,10 +66,10 @@ function Stepper({ value, onChange, max = 100000, decLabel, incLabel, hand, labe
   );
 }
 
-function ExtraList({ extras }: { extras: { description: string; n: number }[] }) {
+function ExtraList({ extras }: { extras: { id: string; description: string; n: number }[] }) {
   return (
     <div className="overflow-hidden rounded-card bg-surface shadow-card">
-      {extras.map(x => <div key={x.description} className="flex items-center justify-between gap-3 border-t border-line px-5 py-3 first:border-t-0"><p className="font-medium leading-5">{x.description}</p><span className="num shrink-0 rounded-full bg-surface-2 px-2.5 py-0.5 text-sm font-semibold text-dispute">+{x.n}</span></div>)}
+      {extras.map(x => <div key={x.id} className="flex items-center justify-between gap-3 border-t border-line px-5 py-3 first:border-t-0"><p className="font-medium leading-5">{x.description}</p><span className="num shrink-0 rounded-full bg-surface-2 px-2.5 py-0.5 text-sm font-semibold text-dispute">+{x.n}</span></div>)}
     </div>
   );
 }
@@ -96,7 +96,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
     },
   });
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const [result, setResult] = useState<{ flags: FlagView[]; processed: boolean; sen: number; extras: { description: string; n: number }[] } | null>(null);
+  const [result, setResult] = useState<{ flags: FlagView[]; processed: boolean; sen: number; extras: { id: string; description: string; n: number }[] } | null>(null);
   const [shown, setShown] = useState(0);
   const seeded = useRef(false);
   const [touched, setTouched] = useState<Set<string>>(new Set());
@@ -114,7 +114,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
       buzz(14); setShown(0);
       const open = r.flags.filter(f => f.status === 'proposed' && !f.supersededBy && (f.type !== 'price_change' || f.direction !== 'down'));
       const processed = open.length === 0 && r.flags.some(f => f.status !== 'proposed' && f.status !== 'dismissed');
-      const extras = (q.data?.lines ?? []).map(l => ({ description: l.description, n: (counts[`line:${l.lineId}`] ?? l.qty) - l.qty })).filter(x => x.n > 0);
+      const extras = (q.data?.lines ?? []).map(l => ({ id: l.lineId, description: l.description, n: (counts[`line:${l.lineId}`] ?? l.qty) - l.qty })).filter(x => x.n > 0);
       setResult({ flags: open, processed, sen: r.estimateSen ?? r.totalSen ?? 0, extras });
       refresh();
     },
@@ -140,6 +140,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
   const set = (key: string, n: number) => { setTouched(x => new Set(x).add(key)); setCounts(c => ({ ...c, [key]: n })); };
   const d = q.data;
   const isUncounted = (key: string) => !isDel && !touched.has(key) && !!d && key in d.counts && (d?.sources[key] ?? 'default') === 'default';
+  const liveExtras = d ? d.lines.filter(l => (counts[`line:${l.lineId}`] ?? l.qty) > l.qty).length : 0;
   const uncounted = d ? d.lines.filter(l => isUncounted(`line:${l.lineId}`)).length : 0;
   useEffect(() => { if (!result) return; const tm = setTimeout(() => setShown(result.sen), 250); return () => clearTimeout(tm); }, [result]);
   const thumb = (kind: string) => [...(d?.photos ?? [])].reverse().find(p => p.photoKind === kind)?.id;
@@ -197,7 +198,9 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
             </div>
           )}
 
-          {isDel && d.delState === 'confirm' && role && can(role, 'mark_correct') && (
+          {liveExtras > 0 && <p className="rounded-card bg-surface p-4 text-sm font-medium text-dispute shadow-card">{t('count.extraTitle')}: {t(isDel ? 'count.extraBodyDel' : 'count.extraBody')}</p>}
+
+          {isDel && d.delState === 'confirm' && liveExtras === 0 && role && can(role, 'mark_correct') && (
             <div className="rounded-card bg-surface p-4 shadow-card space-y-2">
               <p className="font-semibold">{t('delivery.confirmCardTitle')}</p>
               <p className="text-sm text-ink-2">{t('delivery.confirmCardBody')}</p>
@@ -271,7 +274,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
                 <h2 className="text-xl font-semibold leading-6">{t('count.diffs', { n: result.flags.length })}</h2>
                 <p className="mt-1 flex items-baseline gap-2">{isDel && <span className="text-sm text-ink-2">{t('flag.estimate', { rm: '' }).trim()}</span>}<span className="inline-block"><Money sen={shown} animate className="text-[32px] font-semibold leading-10" /></span></p>
               </div>
-              {result.extras.length > 0 && <><ExtraList extras={result.extras} /><p className="text-sm text-ink-2">{t(isDel ? 'count.extraBodyDel' : 'count.extraBody')}</p></>}
+              {result.extras.length > 0 && <><h3 className="text-base font-semibold">{t('count.extraTitle')}</h3><ExtraList extras={result.extras} /><p className="text-sm text-ink-2">{t(isDel ? 'count.extraBodyDel' : 'count.extraBody')}</p></>}
               <FlagLedger flags={result.flags} onPick={f => { nav('/flags', { replace: true }); nav('/flags/' + f.id); }} />
               <Button block onClick={() => nav('/flags', { replace: true })}>{t('count.view')}</Button>
             </div>
