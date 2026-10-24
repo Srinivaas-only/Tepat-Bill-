@@ -62,7 +62,12 @@ export function documentsRouter(deps: AppDeps) {
     });
     // a late photo must reach the flags that already exist
     if (body.data.invoiceId) { const c = await loadContext(deps.db, body.data.invoiceId); if (c) await attachPhotos(deps.db, c); }
-    if (body.data.deliveryId) { const c = await loadDeliveryContext(deps.db, body.data.deliveryId); if (c) await attachDeliveryPhotos(deps.db, c); }
+    if (body.data.deliveryId) {
+      const c = await loadDeliveryContext(deps.db, body.data.deliveryId); if (c) await attachDeliveryPhotos(deps.db, c);
+      // a late delivery photo also backs the complaints of the invoice this delivery was compared with
+      const [del] = await deps.db.select({ invoiceId: S.deliveries.invoiceId }).from(S.deliveries).where(eq(S.deliveries.id, body.data.deliveryId));
+      if (del?.invoiceId) { const ic = await loadContext(deps.db, del.invoiceId); if (ic) await attachPhotos(deps.db, ic); }
+    }
     await logEvent(deps.db, req.role!, 'document.upload', id, { kind: body.data.kind });
     res.status(201).json({ id, sha256, width: body.data.width ?? null, height: body.data.height ?? null });
   });

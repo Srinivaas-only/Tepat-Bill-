@@ -10,7 +10,7 @@ import { logEvent } from '../events';
 import { cleanPriceList, flagRowToCore } from '../core-adapters';
 import { lockInvoice } from '../flag-ops';
 import { ledgerFor } from '../ledger-data';
-import { defaultCounts, firstSaveAutofill, loadContext, markStaleFlags, replaceProposedFlags, attachPhotos, runDetection, snapshotOf } from '../flags';
+import { defaultCounts, firstSaveAutofill, invoiceCountsGuarded, loadContext, markStaleFlags, replaceProposedFlags, attachPhotos, runDetection, snapshotOf } from '../flags';
 import { toViews } from '../flag-view';
 
 export function countsRouter(deps: AppDeps) {
@@ -92,8 +92,7 @@ export function countsRouter(deps: AppDeps) {
       const merged = { ...prev, ...body.data.counts };
       const changes = Object.keys(merged).filter(k => merged[k] !== prev[k]).map(k => ({ key: k, from: prev[k] ?? null, to: merged[k] }));
       // A recount must not silently contradict an approved invoice, a paid invoice or a live complaint: owner + reason, and it is logged with before/after.
-      const live = await tx.select({ id: S.flags.id }).from(S.flags).where(and(eq(S.flags.invoiceId, id), eq(S.flags.stage, 'invoice'), inArray(S.flags.status, ['open', 'disputed', 'settled'])));
-      const guarded = !first && changes.length > 0 && (c.inv.ownerMarkedCorrect || c.inv.payment === 'paid' || live.length > 0);
+      const guarded = Object.keys(c.saved).length > 0 && changes.length > 0 && await invoiceCountsGuarded(tx, c.inv);
       if (guarded) {
         if (!can(req.role!, 'mark_correct')) throw new ApiError(403, 'owner_review_required', 'Kiraan semula selepas lulus/aduan perlu semakan pemilik');
         if (!body.data.reason) throw new ApiError(422, 'reason_required', 'Sebab pembetulan diperlukan', { changes });

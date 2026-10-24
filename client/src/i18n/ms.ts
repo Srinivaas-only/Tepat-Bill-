@@ -467,5 +467,9 @@ export const ms = {
   'flag.recheck': "Kuantiti telah berubah selepas aduan ini. Semak semula.",
   'act.count.corrected': "Kiraan dibetulkan",
   'act.invoice.resync': "Kiraan invois dikemas kini",
+  'flag.previewDraft': "Lihat draf",
+  'flag.draftPreviewNote': "Ini draf sahaja. Lulus aduan dahulu untuk membuka WhatsApp; pautan bukti hanya berfungsi selepas diluluskan.",
+  'flag.unverified': "Belum disahkan: ini bukan harga yang dipersetujui. Tetapkan harga dipersetujui untuk bukti yang lebih kukuh.",
+  'ev.unverified': "Harga rujukan ini diambil daripada rekod terdahulu, bukan harga yang telah dipersetujui.",
 } as const;
 export type Key = keyof typeof ms;

@@ -103,7 +103,8 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
       const maggi = r.json.flags.find((f: any) => f.type === 'short_qty');
       expect((await call('POST', `/api/flags/${maggi.id}/approve`, ownerCookie, { request: 'deduct' })).status).toBe(200);
       const gula = r.json.flags.find((f: any) => f.type === 'price_change');
-      expect((await call('POST', `/api/flags/${gula.id}/approve`, ownerCookie, {})).status).toBe(200);
+      // demo script: "Gula: Laporkan harga RM2.80" - the owner states the agreed price, so the message may call it agreed
+      expect((await call('POST', `/api/flags/${gula.id}/report-price`, ownerCookie, { agreedSen: 280 })).status).toBe(200);
       const im = await call('GET', `/api/flags/${maggi.id}/message?lang=ms`, ownerCookie);
       const norm = (t: string) => t.replace(/\d{2}\/\d{2}\/\d{4}/, '20/10/2026').replace(/https?:\/\/\S+/, 'https://<host>/e/<token>');
       expect(norm(im.json.text)).toBe(["Salam sejahtera Syarikat Borong Ali Sdn. Bhd., ini Kedai Runcit Maju.", "Merujuk invois INV-2291 bertarikh 20/10/2026 (pesanan PO-2610-004):",
@@ -253,6 +254,56 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(r.json.counts['line:L2']).toBe(42);                       // seed stores it under the sku; it must not be shadowed by the billed-qty default (48)
     expect(sardin.qty - r.json.counts['line:L2']).toBe(r.json.flags.find((f: any) => f.invoiceLineId === 'L2' && f.type === 'short_qty').missingQty);
     expect(r.json.counts['line:L1']).toBe(50);
+  });
+
+  it('delivery evidence (bon + photos) is carried into the invoice complaint and the public evidence page', async () => {
+    const up = async (kind: string, photoKind?: string) => {
+      const fd = new FormData();
+      fd.append('kind', kind); if (photoKind) fd.append('photoKind', photoKind);
+      fd.append('file', new Blob([readFileSync('fixtures/docs/do_lim_brothers_DO-LB-0901.png'), Buffer.from(String(Math.random()))], { type: 'image/png' }), 'd.png');
+      return await (await fetch(base + '/api/documents', { method: 'POST', headers: { cookie: staffCookie }, body: fd })).json() as any;
+    };
+    const bon = await up('delivery_note');
+    const d = await call('POST', '/api/deliveries', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', doNo: 'DO-EV-1', documentId: bon.id, lines: [...dLines('do_lim_brothers_DO-LB-0901'), { description: 'Biskut Bukti Satu', qty: 2, unit: 'pkt' }] });
+    expect(d.status).toBe(201);
+    await call('PUT', `/api/deliveries/${d.json.id}/counts`, staffCookie, { counts: {} });
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', deliveryId: d.json.id, invoiceNo: 'LB-EV-1', currency: 'MYR', totalSen: 28560 + 2 * 300,
+      lines: [...iLines('invoice_lim_brothers_LB-7810'), { description: 'Biskut Bukti Satu', qty: 2, unit: 'pkt', unitPriceSen: 300 }] });
+    expect(inv.status).toBe(201);
+    const flag = inv.json.flags.find((f: any) => f.type === 'not_ordered');
+    expect(flag).toBeTruthy();
+    const photos = await pool.query(`select document_id from ${SCHEMA}.flag_photos where flag_id = $1`, [flag.id]);
+    expect(photos.rows.map((r: any) => r.document_id)).toContain(bon.id);
+    // a delivery photo uploaded AFTER linking also reaches the invoice complaint
+    const late = await (async () => { const fd = new FormData(); fd.append('kind', 'photo'); fd.append('photoKind', 'delivery'); fd.append('deliveryId', d.json.id);
+      fd.append('file', new Blob([readFileSync('fixtures/docs/delivery_photo_INV-2291.png'), Buffer.from('late')], { type: 'image/png' }), 'p.png');
+      return await (await fetch(base + '/api/documents', { method: 'POST', headers: { cookie: staffCookie }, body: fd })).json() as any; })();
+    const photos2 = await pool.query(`select document_id from ${SCHEMA}.flag_photos where flag_id = $1`, [flag.id]);
+    expect(photos2.rows.map((r: any) => r.document_id)).toContain(late.id);
+    // the compared invoice is relied on once its flag is approved: recounting the delivery is then an owner-reviewed correction
+    expect((await call('POST', `/api/flags/${flag.id}/approve`, ownerCookie, {})).status).toBe(200);
+    const recount = { counts: { 'line:L1': 3 } };
+    expect((await call('PUT', `/api/deliveries/${d.json.id}/counts`, staffCookie, recount)).status).toBe(403);
+    expect((await call('PUT', `/api/deliveries/${d.json.id}/counts`, ownerCookie, recount)).status).toBe(422);
+    expect((await call('PUT', `/api/deliveries/${d.json.id}/counts`, ownerCookie, { ...recount, reason: 'Kiraan semula' })).status).toBe(200);
+    const after = await call('GET', `/api/invoices/${inv.json.id}`, ownerCookie);
+    expect(after.json.counts['line:L1']).toBe(3);                    // invoice follows the delivery: one record
+    expect(JSON.stringify((await call('GET', '/api/activity', ownerCookie)).json)).toContain('count.corrected');
+  });
+
+  it('a proposed flag gets a read-only draft preview; sending stays blocked until approval', async () => {
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'PREV-1', lines: [{ description: 'Teh Bunga', qty: 6, unitPriceSen: 500 }], totalSen: 3000 });
+    const f = (await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 4 } })).json.flags[0];
+    expect(f.status).toBe('proposed');
+    const pv = await call('GET', `/api/flags/${f.id}/message?lang=ms`, ownerCookie);
+    expect(pv.status).toBe(200);
+    expect(pv.json.preview).toBe(true);
+    expect(pv.json.text).toContain('Kurang 2 unit = RM10.00');
+    expect(pv.json.flagIds).toEqual([f.id]);
+    expect((await call('GET', `/api/flags/${f.id}/message?lang=ms`, staffCookie)).status).toBe(403);
+    // nothing was stamped as sent and the flag is still proposed
+    expect((await call('POST', '/api/flags/sent', ownerCookie, { flagIds: [f.id] })).status).toBeGreaterThanOrEqual(400);
+    expect((await call('GET', `/api/flags/${f.id}`, ownerCookie)).json.flag.status).toBe('proposed');
   });
 
   it('T3 a delivery document cannot be attached to an invoice', async () => {

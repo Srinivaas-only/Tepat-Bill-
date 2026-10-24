@@ -155,6 +155,7 @@ export default function FlagDetail() {
             {f.type === 'price_change' && <>
               <Fact k={t('flag.invoicePrice')} v={formatMoney(f.invoiceUnitSen ?? 0, 'MYR')} />
               {f.baselineUnitSen !== null && <div className="flex items-baseline justify-between gap-4 py-2"><dt className="text-ink-2">{t('flag.basePrice')} <Badge tone="price" className="ml-1">{t(`flag.src.${f.baselineSource ?? 'last_invoice'}` as Key)}</Badge></dt><dd className="num text-right font-semibold">{formatMoney(f.baselineUnitSen, 'MYR')}</dd></div>}
+              {f.baselineUnitSen !== null && f.baselineSource !== 'agreed' && <p className="py-2 text-sm text-dispute">{t('flag.unverified')}</p>}
               <Fact k={t('flag.pricedQty')} v={String(f.pricedQty ?? 0)} />
             </>}
             {f.type === 'not_ordered' && d.line && <><Fact k={t('flag.billed')} v={String(d.line.qty)} /><Fact k={t('flag.invoicePrice')} v={formatMoney(d.line.unitPriceSen, 'MYR')} /><Fact k={t('flag.notOnPo')} v="—" /></>}
@@ -223,6 +224,7 @@ export default function FlagDetail() {
         <FixedBar className={`gap-2 ${proposed ? "flex" : "grid grid-cols-2"}`}>
           <>
             {proposed ? <>
+              {!decrease && <Button variant="secondary" className="flex-1" onClick={openMsg}>{t('flag.previewDraft')}</Button>}
               {!decrease && <Button className="flex-1" disabled={act.isPending} onClick={() => act.mutate({ path: 'approve', body: { request: chosen } })}>{t('flag.approve')}</Button>}
               <Button variant="secondary" className="flex-1" disabled={act.isPending} onClick={() => setDismissOpen(true)}>{t('flag.dismissFull')}</Button>
             </> : <>
@@ -260,7 +262,7 @@ export default function FlagDetail() {
           </div>
         </SheetContent>
       </Sheet>
-      {f && <MessageSheet key={msgOpenCount} flagId={f.id} open={msg} onOpenChange={setMsg} reminder={f.reminderDue} />}
+      {f && <MessageSheet key={msgOpenCount} flagId={f.id} open={msg} onOpenChange={setMsg} reminder={f.reminderDue} request={proposed ? chosen ?? undefined : undefined} />}
       <PhotoViewer src={viewer} onClose={() => setViewer(null)} />
     </main>
   );

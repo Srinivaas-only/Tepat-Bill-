@@ -11,6 +11,8 @@ export interface MessageLine {
   amountSen: Sen;
   billedQty?: number; receivedQty?: number; missingQty?: number;      // short_qty
   invoiceUnitSen?: Sen; agreedUnitSen?: Sen; pricedQty?: number;       // price_change
+  /** where the reference price came from; only 'agreed' (or unset) may be called an agreed price: a historical price alone proves no agreement */
+  baselineSource?: 'agreed' | 'po' | 'last_invoice';
   qty?: number;                                                        // not_ordered
   request: FlagRequest;
 }
@@ -30,7 +32,7 @@ const T = {
     short: (l: MessageLine, k: DocKind = 'invoice') => k === 'delivery'
       ? `• ${l.item}: dalam bon ${l.billedQty}, diterima ${l.receivedQty}. Kurang ${units(l.missingQty!, false)}${l.amountSen > 0 ? ` (anggaran ${formatRM(l.amountSen)})` : ''}.`
       : `• ${l.item}: dalam invois ${l.billedQty}, diterima ${l.receivedQty}. Kurang ${l.missingQty} unit = ${formatRM(l.amountSen)}.`,
-    price: (l: MessageLine) => `• ${l.item}: harga invois ${formatRM(l.invoiceUnitSen!)}/unit, harga yang dipersetujui ${formatRM(l.agreedUnitSen!)}/unit, untuk ${l.pricedQty} unit = perbezaan ${formatRM(l.amountSen)}.`,
+    price: (l: MessageLine) => `• ${l.item}: harga invois ${formatRM(l.invoiceUnitSen!)}/unit, ${l.baselineSource === 'po' ? 'harga pesanan (PO)' : l.baselineSource === 'last_invoice' ? 'harga invois sebelum ini' : 'harga yang dipersetujui'} ${formatRM(l.agreedUnitSen!)}/unit, untuk ${l.pricedQty} unit = perbezaan ${formatRM(l.amountSen)}.`,
     notOrdered: (l: MessageLine, k: DocKind = 'invoice') => `• ${l.item}: ${l.qty} unit${k === 'delivery' && l.amountSen <= 0 ? '' : ` (${k === 'delivery' ? 'anggaran ' : ''}${formatRM(l.amountSen)})`} tiada dalam pesanan kami.`,
     req: { send_missing: 'Mohon hantar baki barang yang kurang.', deduct: 'Mohon tolak jumlah ini daripada invois.',
       collect_back: 'Mohon ambil semula barang ini dan keluarkan daripada invois.', agreed_price: 'Mohon caj mengikut harga yang dipersetujui.' },
@@ -46,7 +48,7 @@ const T = {
     short: (l: MessageLine, k: DocKind = 'invoice') => k === 'delivery'
       ? `• ${l.item}: delivery order ${l.billedQty}, received ${l.receivedQty}. Short ${units(l.missingQty!, true)}${l.amountSen > 0 ? ` (estimate ${formatRM(l.amountSen)})` : ''}.`
       : `• ${l.item}: billed ${l.billedQty}, received ${l.receivedQty}. Short ${units(l.missingQty!, true)} = ${formatRM(l.amountSen)}.`,
-    price: (l: MessageLine) => `• ${l.item}: invoice price ${formatRM(l.invoiceUnitSen!)}/unit, agreed price ${formatRM(l.agreedUnitSen!)}/unit, for ${units(l.pricedQty!, true)} = difference ${formatRM(l.amountSen)}.`,
+    price: (l: MessageLine) => `• ${l.item}: invoice price ${formatRM(l.invoiceUnitSen!)}/unit, ${l.baselineSource === 'po' ? 'order (PO) price' : l.baselineSource === 'last_invoice' ? 'previous invoice price' : 'agreed price'} ${formatRM(l.agreedUnitSen!)}/unit, for ${units(l.pricedQty!, true)} = difference ${formatRM(l.amountSen)}.`,
     notOrdered: (l: MessageLine, k: DocKind = 'invoice') => `• ${l.item}: ${units(l.qty!, true)}${k === 'delivery' && l.amountSen <= 0 ? '' : ` (${k === 'delivery' ? 'estimate ' : ''}${formatRM(l.amountSen)})`} ${l.qty === 1 ? 'was' : 'were'} not in our order.`,
     req: { send_missing: 'Please send the missing items.', deduct: 'Please deduct this amount from the invoice.',
       collect_back: 'Please collect these items and remove them from the invoice.', agreed_price: 'Please charge the agreed price.' },

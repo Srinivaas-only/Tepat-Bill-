@@ -129,7 +129,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
 
   const set = (key: string, n: number) => { setTouched(x => new Set(x).add(key)); setCounts(c => ({ ...c, [key]: n })); };
   const d = q.data;
-  const isUncounted = (key: string) => !isDel && !touched.has(key) && (d?.sources[key] ?? 'default') === 'default';
+  const isUncounted = (key: string) => !isDel && !touched.has(key) && !!d && key in d.counts && (d?.sources[key] ?? 'default') === 'default';
   const uncounted = d ? d.lines.filter(l => isUncounted(`line:${l.lineId}`)).length : 0;
   useEffect(() => { if (!result) return; const tm = setTimeout(() => setShown(result.sen), 250); return () => clearTimeout(tm); }, [result]);
   const thumb = (kind: string) => [...(d?.photos ?? [])].reverse().find(p => p.photoKind === kind)?.id;

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { and, desc, eq, gte, inArray, isNull } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import * as S from '../../shared/schema';
-import { canMarkCorrect, claimableSen, matchLine } from '../../shared/core';
+import { can, canMarkCorrect, claimableSen, matchLine } from '../../shared/core';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
@@ -13,6 +13,7 @@ import { aliasTableFromRows, flagRowToCore, poLineRowToCore } from '../core-adap
 import { attachDeliveryPhotos, defaultDeliveryCounts, loadDeliveryContext, replaceProposedDeliveryFlags, runDeliveryCheck } from '../delivery-ctx';
 import { lockDelivery } from '../flag-ops';
 import { resyncComparedInvoice } from '../compare-sync';
+import { invoiceCountsGuarded } from '../flags';
 import { toViews } from '../flag-view';
 import { Box, SupplierRef, pgCode, resolveSupplier } from './orders';
 
@@ -98,7 +99,7 @@ export function deliveriesRouter(deps: AppDeps) {
   });
 
   r.put('/deliveries/:id/counts', requireCan('record_count'), async (req, res) => {
-    const body = z.object({ counts: z.record(z.string(), z.number().int().min(0).max(100000)).default({}) }).safeParse(req.body);
+    const body = z.object({ counts: z.record(z.string(), z.number().int().min(0).max(100000)).default({}), reason: z.string().trim().max(300).optional() }).safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Kiraan tidak sah');
     const id = String(req.params.id);
     if (Object.keys(body.data.counts).length > 500) throw new ApiError(400, 'bad_request', 'Terlalu banyak kiraan');
@@ -108,7 +109,17 @@ export function deliveriesRouter(deps: AppDeps) {
       if (!c) throw new ApiError(404, 'not_found', 'Penghantaran tiada');
       const allowed = new Set([...c.lines.map(l => `line:${l.lineId}`), ...c.po.map(p => p.sku)]);
       if (Object.keys(body.data.counts).some(k => !allowed.has(k))) throw new ApiError(400, 'bad_request', 'Kiraan tidak sah');
-      const merged = { ...defaultDeliveryCounts(c), ...c.saved, ...body.data.counts };
+      const prev = { ...defaultDeliveryCounts(c), ...c.saved };
+      const merged = { ...prev, ...body.data.counts };
+      // a delivery already compared with an invoice that is approved/paid/complained about: changing its counts is an owner-reviewed correction
+      if (c.del.invoiceId && Object.keys(c.saved).length > 0 && Object.keys(merged).some(k => merged[k] !== prev[k])) {
+        const [inv] = await tx.select().from(S.invoices).where(eq(S.invoices.id, c.del.invoiceId));
+        if (inv && await invoiceCountsGuarded(tx, inv)) {
+          if (!can(req.role!, 'mark_correct')) throw new ApiError(403, 'owner_review_required', 'Kiraan semula selepas lulus/aduan perlu semakan pemilik');
+          if (!body.data.reason) throw new ApiError(422, 'reason_required', 'Sebab pembetulan diperlukan');
+          await logEvent(tx, req.role!, 'count.corrected', id, { reason: body.data.reason, changes: Object.keys(merged).filter(k => merged[k] !== prev[k]).map(k => ({ key: k, from: prev[k] ?? null, to: merged[k] })).slice(0, 50) });
+        }
+      }
       await tx.delete(S.deliveryCounts).where(eq(S.deliveryCounts.deliveryId, id));
       await tx.insert(S.deliveryCounts).values(Object.entries(merged).map(([key, qty]) => ({ deliveryId: id, key, qty, recordedByRole: req.role! })));
       const detected = runDeliveryCheck(c, merged);

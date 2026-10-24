@@ -43,20 +43,25 @@ export function messagesRouter(deps: AppDeps) {
     const reminder = req.query.reminder === '1';
     const [flag] = await db.select().from(S.flags).where(eq(S.flags.id, String(req.params.id)));
     if (!flag) throw new ApiError(404, 'not_found', 'Aduan tiada');
-    if (flag.status !== 'open' && flag.status !== 'disputed') throw new ApiError(409, 'bad_state', 'Aduan ini belum boleh dihantar');
+    // a proposed flag gets a read-only preview of the draft (nothing can be sent or logged until the owner approves it)
+    const preview = flag.status === 'proposed';
+    if (!preview && flag.status !== 'open' && flag.status !== 'disputed') throw new ApiError(409, 'bad_state', 'Aduan ini belum boleh dihantar');
+    if (preview && flag.type === 'price_change' && flag.direction === 'down') throw new ApiError(409, 'no_draft', 'Tiada tuntutan untuk didraf');
     if (flag.supersededBy) throw new ApiError(409, 'superseded', 'Aduan ini sudah dibawa ke invois');
     const p = await parentOf(flag);
     const live = p.siblings.filter(s => !s.supersededBy);
-    const group = reminder
+    const group = preview ? [flag] : reminder
       ? live.filter(s => s.id === flag.id || (flag.sentAt && s.sentAt?.getTime() === flag.sentAt.getTime() && (s.status === 'open' || s.status === 'disputed')))
       : live.filter(s => s.id === flag.id || (s.status === 'open' && !s.sentAt));
+    const asked = typeof req.query.request === 'string' ? req.query.request : undefined;
+    const chosen = asked && (requestsFor(flag) as string[]).includes(asked) ? asked : undefined;
     const pos = (id: string) => p.lines.find(l => l.lineId === id)?.position ?? 0;
     group.sort((a, b) => pos(a.invoiceLineId) - pos(b.invoiceLineId) || ORDER[a.type] - ORDER[b.type]);
     const lines: MessageLine[] = group.map(g => {
       const l = p.lines.find(x => x.lineId === g.invoiceLineId)!;
-      const base = { type: g.type as FlagType, item: l.description, amountSen: g.amountSen, request: (g.request ?? requestsFor(g)[0]) as MessageLine['request'] };
+      const base = { type: g.type as FlagType, item: l.description, amountSen: g.amountSen, request: (g.request ?? (preview && chosen) ?? requestsFor(g)[0]) as MessageLine['request'] };
       if (g.type === 'short_qty') return { ...base, billedQty: l.qty, receivedQty: l.qty - (g.missingQty ?? 0), missingQty: g.missingQty ?? 0 };
-      if (g.type === 'price_change') return { ...base, invoiceUnitSen: g.invoiceUnitSen ?? l.unitPriceSen, agreedUnitSen: g.baselineUnitSen ?? 0, pricedQty: g.pricedQty ?? 0 };
+      if (g.type === 'price_change') return { ...base, invoiceUnitSen: g.invoiceUnitSen ?? l.unitPriceSen, agreedUnitSen: g.baselineUnitSen ?? 0, pricedQty: g.pricedQty ?? 0, baselineSource: (g.baselineSource ?? undefined) as MessageLine['baselineSource'] };
       return { ...base, qty: l.qty };
     });
     const [sup] = await db.select().from(S.suppliers).where(eq(S.suppliers.id, flag.supplierId));
@@ -69,7 +74,7 @@ export function messagesRouter(deps: AppDeps) {
       lang, shopName: (shop?.value as { name?: string } | undefined)?.name ?? 'Kedai', supplierName: sup?.name ?? '', invoiceNo: p.refNo,
       invoiceDate: p.refDate, poNo: p.poNo, lines, evidenceUrl, docKind: flag.stage === 'delivery' ? 'delivery' : 'invoice',
     });
-    res.json({ text, lang, phone: sup?.whatsapp ?? null, link: waLink(text, sup?.whatsapp ?? undefined), flagIds: group.map(g => g.id), evidenceUrl });
+    res.json({ text, lang, preview, phone: sup?.whatsapp ?? null, link: waLink(text, sup?.whatsapp ?? undefined), flagIds: group.map(g => g.id), evidenceUrl });
   });
 
   /** Owner tapped "Open WhatsApp". First tap stamps sentAt (all flags in the message share it); a reminder only logs flag.remind. */

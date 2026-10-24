@@ -77,6 +77,7 @@ export default function Evidence() {
             <dl className="mt-3 divide-y divide-dashed divide-line text-sm">
               {line && <div className="flex justify-between py-2"><dt className="text-ink-2">{t(bon ? 'flag.onBon' : 'flag.billed')}</dt><dd className="num font-semibold">{bon ? line.qty : <>{line.qty} × {formatMoney(line.unitPriceSen, 'MYR')}</>}</dd></div>}
               {d.baseline && <div className="flex justify-between py-2"><dt className="text-ink-2">{t('ev.baseline')} ({t(`flag.src.${d.baseline.source}` as Key)})</dt><dd className="num font-semibold">{formatMoney(d.baseline.unitSen, 'MYR')}</dd></div>}
+              {d.baseline && d.baseline.source !== 'agreed' && <p className="py-2 text-xs text-ink-2">{t('ev.unverified')}</p>}
             </dl>
           </Card>
 

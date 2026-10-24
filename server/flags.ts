@@ -112,12 +112,15 @@ export async function replaceProposedFlags(db: Conn, c: InvoiceContext, detected
   await attachPhotos(db, c);
 }
 
-/** Notes 21: each flag gets the invoice document + the PO document + count-screen photos for that invoice. */
+/** Notes 21: each flag gets the invoice document + the PO document + count-screen photos for that invoice + the linked delivery's bon and photos. */
 export async function attachPhotos(db: Conn, c: Pick<InvoiceContext, 'inv' | 'poRow'>) {
   const flags = await db.select({ id: S.flags.id }).from(S.flags).where(eq(S.flags.invoiceId, c.inv.id));
   if (!flags.length) return;
   const extra = await db.select({ id: S.documents.id }).from(S.documents).where(and(eq(S.documents.invoiceId, c.inv.id), ne(S.documents.kind, 'invoice')));
-  const ids = [c.inv.documentId, c.poRow?.documentId, ...extra.map(e => e.id)].filter((x): x is string => !!x);
+  // the delivery this invoice was compared with: its signed bon, delivery photos and any other uploads back the complaint
+  const [del] = await db.select({ id: S.deliveries.id, documentId: S.deliveries.documentId }).from(S.deliveries).where(eq(S.deliveries.invoiceId, c.inv.id));
+  const delDocs = del ? await db.select({ id: S.documents.id }).from(S.documents).where(eq(S.documents.deliveryId, del.id)) : [];
+  const ids = [c.inv.documentId, c.poRow?.documentId, ...extra.map(e => e.id), del?.documentId, ...delDocs.map(e => e.id)].filter((x): x is string => !!x);
   const unique = [...new Set(ids)];
   if (!unique.length) return;
   await db.insert(S.flagPhotos).values(flags.flatMap(f => unique.map(d => ({ flagId: f.id, documentId: d })))).onConflictDoNothing();
@@ -153,9 +156,17 @@ export async function markStaleFlags(db: Conn, invoiceId: string, detected: Dete
   let stale = 0;
   for (const f of rows) {
     const d = detected.find(x => x.invoiceLineId === f.invoiceLineId && x.type === f.type);
-    const differs = !d || (d.missingQty ?? null) !== (f.missingQty ?? null) || d.amountSen !== f.amountSen;
+    // short_qty / not_ordered amounts follow from the quantities; only a price_change amount is compared directly
+    const differs = !d || (d.missingQty ?? null) !== (f.missingQty ?? null) || (f.type === 'price_change' && d.amountSen !== f.amountSen);
     if (differs) stale++;
     if (differs !== f.needsRecheck) await db.update(S.flags).set({ needsRecheck: differs }).where(eq(S.flags.id, f.id));
   }
   return stale;
+}
+
+/** True when an invoice's counts are already relied on: owner approved, paid, or a live (open/disputed/settled) complaint. */
+export async function invoiceCountsGuarded(db: Conn, inv: { id: string; ownerMarkedCorrect: boolean; payment: string }): Promise<boolean> {
+  if (inv.ownerMarkedCorrect || inv.payment === 'paid') return true;
+  const live = await db.select({ id: S.flags.id }).from(S.flags).where(and(eq(S.flags.invoiceId, inv.id), eq(S.flags.stage, 'invoice'), isNull(S.flags.supersededBy), inArray(S.flags.status, ['open', 'disputed', 'settled']))).limit(1);
+  return live.length > 0;
 }

@@ -52,3 +52,15 @@ describe('WhatsApp link', () => {
   });
   it('no number -> contact picker link', () => expect(waLink('hi')).toBe('https://wa.me/?text=hi'));
 });
+
+describe('price reference wording (audit: history is not agreement)', () => {
+  const line = (source?: 'agreed' | 'po' | 'last_invoice') => ({ type: 'price_change' as const, item: 'Gula 1kg', invoiceUnitSen: 320, agreedUnitSen: 280, pricedQty: 50, amountSen: 2000, request: 'deduct' as const, baselineSource: source });
+  it('agreed or unset keeps the agreed-price wording', () => {
+    for (const src of [undefined, 'agreed' as const]) expect(draftMessage({ ...base, lang: 'ms', lines: [line(src)] })).toContain('harga yang dipersetujui RM2.80/unit');
+  });
+  it('a PO or previous-invoice reference is never called agreed', () => {
+    expect(draftMessage({ ...base, lang: 'ms', lines: [line('last_invoice')] })).toContain('harga invois sebelum ini RM2.80/unit');
+    expect(draftMessage({ ...base, lang: 'en', lines: [line('po')] })).toContain('order (PO) price RM2.80/unit');
+    expect(draftMessage({ ...base, lang: 'en', lines: [line('last_invoice')] })).not.toContain('agreed price');
+  });
+});

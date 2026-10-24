@@ -8,7 +8,7 @@ export interface FlagView {
   id: string; type: 'short_qty' | 'price_change' | 'not_ordered'; status: string; amountSen: number; lineDescription: string; missingQty: number | null;
   direction: string | null; supplierId: string; invoiceId: string; poId: string | null; poNo: string | null; reminderDue: boolean; supplierName: string; invoiceNo: string;
   createdAt: number; sentAt: number | null; openedAt: number | null; settledAt: number | null; request: string | null; settlement: string | null;
-  needsRecheck?: boolean; note?: string | null; stage?: 'invoice' | 'delivery'; deliveryId?: string | null; supersededBy?: string | null;
+  needsRecheck?: boolean; baselineSource?: string | null; baselineUnitSen?: number | null; note?: string | null; stage?: 'invoice' | 'delivery'; deliveryId?: string | null; supersededBy?: string | null;
 }
 export const statusTone = { proposed: 'neutral', open: 'brand', disputed: 'dispute', settled: 'ok', dismissed: 'neutral' } as const;
 
