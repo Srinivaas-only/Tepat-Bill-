@@ -2,7 +2,7 @@
 
 > SDC Hackathon 2026 · Domain 2 · Orbyte Smart SME Challenge. **Gemini is the only AI provider.** Built with Replit Agent, then polished with Claude Code via GitHub.
 > Full product detail: `docs/PRD.md`. How to build it: `docs/BUILD_PROMPT.md`. Agent rules: `replit.md`.
-> Verified 2026-10-22: live fact-check, red-team (all 35 stories, 11 slides), empirical build. `shared/core` has **130 passing tests** (updated after the independent core audit), and package versions were checked against npm.
+> Verified 2026-10-22: live fact-check, red-team (all 35 stories, 11 slides), empirical build. `src/shared/core` has **130 passing tests** (updated after the independent core audit), and package versions were checked against npm.
 
 ## Architecture in one sentence
 
@@ -31,9 +31,9 @@ A mobile-first React + Express app built and hosted on Replit. Managers photogra
 | **Vercel AI SDK 7** (`ai` + `@ai-sdk/google`), `generateText` + `Output.object` | Typed, validated extraction; tested offline with `MockLanguageModelV4`. |
 | **`gemini-3.8-flash`** (thinking `low`, media resolution high) → **`gemini-3.5-flash-lite`** on 429/5xx → manual entry | Gemini-only resilience; `maxRetries: 0` so fallback is instant. |
 | **Own `GEMINI_API_KEY`** (Replit Secret); billing attached for demo day | Not Replit's AI proxy (reported unreliable for structured output); about RM0.03 per read, and billed-tier data isn't used for training. |
-| **Flat Zod `ExtractedDoc` + `EXTRACTION_PROMPT`** (`shared/core/extract.ts`) | BM/EN/Chinese, handwritten or printed; prices as strings → integer sen; boxes per line. |
+| **Flat Zod `ExtractedDoc` + `EXTRACTION_PROMPT`** (`src/shared/core/extract.ts`) | BM/EN/Chinese, handwritten or printed; prices as strings → integer sen; boxes per line. |
 | **SHA-256 read cache + pre-read fixtures + manual entry** | Demo can't die: live → cache → fixture → manual. |
-| **`shared/core`: pure rules, ledger, roles, messages, evidence, e-invoice stub** | The AI never does arithmetic; every RM figure is reproducible and tested (130 tests, property-based). |
+| **`src/shared/core`: pure rules, ledger, roles, messages, evidence, e-invoice stub** | The AI never does arithmetic; every RM figure is reproducible and tested (130 tests, property-based). |
 | **`wa.me` deep link** | Owner taps send; nothing is auto-sent. |
 
 ## 3. Database & Auth (Replit-native)
@@ -69,7 +69,7 @@ Avoided: `vaul` (unmaintained since 2024; shadcn bottom `Sheet` instead) and `br
 3. Integer sen everywhere; `parseRM` for AI strings; no floats.
 4. `box_2d` is `[ymin, xmin, ymax, xmax]` on a 0–1000 scale; use it as `/10` percent coordinates.
 5. Free Gemini key → synthetic documents only.
-6. `shared/core` is read-only for the Agent; tests must stay green.
+6. `src/shared/core` is read-only for the Agent; tests must stay green.
 
 ## Decisions (deck vs spec), all final
 See PRD section 15.

@@ -3,12 +3,12 @@ import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { sql } from 'drizzle-orm';
-import { ALL_TABLES } from '../shared/schema';
-import { makeDb } from './db';
-import { memoryStorage } from './storage';
-import { createApp, mountErrorHandlers } from './app';
-import { seedDatabase } from './seed';
-import { parseRM } from '../shared/core';
+import { ALL_TABLES } from '../../src/shared/schema';
+import { makeDb } from '../../src/server/db';
+import { memoryStorage } from '../../src/server/storage';
+import { createApp, mountErrorHandlers } from '../../src/server/app';
+import { seedDatabase } from '../../src/server/seed';
+import { parseRM } from '../../src/shared/core';
 
 const owner = process.env.OWNER_PIN ?? '1234';
 const staff = process.env.STAFF_PIN ?? '5678';

@@ -5,7 +5,7 @@
     "jsx": "react-jsx", "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node", "vite/client"], "resolveJsonModule": true,
     "baseUrl": ".",
-    "paths": { "@/*": ["client/src/*"], "@shared/*": ["shared/*"] }
+    "paths": { "@/*": ["src/client/src/*"], "@shared/*": ["src/shared/*"] }
   },
-  "include": ["client/src", "server", "shared"]
+  "include": ["src", "tests"]
 }

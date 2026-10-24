@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MockLanguageModelV4 } from 'ai/test';
 import { APICallError } from 'ai';
-import { extractWithFallback, makeGemini, linesToSen, cacheKey } from './extract';
+import { extractWithFallback, makeGemini, linesToSen, cacheKey } from '../../src/shared/core/extract';
 
 const canned = { docType: 'invoice', supplierName: 'Syarikat Ali', docNo: 'INV-1', currency: 'MYR', lines: [{ description: 'Beras 10kg', qty: 10, unitPrice: '45.00', box_2d: [100, 50, 140, 900] }] };
 const ok = (doc: unknown = canned) => new MockLanguageModelV4({ doGenerate: async () => ({
@@ -51,7 +51,7 @@ describe('extractWithFallback (offline)', () => {
   });
   it('wire schema has no tuple `items: [...]` (Gemini rejects it) and boxes are rounded/clamped', async () => {
     const { z } = await import('zod');
-    const { ExtractedDoc } = await import('./extract');
+    const { ExtractedDoc } = await import('../../src/shared/core/extract');
     const json = JSON.stringify(z.toJSONSchema(ExtractedDoc, { target: 'draft-7', io: 'input' }));
     expect(json).not.toContain('"items":[');
     expect(json).not.toContain('prefixItems');

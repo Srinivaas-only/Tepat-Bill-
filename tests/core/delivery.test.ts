@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { checkDelivery, receivedFromDelivery, readyToPay, claimableSen, fulfilment } from './delivery';
-import { detectFlags, type PoLine } from './rules';
+import { checkDelivery, receivedFromDelivery, readyToPay, claimableSen, fulfilment } from '../../src/shared/core/delivery';
+import { detectFlags, type PoLine } from '../../src/shared/core/rules';
 
 const po: PoLine[] = [{ sku: 'maggi', description: 'Maggi kari', orderedQty: 10 }, { sku: 'gula', description: 'Gula pasir 1kg', orderedQty: 50 }];
 const doLines = [{ lineId: 'L1', description: "MAGGI KARI 5'S (CTN 8 PEK)", qty: 10 }, { lineId: 'L2', description: 'GULA PASIR 1KG', qty: 50 }];

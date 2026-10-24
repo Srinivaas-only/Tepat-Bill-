@@ -1,9 +1,9 @@
 // Regression tests for the independent core audit (Round 5+). Each block pins one real defect found with a concrete input.
 import { describe, it, expect } from 'vitest';
 import { detectFlags, matchLine, normalise, sameSize, autofillPriceList, baseline, acceptPrice, looksForeign, supplierOverlap, rankPoCandidates,
-  type PoLine } from './rules';
-import { receivedFromDelivery } from './delivery';
-import { draftMessage, toMsisdn, type MessageInput } from './messages';
+  type PoLine } from '../../src/shared/core/rules';
+import { receivedFromDelivery } from '../../src/shared/core/delivery';
+import { draftMessage, toMsisdn, type MessageInput } from '../../src/shared/core/messages';
 
 const line = (description: string, lineId = 'L1', qty = 1) => ({ lineId, description, qty, unitPriceSen: 100 });
 

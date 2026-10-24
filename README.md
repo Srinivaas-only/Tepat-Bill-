@@ -170,23 +170,28 @@ Then: approve → message → WhatsApp → evidence link (logged out) → *Seles
 
 ```
 .
-├── client/src/              # React app: pages, components, i18n (BM/EN), lib
-├── server/
-│   ├── routes/              # Express routes: documents, counts, flags, money, evidence, extras…
-│   ├── index.ts             # Application entry point
-│   ├── seed.ts              # Demo data + cached sample reads
-│   ├── storage.ts           # Replit App Storage with local-disk fallback
-│   ├── accounting.ts        # Labelled Orbyte / accounting simulation
-│   └── schema-upgrade.ts    # Additive schema upgrades applied at every boot
-├── shared/
-│   ├── core/                # Pure, tested business logic: rules, ledger, delivery, messages, evidence, roles
-│   └── schema.ts            # Drizzle tables
+├── docs/                    # PRD, decisions log, checklists, README screenshots (docs/readme)
+├── runpod/
+│   └── README.md            # RunPod is not used (AI is the hosted Gemini API)
+├── src/
+│   ├── client/              # React app: pages, components, i18n (BM/EN)
+│   ├── server/              # Express API: routes/, seed, storage, accounting simulation, boot-time schema upgrade
+│   └── shared/
+│       ├── core/            # Pure, tested business logic: rules, ledger, delivery, messages, evidence, roles
+│       └── schema.ts        # Drizzle tables
+├── submission/              # Required submission documents
+│   ├── SDC2026_AltWinR_Replit_POU.pdf        # Replit proof of use
+│   └── README.md            # Which submission files are added / still to come
+├── tests/
+│   ├── core/                # Rules, ledger (property-based), delivery, messages, Gemini fallback, fixtures
+│   └── server/              # API, end-to-end scenarios, accounting, MyInvois, schema upgrade
 ├── fixtures/                # Synthetic demo documents, expected reads, seed data, generator
-├── docs/                    # PRD, decisions log, checklists, README screenshots
-├── Submission/              # Submission documents (Replit proof of use)
+├── .env.example             # Example environment variables (no secrets)
+├── .gitignore
 ├── .replit                  # Replit run and deployment configuration
 ├── HANDOFF.md               # Current state and how to verify it
 ├── LICENSE
+├── package.json             # Node dependencies and scripts (this project is TypeScript, so no requirements.txt)
 └── README.md
 ```
 
@@ -199,7 +204,7 @@ flowchart LR
   B -->|server-side only| D[Google Gemini<br/>via Vercel AI SDK<br/>Zod-validated fields]
   D --> E[Owner / Manager confirm<br/>fields and counts]
   E --> F[(PostgreSQL<br/>Drizzle ORM)]
-  F --> G[shared/core<br/>pure TypeScript rules<br/>integer sen]
+  F --> G[src/shared/core<br/>pure TypeScript rules<br/>integer sen]
   G --> H{Owner approves}
   H --> I[WhatsApp draft<br/>+ evidence link]
   H --> J[Ledger, CSV,<br/>activity log]
@@ -271,7 +276,7 @@ Covered: the rules engine and ledger (including property-based invariants), deli
 - **Storage:** Uploaded documents are stored in Replit App Storage (with a local-disk fallback in the code).
 - **Secrets:** The Gemini key, PINs and session secret live in Replit Secrets, never in the code.
 
-📄 Proof of use: [`Submission/Proof of Use (Replit).pdf`](<Submission/Proof of Use (Replit).pdf>)
+📄 Proof of use: [`submission/SDC2026_AltWinR_Replit_POU.pdf`](submission/SDC2026_AltWinR_Replit_POU.pdf)
 
 ## How We Use RunPod *(Required)*
 
@@ -314,11 +319,11 @@ Covered: the rules engine and ledger (including property-based invariants), deli
 - [x] Team name, domain (Domain 2) and SDG track filled in
 - [ ] Slide deck link added
 - [ ] Demo video link added
-- [x] Replit used, with proof of use in `Submission/`
-- [ ] RunPod used, with proof of use in `submission/` *(not used; see above)*
-- [ ] Preliminary submission completed (`SDC2026_TeamName_Preliminary.pdf`)
-- [ ] Technology declaration completed (`SDC2026_TeamName_TechDeclaration.pdf`)
-- [ ] Submission files renamed with your team name (replace `TeamName`)
+- [x] Replit used, with proof of use in `submission/`
+- [ ] RunPod used, with proof of use in `submission/` *(not used; see `runpod/README.md`)*
+- [ ] Preliminary submission completed (`submission/SDC2026_AltWinR_Preliminary.pdf`)
+- [ ] Technology declaration completed (`submission/SDC2026_AltWinR_TechDeclaration.pdf`)
+- [ ] Submission files named with the team name (`AltWinR`) *(Replit proof of use done; add the other two when final)*
 - [x] "How to Run" steps verified
 - [x] No API keys or secrets committed to the repository *(only documented demo PINs)*
 

@@ -3,6 +3,8 @@
 > Written 2026-10-24. `main` = latest commit (see `git log`). The previous handoff (stale, written at `baf6bc1`) is archived at `docs/HANDOFF_ARCHIVE_2026-10-23.md`; use it only for product background (§2 there) and history.
 > Team **Alt+Win+R**. Repo `Srinivaas-only/Tepat-Bill-`, branch `main` (pushing to `main` is allowed). Session dev branch may be `claude/*`; always push to `main` too.
 
+> **Folder layout changed on 24 Oct 2026** to match the SDC submission template: `client/`, `server/`, `shared/` now live under `src/` (`src/client`, `src/server`, `src/shared`), tests moved to `tests/core` and `tests/server`, `Submission/` is now `submission/`, and `runpod/` + `.env.example` were added. Older docs (PRD, decisions log, fix prompts) still use the old paths.
+
 ## 1. Where we are (one paragraph)
 Backend logic is **closed and verified** (Replit rounds 4–6 plus Claude review rounds; 202 tests, four demo scenarios, exact money). The UI has been rebuilt twice by Claude (Revolut-style Home, then a full **obsidian dark** theme) and polished (nav, intro, unified headers, animations). What is left is mostly **non-code**: deploying for friends, the hackathon submission, and optional polish. Replit credits are nearly exhausted, so **Claude does all work**; Replit is only used as the host.
 
@@ -12,19 +14,19 @@ Backend logic is **closed and verified** (Replit rounds 4–6 plus Claude review
 ## 3. Rules from the user (follow them)
 - Direct, no fluff. **Make decisions for me.** Use agents to cross-verify only when it adds value.
 - Hates loops and wasted Replit credits. Dislikes AI-slop/generic UI; wants a premium, "out of this world" but tasteful feel (reference: Mobbin MCP, Revolut, Linear, Vercel, Raycast, WHOOP).
-- `shared/core/*` and `fixtures/*` are Claude-owned golden logic: change only with tests green.
+- `src/shared/core/*` and `fixtures/*` are Claude-owned golden logic: change only with tests green.
 - **Do not merge, comment on or close PR #1** (teammate's "Tetapbill isaac") without the user's say-so.
 - Never create PRs unless asked. Commit messages end with the attribution lines from the session reminder.
 - User convention: when a block of work is done they like a plain "PORK!" style close-out; keep reports short and honest (say what was NOT verified).
 - Mid-demo/outdoor use: contrast floor matters (text ≥ 4.5:1).
 
 ## 4. Current behaviour (new this session)
-- **PIN screen on EVERY page load/reload** (`client/src/lib/auth.tsx` logs out on mount). `/e/:token` is exempt.
+- **PIN screen on EVERY page load/reload** (`src/client/src/lib/auth.tsx` logs out on mount). `/e/:token` is exempt.
 - After each login a **4-step skippable intro** plays (`components/intro.tsx`, state in `lib/intro.ts`; replay from Lagi → "Panduan ringkas"). Skip button = "Langkau" top-right, Esc also closes.
 - Home headline numbers count up once the intro closes.
 
-## 5. Design system (client/src/index.css is the source of truth)
-- Tailwind v4 (`@theme inline`, `@utility`, no tailwind.config). Fonts: **Geist + Geist Mono self-hosted** (`@fontsource-variable/*`, CSP `font-src 'self'` in `server/index.ts`); Kalam still from Google (handwritten counts). After `git pull` on a machine, **run `npm install`** (fonts are new deps).
+## 5. Design system (src/client/src/index.css is the source of truth)
+- Tailwind v4 (`@theme inline`, `@utility`, no tailwind.config). Fonts: **Geist + Geist Mono self-hosted** (`@fontsource-variable/*`, CSP `font-src 'self'` in `src/server/index.ts`); Kalam still from Google (handwritten counts). After `git pull` on a machine, **run `npm install`** (fonts are new deps).
 - Tokens: `--bg #09090B`, `--surface #121215`, `--surface-2 #18181B`, `--surface-3 #1F1F23`, `--sheet #1C1C1F`, `--ink #FAFAFA`, `--ink-2 #A1A1AA` (floor for text), `--ink-3 #8B8B94` (icons only), `--line` white/10, brand FILL `#2457D6`, brand TEXT `--brand-text #93B4FF` (use `text-brand-text`, never `text-brand` for text), status colours are light text values on 14% tints (`--short`, `--price`, `--notord`, `--ok`, `--dispute`).
 - `.paper` wrapper = the ONLY light surface (evidence page). It redefines the tokens.
 - Radii: chip 8 / input 12 / card 16 / sheet+nav 24; **all Buttons are pills**.
@@ -46,7 +48,7 @@ su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/tmp/tb-pgdata -o '-p 5
 export DATABASE_URL="postgresql://postgres@localhost/tepat?host=/var/tmp&port=5433"
 npm ci   # (or npm install)
 npm run typecheck && npm test        # 202 tests need DATABASE_URL; without it 56 are skipped
-npm run build                        # from the REPO ROOT (building from client/ once produced a wrong dist)
+npm run build                        # from the REPO ROOT (building from src/client/ once produced a wrong dist)
 NODE_ENV=production STORAGE_DRIVER=disk DEMO_FIXTURES=1 SEED_ON_BOOT=1 OWNER_PIN=1234 STAFF_PIN=5678 \
  SESSION_SECRET=0123456789abcdef0123456789abcdef PORT=5077 sh -c "npm run db:push; node dist/index.js"
 # health: http://localhost:5077/api/health  → ok, db, seeded all true (gemini false without a key)

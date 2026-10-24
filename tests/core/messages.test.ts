@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { draftMessage, waLink, toMsisdn, type MessageInput } from './messages';
+import { draftMessage, waLink, toMsisdn, type MessageInput } from '../../src/shared/core/messages';
 
 const base: MessageInput = {
   lang: 'ms', shopName: 'Kedai Runcit Maju', supplierName: 'Borong Ali', invoiceNo: 'INV-2291', invoiceDate: '20/10/2026',

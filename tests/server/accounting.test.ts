@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { connectorFromEnv, signBody, simulatedConnector, webhookConnector, type AccountingPayload } from './accounting';
+import { connectorFromEnv, signBody, simulatedConnector, webhookConnector, type AccountingPayload } from '../../src/server/accounting';
 
 const payload: AccountingPayload = { schema: 'tepat-bill.accounting.v0-draft', generatedAt: '2026-10-24T00:00:00.000Z', currency: 'MYR', suppliers: [] };
 

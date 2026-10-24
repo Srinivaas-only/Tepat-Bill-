@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createHash } from 'node:crypto';
-import { prepareSelfBilled, toMyInvoisUbl } from '../shared/core';
-import { myInvoisConfigured, packDocument, submitToMyInvois } from './myinvois';
+import { prepareSelfBilled, toMyInvoisUbl } from '../../src/shared/core';
+import { myInvoisConfigured, packDocument, submitToMyInvois } from '../../src/server/myinvois';
 
 const draft = prepareSelfBilled({ id: 'S', name: 'Guangzhou Hengda Snacks', isForeign: true, country: 'CN' },
   { id: 'I', invoiceNo: 'GZ-2026-088', issuedAt: 0, currency: 'USD', exchangeRateToMYR: 4.2, lines: [{ description: 'Roasted Seaweed Snack', qty: 20, unitPriceSen: 550 }, { description: 'Dried Shiitake', qty: 10, unitPriceSen: 1200 }] },

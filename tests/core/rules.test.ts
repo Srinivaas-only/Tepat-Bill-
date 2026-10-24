@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { detectFlags, formatRM, parseRM, autofillPriceList, setAgreedPrice, learnAlias, matchLine,
-  poNumber, rankPoCandidates, looksForeign, type LineCheckInput, type PriceList } from './rules';
+  poNumber, rankPoCandidates, looksForeign, type LineCheckInput, type PriceList } from '../../src/shared/core/rules';
 
 const base = (o: Partial<LineCheckInput> = {}): LineCheckInput => ({
   supplierId: 'S1',

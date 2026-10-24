@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { makeDb } from './db';
-import { upgradeSchema } from './schema-upgrade';
+import { makeDb } from '../../src/server/db';
+import { upgradeSchema } from '../../src/server/schema-upgrade';
 
 const SCHEMA = 'test_upg';
 describe.skipIf(!process.env.DATABASE_URL)('boot schema upgrade (a redeploy without db:push)', () => {

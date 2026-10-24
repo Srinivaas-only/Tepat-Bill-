@@ -3,14 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "TZ=Asia/Kuala_Lumpur tsx server/index.ts",
-    "build": "vite build && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outdir=dist",
+    "dev": "TZ=Asia/Kuala_Lumpur tsx src/server/index.ts",
+    "build": "vite build && esbuild src/server/index.ts --bundle --platform=node --format=esm --packages=external --outdir=dist",
     "start": "TZ=Asia/Kuala_Lumpur NODE_ENV=production node dist/index.js",
     "db:push": "drizzle-kit push --force",
-    "seed": "TZ=Asia/Kuala_Lumpur tsx server/seed.ts",
+    "seed": "TZ=Asia/Kuala_Lumpur tsx src/server/seed.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "typecheck:core": "tsc -p shared/core/tsconfig.json"
+    "typecheck:core": "tsc -p src/shared/core/tsconfig.json"
   },
   "dependencies": {
     "@ai-sdk/google": "4.0.103",

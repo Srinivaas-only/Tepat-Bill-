@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { supplierLedger, transition, needsReminder, markSent, orderState, canMarkCorrect, monthSummary, last30Days, type Flag, type Invoice } from './ledger';
-import { can, ACTIONS } from './roles';
-import { prepareSelfBilled, approveDraft, releaseDraft, validateSelfBilled, type DraftStatus } from './einvoice';
-import { buildEvidence, type Db } from './evidence';
+import { supplierLedger, transition, needsReminder, markSent, orderState, canMarkCorrect, monthSummary, last30Days, type Flag, type Invoice } from '../../src/shared/core/ledger';
+import { can, ACTIONS } from '../../src/shared/core/roles';
+import { prepareSelfBilled, approveDraft, releaseDraft, validateSelfBilled, type DraftStatus } from '../../src/shared/core/einvoice';
+import { buildEvidence, type Db } from '../../src/shared/core/evidence';
 
 const DAY = 86_400_000;
 const inv = (id: string, totalSen: number, issuedDay: number, payment: Invoice['payment'] = 'on_credit', paidDay?: number): Invoice =>

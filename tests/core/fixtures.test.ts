@@ -2,10 +2,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ExtractedDoc, linesToSen } from './extract';
-import { detectFlags, normalise, type PoLine, type PriceList } from './rules';
-import { supplierLedger, transition, needsReminder, type Flag, type Invoice } from './ledger';
-import { checkDelivery, receivedFromDelivery, readyToPay, claimableSen } from './delivery';
+import { ExtractedDoc, linesToSen } from '../../src/shared/core/extract';
+import { detectFlags, normalise, type PoLine, type PriceList } from '../../src/shared/core/rules';
+import { supplierLedger, transition, needsReminder, type Flag, type Invoice } from '../../src/shared/core/ledger';
+import { checkDelivery, receivedFromDelivery, readyToPay, claimableSen } from '../../src/shared/core/delivery';
 
 const FX = join(__dirname, '..', '..', 'fixtures');
 const seed = JSON.parse(readFileSync(join(FX, 'seed.json'), 'utf8'));
