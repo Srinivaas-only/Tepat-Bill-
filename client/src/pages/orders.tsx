@@ -14,10 +14,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface PoRow { id: string; poNo: string; supplierName: string; orderedAt: number; lineCount: number }
 interface InvRow { id: string; invoiceNo: string; supplierName: string; totalSen: number; issuedAt: number; payment: string; state: string }
-interface DelRow { id: string; doNo: string; supplierName: string; receivedAt: number; state: 'issue' | 'billed' | 'correct' | 'waiting' }
+interface DelRow { id: string; doNo: string; supplierName: string; receivedAt: number; state: 'issue' | 'billed' | 'correct' | 'confirm' | 'waiting' }
 type Tab = 'po' | 'invoice' | 'delivery';
 const stateTone = { recorded: 'neutral', has_flags: 'short', correct: 'ok' } as const;
-const delTone = { issue: 'short', correct: 'ok', waiting: 'neutral', billed: 'neutral' } as const;
+const delTone = { issue: 'short', correct: 'ok', confirm: 'brand', waiting: 'neutral', billed: 'neutral' } as const;
 const row = 'flex min-h-[64px] items-center justify-between gap-3 border-t border-line px-4 py-3 first:border-t-0';
 
 export default function Orders() {

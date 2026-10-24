@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { and, desc, eq, gte, inArray, isNull } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import * as S from '../../shared/schema';
-import { can, canMarkCorrect, claimableSen, matchLine } from '../../shared/core';
+import { can, canMarkCorrect, claimableSen, fulfilment, matchLine } from '../../shared/core';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
@@ -14,16 +14,13 @@ import { attachDeliveryPhotos, defaultDeliveryCounts, loadDeliveryContext, repla
 import { lockDelivery } from '../flag-ops';
 import { resyncComparedInvoice } from '../compare-sync';
 import { invoiceCountsGuarded } from '../flags';
+import { stateOf } from '../delivery-state';
 import { toViews } from '../flag-view';
 import { Box, SupplierRef, pgCode, resolveSupplier } from './orders';
 
 const DAY = 86_400_000;
 type FlagRow = typeof S.flags.$inferSelect;
 const LIVE = ['proposed', 'open', 'disputed'];
-/** issue = unresolved delivery flags; correct = confirmed, or nothing wrong and the invoice already matched; else waiting for the invoice. */
-const stateOf = (d: { ownerMarkedCorrect: boolean; invoiceId: string | null }, flags: FlagRow[]) =>
-  flags.some(f => LIVE.includes(f.status) && !f.supersededBy) ? 'issue' : flags.some(f => f.supersededBy) ? 'billed' : d.ownerMarkedCorrect || d.invoiceId ? 'correct' : 'waiting';
-
 export function deliveriesRouter(deps: AppDeps) {
   const r = Router();
   const { db } = deps;
@@ -88,7 +85,18 @@ export function deliveriesRouter(deps: AppDeps) {
     const [doc] = c.del.documentId ? await db.select().from(S.documents).where(eq(S.documents.id, c.del.documentId)) : [];
     const counts = { ...defaultDeliveryCounts(c), ...c.saved };
     const flags = await toViews(db, flagRows);
+    // the delivery against the COMPLETE order: every delivery recorded on this PO + what its invoices billed
+    let full: ReturnType<typeof fulfilment> | null = null;
+    if (c.del.poId && !c.implicitPo) {
+      const sibs = await db.select({ id: S.deliveries.id }).from(S.deliveries).where(eq(S.deliveries.poId, c.del.poId));
+      const ctxs = (await Promise.all(sibs.map(x => x.id === c.del.id ? c : loadDeliveryContext(db, x.id)))).filter((x): x is NonNullable<typeof x> => !!x);
+      const invs = await db.select({ id: S.invoices.id }).from(S.invoices).where(eq(S.invoices.poId, c.del.poId));
+      const billed = invs.length ? await db.select({ description: S.invoiceLines.description, qty: S.invoiceLines.qty }).from(S.invoiceLines).where(inArray(S.invoiceLines.invoiceId, invs.map(i => i.id))) : [];
+      full = fulfilment({ supplierId: c.del.supplierId, po: c.po, aliases: c.aliases, invoiceLines: billed,
+        deliveries: ctxs.map(x => ({ lines: x.delLines, received: { ...defaultDeliveryCounts(x), ...x.saved } })) });
+    }
     res.json({
+      fulfilment: full,
       delivery: { id: c.del.id, doNo: c.del.doNo, docDate: c.del.docDate, receivedAt: c.del.receivedAt.getTime(), supplierId: c.del.supplierId, supplierName: sup?.name ?? '', poId: c.del.poId, poNo: c.poRow?.poNo ?? null,
         invoiceId: c.del.invoiceId, ownerMarkedCorrect: c.del.ownerMarkedCorrect, state: stateOf(c.del, flagRows), documentId: c.del.documentId, hasCounts: Object.keys(c.saved).length > 0,
         doc: doc ? { id: doc.id, width: doc.width, height: doc.height } : null },

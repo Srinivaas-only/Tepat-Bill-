@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkDelivery, receivedFromDelivery, readyToPay, claimableSen } from './delivery';
+import { checkDelivery, receivedFromDelivery, readyToPay, claimableSen, fulfilment } from './delivery';
 import { detectFlags, type PoLine } from './rules';
 
 const po: PoLine[] = [{ sku: 'maggi', description: 'Maggi kari', orderedQty: 10 }, { sku: 'gula', description: 'Gula pasir 1kg', orderedQty: 50 }];
@@ -47,5 +47,26 @@ describe('receivedFromDelivery (invoice compared against what arrived)', () => {
     expect(readyToPay([])).toBe(true);
     expect(readyToPay([{ type: 'price_change', direction: 'down', amountSen: 0 }])).toBe(true);
     expect(readyToPay([{ type: 'short_qty', amountSen: 100 }])).toBe(false);
+  });
+});
+
+describe('fulfilment against the complete order (audit: PO 10 / DO 8 / counted 8)', () => {
+  const po: PoLine[] = [{ sku: 'maggi', description: 'Maggi Kari 5s', orderedQty: 10 }, { sku: 'gula', description: 'Gula Pasir 1kg', orderedQty: 50 }, { sku: 'teh', description: 'Teh Cap Bunga 500g', orderedQty: 6 }];
+  const base = { supplierId: 'S', po, aliases: {} };
+  it('shows a partial delivery with the outstanding quantity, and order lines no delivery mentions', () => {
+    const r = fulfilment({ ...base, deliveries: [{ lines: [{ lineId: 'L1', description: 'Maggi Kari 5s', qty: 8 }, { lineId: 'L2', description: 'Gula Pasir 1kg', qty: 50 }], received: {} }] });
+    expect(r.find(x => x.sku === 'maggi')).toMatchObject({ ordered: 10, delivered: 8, received: 8, outstanding: 2, status: 'partial', billedNotReceived: 0 });
+    expect(r.find(x => x.sku === 'gula')).toMatchObject({ outstanding: 0, status: 'complete' });
+    expect(r.find(x => x.sku === 'teh')).toMatchObject({ delivered: 0, received: 0, outstanding: 6, status: 'not_delivered' });
+  });
+  it('keeps goods billed but not received separate from a legitimate partial delivery', () => {
+    const r = fulfilment({ ...base, deliveries: [{ lines: [{ lineId: 'L1', description: 'Maggi Kari 5s', qty: 8 }], received: {} }], invoiceLines: [{ description: 'Maggi Kari 5s', qty: 10 }] });
+    expect(r.find(x => x.sku === 'maggi')).toMatchObject({ billed: 10, received: 8, billedNotReceived: 2, outstanding: 2 });
+  });
+  it('uses the staff count, sums several deliveries, and never goes negative', () => {
+    const r = fulfilment({ ...base, deliveries: [
+      { lines: [{ lineId: 'L1', description: 'Maggi Kari 5s', qty: 8 }], received: { 'line:L1': 6 } },
+      { lines: [{ lineId: 'L1', description: 'Maggi Kari 5s', qty: 6 }], received: {} }] });
+    expect(r.find(x => x.sku === 'maggi')).toMatchObject({ delivered: 14, received: 12, outstanding: 0, status: 'over' });
   });
 });

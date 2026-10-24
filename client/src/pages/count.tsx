@@ -5,7 +5,7 @@ import { Minus, Plus, Camera, Check, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { can } from '@shared/core';
+import { can, type FulfilmentRow } from '@shared/core';
 import { BackButton, ErrorState, SectionLabel } from '@/components/page';
 import { Stamp } from '@/components/stamp';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -29,7 +29,7 @@ interface RawDetail {
 }
 
 interface Detail {
-  ref: string; supplierName: string; poNo: string | null;
+  fulfilment?: FulfilmentRow[] | null; delState?: string; ref: string; supplierName: string; poNo: string | null;
   lines: { lineId: string; description: string; qty: number; unit: string | null }[];
   poOnly: { sku: string; description: string; orderedQty: number }[];
   counts: Record<string, number>; sources: Record<string, string>;
@@ -37,9 +37,10 @@ interface Detail {
   flags: FlagView[];
 }
 interface RawDelivery {
-  delivery: { id: string; doNo: string; supplierName: string; poNo: string | null };
+  delivery: { id: string; doNo: string; supplierName: string; poNo: string | null; state?: string };
   lines: { lineId: string; description: string; qty: number; unit: string | null; receivedQty: number }[];
   flags: FlagView[]; photos: { id: string; photoKind: string | null; kind: string }[];
+  fulfilment?: FulfilmentRow[] | null;
 }
 
 function Stepper({ value, onChange, max = 100000, decLabel, incLabel, hand, label }: { label: string; hand?: boolean; value: number; onChange: (n: number) => void; max?: number; decLabel: string; incLabel: string }) {
@@ -79,7 +80,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
     queryFn: async (): Promise<Detail> => {
       if (isDel) {
         const r = await api.get<RawDelivery>(base);
-        return { ref: r.delivery.doNo, supplierName: r.delivery.supplierName, poNo: r.delivery.poNo, lines: r.lines, poOnly: [], flags: r.flags, photos: r.photos,
+        return { fulfilment: r.fulfilment, delState: r.delivery.state, ref: r.delivery.doNo, supplierName: r.delivery.supplierName, poNo: r.delivery.poNo, lines: r.lines, poOnly: [], flags: r.flags, photos: r.photos,
           counts: Object.fromEntries(r.lines.map(l => [`line:${l.lineId}`, l.receivedQty])), sources: {} };
       }
       const r = await api.get<RawDetail>(base);
@@ -173,6 +174,27 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
               </div>
             ))}
           </div>
+
+          {isDel && d.fulfilment && d.fulfilment.length > 0 && (
+            <div className="overflow-hidden rounded-card bg-surface shadow-card">
+              <p className="border-b border-line px-5 py-2 eyebrow">{t('fulfil.title')}</p>
+              {d.fulfilment.map(r => (
+                <div key={r.sku} className="flex items-start justify-between gap-3 border-t border-line px-5 py-3 first:border-t-0">
+                  <div className="min-w-0"><p className="font-medium leading-5">{r.description}</p>
+                    <p className="num text-xs text-ink-2">{t('fulfil.row', { o: r.ordered, d: r.delivered, r: r.received })}{r.billed > 0 ? ` · ${t('fulfil.billed', { n: r.billed })}` : ''}</p>
+                    {r.billedNotReceived > 0 && <p className="text-xs text-short">{t('fulfil.billedNotReceived', { n: r.billedNotReceived })}</p>}</div>
+                  <Badge tone={r.status === 'complete' ? 'ok' : r.status === 'over' ? 'dispute' : 'short'} className="num shrink-0">{r.status === 'complete' ? t('fulfil.complete') : r.status === 'over' ? t('fulfil.over') : r.status === 'partial' ? t('fulfil.partial', { n: r.outstanding }) : t('fulfil.notDelivered', { n: r.outstanding })}</Badge>
+                </div>))}
+            </div>
+          )}
+
+          {isDel && d.delState === 'confirm' && role && can(role, 'mark_correct') && (
+            <div className="rounded-card bg-surface p-4 shadow-card space-y-2">
+              <p className="font-semibold">{t('delivery.confirmCardTitle')}</p>
+              <p className="text-sm text-ink-2">{t('delivery.confirmCardBody')}</p>
+              <Button block disabled={markCorrect.isPending} onClick={() => markCorrect.mutate()}>{t('delivery.confirm')}</Button>
+            </div>
+          )}
 
           <section className="pt-2">
             <SectionLabel>{t('count.photos')}</SectionLabel>

@@ -20,10 +20,10 @@ interface Home {
   summary: { flaggedSen: number; settledSen: number; openSen: number };
   needsActionCount: number; needsAction: FlagView[]; followUpCount: number; followUps: FlagView[];
   credits: { id: string; name: string; creditSen: number }[]; recent: { id: number; at: number; role: string; action: string; ref: string | null }[];
-  deliveries: { id: string; doNo: string; supplierName: string; receivedAt: number; invoiceId: string | null; state: 'issue' | 'billed' | 'correct' | 'waiting' }[];
+  deliveries: { id: string; doNo: string; supplierName: string; receivedAt: number; invoiceId: string | null; state: 'issue' | 'billed' | 'correct' | 'confirm' | 'waiting' }[];
   checksLeft: number; firstRun: boolean;
 }
-const delTone = { issue: 'short', correct: 'ok', waiting: 'neutral', billed: 'neutral' } as const;
+const delTone = { issue: 'short', correct: 'ok', confirm: 'brand', waiting: 'neutral', billed: 'neutral' } as const;
 
 function Section({ title, count, flags }: { title: string; count: number; flags: FlagView[] }) {
   const { t } = useI18n();

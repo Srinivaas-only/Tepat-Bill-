@@ -7,6 +7,7 @@ import { requireAuth } from '../auth';
 import { flagRowToCore } from '../core-adapters';
 import { reminderDueIds, toViews } from '../flag-view';
 import { ledgerFor } from '../ledger-data';
+import { stateOf } from '../delivery-state';
 
 export function homeRouter(deps: AppDeps) {
   const r = Router();
@@ -34,8 +35,7 @@ export function homeRouter(deps: AppDeps) {
     const dflags = dels.length ? await db.select().from(S.flags).where(inArray(S.flags.deliveryId, dels.map(x => x.d.id))) : [];
     const deliveries = dels.map(x => {
       const all = dflags.filter(f => f.deliveryId === x.d.id);
-      const live = all.filter(f => !f.supersededBy);
-      const state = live.some(f => ['proposed', 'open', 'disputed'].includes(f.status)) ? 'issue' : all.some(f => f.supersededBy) ? 'billed' : x.d.ownerMarkedCorrect || x.d.invoiceId ? 'correct' : 'waiting';
+      const state = stateOf(x.d, all);
       return { id: x.d.id, doNo: x.d.doNo, supplierName: x.supplierName, receivedAt: x.d.receivedAt.getTime(), invoiceId: x.d.invoiceId, state };
     });
     const [checks] = await db.select().from(S.settings).where(eq(S.settings.key, 'checks_left'));

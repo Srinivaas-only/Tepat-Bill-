@@ -477,5 +477,16 @@ export const ms = {
   'flag.acceptedRefPh': "cth. CN-1042",
   'flag.acceptConfirm': "Simpan penerimaan pembekal",
   'flag.acceptedLabel': "Diterima pembekal (direkodkan pemilik)",
+  'deliveries.state.confirm': "Menunggu pengesahan pemilik",
+  'delivery.confirmCardTitle': "Sahkan penghantaran selesai",
+  'delivery.confirmCardBody': "Semak kuantiti yang dikemas kini di atas. Penghantaran hanya dianggap betul selepas anda mengesahkannya.",
+  'fulfil.title': "BANDING DENGAN PESANAN PENUH",
+  'fulfil.row': "Dipesan {o} · Dihantar {d} · Diterima {r}",
+  'fulfil.billed': "Dibil {n}",
+  'fulfil.billedNotReceived': "Dibil {n} unit tetapi tidak diterima",
+  'fulfil.complete': "Lengkap",
+  'fulfil.over': "Lebih",
+  'fulfil.partial': "Separa, baki {n}",
+  'fulfil.notDelivered': "Belum dihantar, baki {n}",
 } as const;
 export type Key = keyof typeof ms;

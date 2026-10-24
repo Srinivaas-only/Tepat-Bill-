@@ -321,6 +321,34 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(JSON.stringify((await call('GET', '/api/activity', ownerCookie)).json)).toContain('flag.settle.credit_note');
   });
 
+  it('linking an invoice never marks a delivery correct: the owner confirms it', async () => {
+    const d = await call('POST', '/api/deliveries', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', doNo: 'DO-ST-1', lines: dLines('do_lim_brothers_DO-LB-0901') });
+    await call('PUT', `/api/deliveries/${d.json.id}/counts`, staffCookie, { counts: {} });
+    const state = async () => (await call('GET', '/api/deliveries', ownerCookie)).json.deliveries.find((x: any) => x.id === d.json.id).state;
+    expect(await state()).toBe('waiting');
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', deliveryId: d.json.id, invoiceNo: 'LB-ST-1', currency: 'MYR', totalSen: 28560, lines: iLines('invoice_lim_brothers_LB-7810') });
+    expect(inv.status).toBe(201);
+    expect(await state()).toBe('confirm');
+    expect((await call('POST', `/api/deliveries/${d.json.id}/mark-correct`, staffCookie)).status).toBe(403);
+    expect((await call('POST', `/api/deliveries/${d.json.id}/mark-correct`, ownerCookie)).status).toBe(200);
+    expect(await state()).toBe('correct');
+  });
+
+  it('a delivery is shown against the complete order, including order lines it does not mention', async () => {
+    const lines = dLines('do_lim_brothers_DO-LB-0901');
+    const d = await call('POST', '/api/deliveries', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', doNo: 'DO-FUL-1', lines: lines.slice(0, 1) });
+    expect(d.status).toBe(201);
+    const r = await call('GET', `/api/deliveries/${d.json.id}`, ownerCookie);
+    expect(r.status).toBe(200);
+    const po = await call('GET', '/api/pos/po_006', ownerCookie);
+    const f = r.json.fulfilment as any[];
+    expect(f.length).toBe(po.json.lines.length);
+    expect(f.every(x => x.ordered > 0 && x.outstanding === Math.max(0, x.ordered - x.received))).toBe(true);
+    expect(f.every(x => ['complete', 'partial', 'not_delivered', 'over'].includes(x.status))).toBe(true);
+    // an order line with nothing received can never read as complete
+    expect(f.filter(x => x.received === 0).every(x => x.status === 'not_delivered' && x.outstanding === x.ordered)).toBe(true);
+  });
+
   it('T3 a delivery document cannot be attached to an invoice', async () => {
     const fd = new FormData();
     fd.append('kind', 'delivery_note');

@@ -86,3 +86,42 @@ export const readyToPay = (flags: Pick<DetectedFlag, 'amountSen' | 'type' | 'dir
 /** Sum of claimable amounts (integer sen), for result cards. */
 export const claimableSen = (flags: Pick<DetectedFlag, 'amountSen'>[]): Sen =>
   flags.reduce((s, f) => s + f.amountSen, 0);
+
+// ---------- fulfilment: the delivery against the COMPLETE order (deck slide 5) ----------
+export type FulfilmentStatus = 'complete' | 'partial' | 'not_delivered' | 'over';
+export interface FulfilmentRow {
+  sku: string; description: string;
+  ordered: number;       // PO
+  delivered: number;     // what the bon(s) say arrived
+  received: number;      // what staff counted
+  billed: number;        // what invoices on this PO billed
+  outstanding: number;   // still to come: ordered - received, never below 0
+  billedNotReceived: number; // billed above what was received (a money question: the invoice short_qty flag), not a partial delivery
+  status: FulfilmentStatus;
+}
+export interface FulfilmentInput {
+  supplierId: string;
+  po: PoLine[];
+  deliveries: { lines: DeliveryLine[]; received: Record<string, number> }[];   // every delivery recorded against this PO
+  invoiceLines?: { description: string; qty: number }[];                       // lines of the invoices on this PO
+  aliases: AliasTable;
+}
+/**
+ * Per PO line: ordered / delivered / received / billed / outstanding, INCLUDING order lines that no delivery mentions.
+ * A legitimate partial delivery (received < ordered, nothing billed beyond it) shows as `partial` with `outstanding`;
+ * goods billed but not received show separately as `billedNotReceived`. Raises no money flag by itself.
+ */
+export function fulfilment(i: FulfilmentInput): FulfilmentRow[] {
+  const rows = new Map<string, FulfilmentRow>(i.po.map(p => [p.sku, { sku: p.sku, description: p.description, ordered: p.orderedQty, delivered: 0, received: 0, billed: 0, outstanding: 0, billedNotReceived: 0, status: 'not_delivered' as FulfilmentStatus }]));
+  for (const d of i.deliveries) for (const l of d.lines) {
+    const m = matchLine(i.supplierId, { lineId: l.lineId, description: l.description, qty: l.qty, unitPriceSen: 0 }, i.po, i.aliases);
+    const row = m && rows.get(m.sku); if (!row) continue;
+    row.delivered += assertQty(l.qty, 'delivery qty'); row.received += deliveredCount(d.received, l);
+  }
+  for (const l of i.invoiceLines ?? []) {
+    const m = matchLine(i.supplierId, { lineId: '', description: l.description, qty: l.qty, unitPriceSen: 0 }, i.po, i.aliases);
+    const row = m && rows.get(m.sku); if (row) row.billed += assertQty(l.qty, 'invoice qty');
+  }
+  return [...rows.values()].map(r => ({ ...r, outstanding: Math.max(0, r.ordered - r.received), billedNotReceived: Math.max(0, r.billed - r.received),
+    status: r.received === 0 ? 'not_delivered' : r.received > r.ordered ? 'over' : r.received === r.ordered ? 'complete' : 'partial' }));
+}
