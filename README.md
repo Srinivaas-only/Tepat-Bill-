@@ -299,8 +299,15 @@ Covered: the rules engine and ledger (including property-based invariants), deli
 
 ## Team
 
-| Name                  | Role        | GitHub |
-| --------------------- | ----------- | ------ |
+| Name                                   | Role                              | GitHub                                                                   |
+| -------------------------------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| Isaac Toh Zhen Yong                    | Team Leader                       | [@ISAACTOHZHENYONG-2025](https://github.com/ISAACTOHZHENYONG-2025)      |
+| Ng Tze Fhung                           | Project Manager                   | [@jordanntf](https://github.com/jordanntf)                               |
+| Vincent Loh Yong Sheng                 | Documentation and Submission Checker | [@VincentLohYongSheng-2025](https://github.com/VincentLohYongSheng-2025) |
+| Srinivaas A/L Thiruch Selvam           | Full Stack Developer              | [@Srinivaas-only](https://github.com/Srinivaas-only)                     |
+| Lievaashini A/P Thanasegaran           | Pitching Lead                     | [@Lievaashini](https://github.com/Lievaashini)                           |
+
+--------------------- | ----------- | ------ |
 | Isaac Toh Zhen Yong   | Team Leader | *to be added* |
 | *Member name*         | *Role*      | *to be added* |
 | *Member name*         | *Role*      | *to be added* |
