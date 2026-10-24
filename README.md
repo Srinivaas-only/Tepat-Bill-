@@ -134,8 +134,8 @@ The AI never calculates amounts, and nothing is sent, paid or settled without th
 ### Try It in Two Minutes
 
 1. Open the [live demo](https://tepat-bill.replit.app) and enter **`1234`** (Owner: approves, sends, settles) or **`5678`** (Manager: scan and count only). The PIN screen appears on every page load by design.
-2. Tap **Imbas / Scan**, then **Cuba fail contoh / Try sample files**, and pick *Invois Borong Ali (has differences)*. The samples are synthetic, so you do not need photos of your own.
-3. Review the read, save, enter the received counts, and see the flags in RM.
+2. The app opens **empty on purpose**: only the shop setup (4 suppliers and their price history) is loaded. Nothing is pre-made, so you create everything yourself. Tap **Imbas / Scan**, then **Cuba fail contoh / Try sample files**. The samples are synthetic, so you do not need photos of your own.
+3. Scan in this order: *Pesanan* → *Nota pesanan tulisan tangan*, then *Penghantaran* → *Bon bertandatangan (Maggi 8 sahaja)*. Review each read, save, enter the received counts, and see the flag in RM.
 4. As Owner, approve a flag, preview the message and open WhatsApp.
 5. Open the evidence link in a private window (no login) to see what the supplier sees.
 
@@ -153,10 +153,10 @@ Switch between **BM and EN** from the header on any screen.
 |---|---|---|---|
 | 1 | **Correct delivery** | Scan → New delivery → *Lim Brothers delivery order (correct)* → save | Stamp **PENGHANTARAN TEPAT**, then *Sahkan tepat* |
 | 2 | **Correct invoice** | Scan → Invoice → *Lim Brothers invoice (correct)* | **INVOIS TEPAT · RM285.60**, then *Tandakan sudah dibayar* |
-| 3 | **Wrong delivery** | Scan → New delivery → *Signed bon (only 8 Maggi)* → change Maggi 10 → 8 | "1 perbezaan · Anggaran RM90.00" (an estimate; the ledger is untouched) |
-| 4 | **Wrong invoice** | Scan → Invoice → *Borong Ali invoice (has differences)*, compare with that bon | "2 perbezaan · RM110.00": Maggi short RM90.00 and sugar +RM20.00 |
+| 3 | **Wrong delivery** | First scan Order → *Handwritten order notebook*. Then Scan → New delivery → *Signed bon (only 8 Maggi)* → change Maggi 10 → 8 | "1 perbezaan · Anggaran RM90.00" (an estimate; the ledger is untouched) |
+| 4 | **Wrong invoice** | Scan → Invoice → *Borong Ali invoice (has differences)*, compare with that order and bon | "2 perbezaan · RM110.00": Maggi short RM90.00 and sugar +RM20.00 |
 
-Then: approve → message → WhatsApp → evidence link (logged out) → *Selesaikan → Nota kredit* → the supplier's **Pay now drops RM962.00 → RM872.00**. A freshly seeded demo shows Home **RM85.80 flagged · RM31.90 settled · RM53.90 still open**. The Owner can reset the demo from *Settings → Set semula demo*.
+Then: approve → message → WhatsApp → evidence link (logged out) → *Selesaikan → Nota kredit* → the supplier's **Pay now drops RM962.00 → RM872.00**. The demo starts empty (Home shows RM0.00) and fills as you scan. The Owner can wipe it back to empty from *Settings → Set semula demo*. Running the app with `DEMO_SEED=full` loads the older pre-filled story instead (Home RM85.80 flagged · RM31.90 settled · RM53.90 open).
 
 ---
 

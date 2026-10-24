@@ -20,14 +20,19 @@ function pngSize(buf: Buffer): { width: number; height: number } {
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
 }
 
-export async function seedDatabase(rootDb: Db, storage: Storage, now = Date.now(), opts: { quiet?: boolean } = {}) {
+export type SeedProfile = 'fresh' | 'full';
+/** Demo default is `fresh` (shop setup only, nothing pre-made); DEMO_SEED=full brings back the pre-filled story. */
+export const demoProfile = (): SeedProfile => (process.env.DEMO_SEED === 'full' ? 'full' : 'fresh');
+
+export async function seedDatabase(rootDb: Db, storage: Storage, now = Date.now(), opts: { quiet?: boolean; profile?: SeedProfile } = {}) {
   await rootDb.transaction(async db => { await seedInTx(db as unknown as Db, storage, now, opts); });
 }
 
 const RATE_BP: Record<string, number> = { USD: 42000 };
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: boolean }) {
+async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: boolean; profile?: SeedProfile }) {
+  const fresh = opts.profile === 'fresh';
   const seed = JSON.parse(readFileSync(path.join(FX(), 'seed.json'), 'utf8'));
   const at = (d?: number) => (d === undefined || d === null ? null : new Date(now - d * DAY));
 
@@ -37,7 +42,7 @@ async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: b
   // 2. settings
   const nowDate = new Date(now);
   const yymm = poNumber(kl(nowDate), 0).slice(3, 7);
-  const maxSeq = Math.max(0, ...seed.purchaseOrders.filter((p: any) => p.poNo.startsWith(`PO-${yymm}-`)).map((p: any) => Number(p.poNo.slice(-3))));
+  const maxSeq = fresh ? 0 : Math.max(0, ...seed.purchaseOrders.filter((p: any) => p.poNo.startsWith(`PO-${yymm}-`)).map((p: any) => Number(p.poNo.slice(-3))));
   const { pins: _pins, ...shop } = seed.shop;
   await db.insert(S.settings).values([
     { key: 'shop', value: shop }, { key: 'checks_left', value: 50 }, { key: `po_seq:${yymm}`, value: maxSeq },
@@ -53,6 +58,13 @@ async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: b
   const aliasRows = Object.entries(seed.aliases as AliasTable).flatMap(([supplierId, t]) =>
     Object.entries(t).map(([normalisedDesc, sku]) => ({ supplierId, normalisedDesc, sku })));
   if (aliasRows.length) await db.insert(S.aliases).values(aliasRows);
+
+  if (fresh) {
+    // shop setup only: no POs, invoices, flags, documents or events. Sample files stay readable from the fixture cache.
+    await ensureFixtureCache(db);
+    if (!opts.quiet) console.log(`[seed] ok (fresh): ${seed.suppliers.length} suppliers, price history, aliases; nothing pre-made`);
+    return;
+  }
 
   // 5 (before POs). fixtures -> storage + extractions; documents rows only for referenced fixtures
   const docsDir = path.join(FX(), 'docs');
@@ -154,11 +166,11 @@ export async function ensureFixtureCache(db: Db) {
 
 export async function seedIfEmpty(db: Db, storage: Storage) {
   const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(S.suppliers);
-  if (r.n === 0) await seedDatabase(db, storage);
+  if (r.n === 0) await seedDatabase(db, storage, Date.now(), { profile: demoProfile() });
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]).endsWith(path.join('server', 'seed.ts'));
 if (isMain) {
   const { db, pool } = makeDb();
-  seedDatabase(db, makeStorage()).then(() => pool.end()).catch(e => { console.error(e); process.exit(1); });
+  seedDatabase(db, makeStorage(), Date.now(), { profile: demoProfile() }).then(() => pool.end()).catch(e => { console.error(e); process.exit(1); });
 }
