@@ -1,368 +1,81 @@
-# HANDOFF: Tepat Bill (full context for a new Claude Code chat)
+# HANDOFF: Tepat Bill (read this first in a new Claude Code chat)
 
-> Written 2026-10-23 at `main` = `baf6bc1` (Replit's Fix Round 3 push). **Status update:** Rounds 4 and 5 (backend) were independently verified by Claude, the core was hardened (`be6ce31`, 130 core / 180 total tests) and Round 6 wires it into the server (`docs/FIX_PROMPT_6.md`). UI/UX polish is deferred until the owner asks. Team name: Alt+Win+R. Everything a new chat needs to continue without asking: the product, the repo, the history, how to verify, how to work with Replit, what's left, and how the user likes to work.
+> Written 2026-10-24. `main` = latest commit (see `git log`). The previous handoff (stale, written at `baf6bc1`) is archived at `docs/HANDOFF_ARCHIVE_2026-10-23.md`; use it only for product background (§2 there) and history.
+> Team **Alt+Win+R**. Repo `Srinivaas-only/Tepat-Bill-`, branch `main` (pushing to `main` is allowed). Session dev branch may be `claude/*`; always push to `main` too.
 
----
+## 1. Where we are (one paragraph)
+Backend logic is **closed and verified** (Replit rounds 4–6 plus Claude review rounds; 202 tests, four demo scenarios, exact money). The UI has been rebuilt twice by Claude (Revolut-style Home, then a full **obsidian dark** theme) and polished (nav, intro, unified headers, animations). What is left is mostly **non-code**: deploying for friends, the hackathon submission, and optional polish. Replit credits are nearly exhausted, so **Claude does all work**; Replit is only used as the host.
 
-## 0. Paste this as the first message in the new chat
+## 2. Product in 30 seconds
+"AI reads → rules decide → owner approves." A Malaysian kedai-runcit app: scan order/invoice/delivery note (Gemini reads), count the delivery, compare PO ↔ bon ↔ invoice, raise flags (short qty / price change / not ordered) with exact RM, owner approves and sends a WhatsApp message with a read-only evidence link, ledger tracks until settled. Money is integer sen. Roles: owner (everything) and staff (scan/count/save only). Public evidence page `/e/:token` (light "paper" page, no login). Gemini is the ONLY AI provider (`gemini-3.8-flash`, fallback `gemini-3.5-flash-lite`). Full spec: `docs/PRD.md` (§12 = demo script), rules in `replit.md`.
 
-```text
-You're taking over the Tepat Bill hackathon app (repo Srinivaas-only/Tepat-Bill-, branch main). Read HANDOFF.md at the repo root completely before doing anything, then docs/PRD.md, replit.md, docs/IMPLEMENTATION_NOTES.md, docs/FIX_PROMPT_3.md and docs/PROGRESS.md.
+## 3. Rules from the user (follow them)
+- Direct, no fluff. **Make decisions for me.** Use agents to cross-verify only when it adds value.
+- Hates loops and wasted Replit credits. Dislikes AI-slop/generic UI; wants a premium, "out of this world" but tasteful feel (reference: Mobbin MCP, Revolut, Linear, Vercel, Raycast, WHOOP).
+- `shared/core/*` and `fixtures/*` are Claude-owned golden logic: change only with tests green.
+- **Do not merge, comment on or close PR #1** (teammate's "Tetapbill isaac") without the user's say-so.
+- Never create PRs unless asked. Commit messages end with the attribution lines from the session reminder.
+- User convention: when a block of work is done they like a plain "PORK!" style close-out; keep reports short and honest (say what was NOT verified).
+- Mid-demo/outdoor use: contrast floor matters (text ≥ 4.5:1).
 
-Then do section 1 "First actions" of HANDOFF.md, in order:
-1) Independently verify Replit's Fix Round 3 (its claims are NOT verified by Claude yet): set up local Postgres, run npm test / typecheck / build, run the built app, and drive the 4 scenarios + the demo path with Playwright at 390px and 360px, with screenshots.
-2) Run 3 parallel read-only Explore audits (functional, UI/design, demo-day/deploy) on main.
-3) Report back to me: verified vs claimed, a ranked defect list, and the remaining roadmap.
-4) If code fixes are needed, write ONE docs/FIX_PROMPT_4.md for Replit (same anti-loop rules R1–R6, the FINISH report format) and push it to main.
+## 4. Current behaviour (new this session)
+- **PIN screen on EVERY page load/reload** (`client/src/lib/auth.tsx` logs out on mount). `/e/:token` is exempt.
+- After each login a **4-step skippable intro** plays (`components/intro.tsx`, state in `lib/intro.ts`; replay from Lagi → "Panduan ringkas"). Skip button = "Langkau" top-right, Esc also closes.
+- Home headline numbers count up once the intro closes.
 
-Rules: be direct, no fluff; make decisions for me; use agents to cross-verify; Gemini is the only AI provider; never edit shared/core or fixtures casually (they're Claude-owned golden logic: change them only with tests green); don't merge PR #1 as-is (see HANDOFF.md §9).
-```
+## 5. Design system (client/src/index.css is the source of truth)
+- Tailwind v4 (`@theme inline`, `@utility`, no tailwind.config). Fonts: **Geist + Geist Mono self-hosted** (`@fontsource-variable/*`, CSP `font-src 'self'` in `server/index.ts`); Kalam still from Google (handwritten counts). After `git pull` on a machine, **run `npm install`** (fonts are new deps).
+- Tokens: `--bg #09090B`, `--surface #121215`, `--surface-2 #18181B`, `--surface-3 #1F1F23`, `--sheet #1C1C1F`, `--ink #FAFAFA`, `--ink-2 #A1A1AA` (floor for text), `--ink-3 #8B8B94` (icons only), `--line` white/10, brand FILL `#2457D6`, brand TEXT `--brand-text #93B4FF` (use `text-brand-text`, never `text-brand` for text), status colours are light text values on 14% tints (`--short`, `--price`, `--notord`, `--ok`, `--dispute`).
+- `.paper` wrapper = the ONLY light surface (evidence page). It redefines the tokens.
+- Radii: chip 8 / input 12 / card 16 / sheet+nav 24; **all Buttons are pills**.
+- Utilities: `press` (per-element `--p` scale, springy release), `btn` (+ ripple via `lib/ripple.ts`), `btn-shine`, `stagger` (children rise; uses `backwards` fill so `:active` scale still works), `spot` (desktop spotlight, `lib/spotlight.ts`), `edge` (gradient hairline border, used on Pay-now card), `glass`, `frosted`, `eyebrow` (the one caps label), `page-title`, `.aurora`/`.ambient`/`.grain` layers (rendered in `App.tsx`).
+- Headers: `Page` (components/page.tsx) with `band` prop = title row over the aurora; detail pages use `BackButton` + `page-title`. Route transitions are direction-aware (deeper = slide from right, back = from left).
+- Navigation: floating glass bar (76px) with a raised glowing Scan button (`components/bottom-nav.tsx`).
+### Gotchas that already bit us
+- **Never name a utility `overline`** (Tailwind owns it → stray lines). Use `eyebrow`.
+- `cn()` uses tailwind-merge: a custom `text-caption`/`text-title` next to `text-ink-2` in the SAME `cn()` call gets dropped. Use explicit `text-[12px]` there.
+- Focus-ring CSS is deliberately **unlayered** at the end of index.css (layered rules lose to utilities).
+- Blur filters + mask on an animated layer dropped frame time to 33ms; the aurora uses plain radial gradients (17ms). Keep animations transform/opacity only.
+- Don't put a `filter`/`backdrop-filter` on scrolling lists.
 
----
-
-## 1. First actions (in order)
-
-1. **Verify Fix Round 3 yourself** (§6 has the exact commands). Replit claims:
-   - P0.1–P0.14, P1 (S1–S6 + T1–T12 in `server/scenarios.test.ts`), P2 U1–U18 + most of U20, P3 F1–F20 and P4 L1–L10 are done;
-   - **131/131 tests**, typecheck, build and production smoke OK;
-   - App Testing at 390px a–i OK.
-
-   Nobody independent has checked any of this yet.
-2. **Drive the four scenarios and the demo path in a real browser** (Playwright + Chromium are installed here). Assert the numbers in §2.4. Take screenshots of every screen for a design critique (the user hates "AI slop").
-3. **Run three parallel read-only Explore audits on `main`:**
-   - functional: every PRD story, API, money, data integrity, security;
-   - UI/design: the paper/ink/stamp system, 360/390px layout, BM copy, a11y;
-   - demo day and deploy.
-
-   This pattern has found real bugs every round.
-4. **Report to the user**, then write `docs/FIX_PROMPT_4.md` **only if needed**, for what Round 3 missed or broke. Same structure as `docs/FIX_PROMPT_3.md`.
-5. **Resolve PR #1 safely** (§9), deploy (§8), and hand the user `docs/DEMO_DAY_CHECKLIST.md`.
-
-Items Round 3 itself lists as **not verified**:
-- the superseded-flag UI after its 409 fix;
-- the 360px layout of the new supplier settings card;
-- the WhatsApp contact picker on a real phone;
-- Lighthouse;
-- App Storage in production (its smoke test used local disk).
-
-**Skipped:** U19 (deleting unused i18n keys).
-
----
-
-## 2. The product
-
-### 2.1 What and why
-**Tepat Bill:** *"Semak setiap penghantaran. Semak setiap bil."* (Check every delivery. Check every bill.)
-- **Who it's for:** a mobile-first, Bahasa Malaysia–first web app for Malaysian *kedai runcit* (small grocery shops).
-- **What it does:** catches short deliveries, wrong items and wrong invoices before the shop pays.
-- **Hackathon:** SDC Hackathon 2026, Domain 2, **Orbyte Smart SME Challenge**. The team must *use Replit to build* the app; Claude/Codex may polish it.
-- **Source documents** (from the user's first chat; not in the repo):
-  - `SPEC_TepatBuild.md`: the spec, with 35 user stories;
-  - an 11-slide deck, "Tepat Bill latest.pdf".
-
-  All of their content was folded into `docs/PRD.md`.
-
-**Principle: AI reads → rules decide → the owner approves.**
-- The app never sends, pays or settles anything by itself.
-- It never decides who is right.
-- It makes no "% time saved" claims.
-
-### 2.2 Roles
-| Role | Access |
-|---|---|
-| Owner | PIN (`OWNER_PIN`). Can do everything. |
-| Staff | PIN (`STAFF_PIN`). Can view, upload, correct AI reads and record counts. Cannot approve, send, settle, mark paid or correct, set prices, edit suppliers, export, or touch e-invoices. |
-| Supplier | No login. Gets one public, read-only evidence page at `/e/:token`. |
-
-Permissions are enforced server-side with `can(role, action)` from `shared/core/roles.ts`.
-
-### 2.3 Workflow (two phases, as on deck slides 4–5)
-1. **Order (PO).** Snap a notebook page, a WhatsApp screenshot, or type it in. Gemini reads it, the owner corrects it, and it's numbered `PO-YYMM-###`.
-2. **Delivery** (bon / DO). Scan the DO → review → count what arrived. `checkDelivery` then:
-   - finds nothing → **"PENGHANTARAN TEPAT"**, and the owner taps *Sahkan tepat* (scenario 1);
-   - or raises **delivery-stage flags** (short qty or not ordered) carrying an **estimate** ("Anggaran RM…") that never enters money (scenario 2).
-3. **Invoice** (photo, screenshot or PDF page 1). Read → review. The app suggests the PO and the unlinked delivery; the owner can choose "Tiada penghantaran" for the old count-on-invoice flow. On save, `receivedFromDelivery` + `detectFlags` compare it **without a recount**:
-   - **"INVOIS TEPAT · Sedia untuk dibayar RM…"** → *Tandakan sudah dibayar* (scenario 3);
-   - **"N perbezaan · RM…"** (scenario 4).
-
-   A matching delivery flag becomes **superseded** ("Dibawa ke invois"), so nothing is counted twice.
-4. **Flags.** Short qty, price change (baseline: agreed → PO price → last invoice) and not ordered (with a substitution guard, *Pautkan* / *Asingkan*). They start as **Perlu semakan**, then the owner either:
-   - approves with a request (deduct, send missing, collect back, or agreed price);
-   - dismisses with *Abaikan* ("Ini kenaikan biasa" updates the baseline);
-   - or uses *Laporkan harga*, which sets the agreed price and approves.
-5. **Message.** Exact factual BM/EN text from `draftMessage`. The owner edits it, then taps *Buka WhatsApp* (`wa.me`; seed suppliers have **no number**, so WhatsApp's contact picker opens) or *Salin mesej*.
-6. **Evidence.** The supplier opens `/e/:token`: PO, invoice/DO, the **highlighted line** (static, no pulse), photos including the signed bon, the price baseline, the status stamp. No amounts owed.
-7. **Lifecycle and money.**
-   - Flags move Terbuka ↔ Dipertikai (with a note) → Selesai: *Dihantar semula* (short only), *Nota kredit* or *Ditolak daripada invois*.
-   - A follow-up reminder appears 14 days after sending.
-   - `supplierLedger` gives Pay now / Dipertikai / Pembekal berhutang (supplier credit, carried to the next invoice) / Baki penyata dijangka.
-   - Disputed amounts stay owed.
-8. **Home** (`last30Days`): RM flagged / settled / open, plus needs action, follow-ups, credits and recent activity.
-9. **Extras:**
-   - activity log;
-   - CSV export;
-   - "Baki semakan" chip (illustrative, no billing);
-   - self-billed e-invoice **preview stub** for foreign suppliers (type 11, TIN `EI00000000030`, never submitted to LHDN).
-
-### 2.4 Demo numbers (all asserted in tests)
-- **Fresh seed, Home:** RM85.80 flagged / RM31.90 settled / RM53.90 open. Lim Brothers appears under *Perlu susulan*; Borong Ali shows "Pembekal berhutang RM31.90".
-- **Scenario 1:** `fixtures/docs/do_lim_brothers_DO-LB-0901.png` against PO-2610-006 → no flags.
-- **Scenario 2:** `fixtures/docs/bon_signed_DO-5512.png` against PO-2610-004, Maggi 10 → 8 → one delivery flag, estimate **RM90.00**.
-- **Scenario 3:** `fixtures/docs/invoice_lim_brothers_LB-7810.png` linked to delivery 1 → ready to pay **RM285.60**.
-- **Scenario 4:** `fixtures/docs/invoice_borong_ali_INV-2291.png` linked to delivery 2:
-  - flags: Maggi short **RM90.00** + Gula +RM0.40 × 50 = **RM20.00** → "2 perbezaan · **RM110.00**";
-  - Borong Ali Pay now **RM962.00** (993.90 − 31.90 credit) → settle Maggi → **RM872.00**.
-- **Other seeded figures:**
-  - Lim LB-7781: Dipertikai RM12.50; Pay now RM581.20.
-  - GZ-2026-088 (foreign, USD 610.00 × 4.2 = RM2,562.00) → e-invoice preview.
-  - Kilang Roti Sinar: substitution demo (kaya ordered, mentega jagung delivered).
-- **Demo script:** PRD §12, updated by Round 3 to the four scenarios, about 120 s, on two phones plus a projector mirror.
-
----
-
-## 3. Repo map (at `baf6bc1`)
-
-**Owned by Claude: golden or kit files that Replit must not edit**
-| Path | What |
-|---|---|
-| `shared/core/rules.ts` | `detectFlags`, `matchLine`, `tokenOverlap`, `normalise`, `baseline`, `autofillPriceList`, `setAgreedPrice`, `learnAlias`, `poNumber`, `rankPoCandidates`, `looksForeign`, `formatRM`, `parseRM`, `assertSen`/`assertQty` |
-| `shared/core/ledger.ts` | `transition`, `markSent`, `supplierLedger` (owed/disputed/payNow/creditCarry/recovered/rows), `needsReminder`, `orderState`, `canMarkCorrect`, `monthSummary`, `rangeSummary`, `last30Days`, `defaultDueAt` |
-| `shared/core/delivery.ts` | `checkDelivery`, `receivedFromDelivery`, `readyToPay`, `claimableSen` (two-phase) |
-| `shared/core/messages.ts` | `draftMessage` (exact BM/EN templates), `waLink`, `toMsisdn` |
-| `shared/core/evidence.ts` | `buildEvidence` (whitelist) |
-| `shared/core/einvoice.ts` | `prepareSelfBilled`, `approveDraft`, `releaseDraft` (stub) |
-| `shared/core/roles.ts` | `can`, `ACTIONS` |
-| `shared/core/extract.ts` | **Server-only** Gemini reader: `MODELS`, `ExtractedDoc` (box = a 4-number array, not a tuple), `EXTRACTION_PROMPT`, `extractWithFallback`, `geminiOptions`, `cacheKey`, `linesToSen` |
-| `shared/core/index.ts` | Browser-safe barrel (everything except `extract.ts`) |
-| `shared/core/*.test.ts` | Core tests; `fixtures.test.ts` reconciles the fixtures, the seed and the four scenarios |
-| `fixtures/docs/*.png` + `*.expected.json` | 9 synthetic documents with **true** `box_2d` |
-| `fixtures/seed.json` | Suppliers, price list, POs 001–006, invoices, flags, events, `demo.scenarios` |
-| `fixtures/_generator/` | `docs.mjs` (HTML templates) and `generate.mjs` (Playwright render; `node fixtures/_generator/generate.mjs <file>` renders just that file) |
-| `replit.md` | Standing rules Replit reads every run (Replit appends only to "Agent notes") |
-| `docs/PRD.md` | Product requirements. §6 design is superseded by the paper/ink/stamp redesign in FIX_PROMPT_2/3 |
-| `docs/IMPLEMENTATION_NOTES.md` | Exact wiring and data rules (overrides the PRD where they differ) |
-| `docs/BUILD_PROMPT.md` | Original master prompt + runbook |
-| `docs/FIX_PROMPT_1/2/3.md` | The fix rounds |
-| `docs/DEMO_DAY_CHECKLIST.md` | Human-only checklist |
-| `TECH_STACK.md`, `README.md`, `HANDOFF.md` | Docs |
-
-**Built by Replit**
-| Path | What |
-|---|---|
-| `server/index.ts`, `server/app.ts` | Boot checks, compression, static/SPA, `createApp(deps)` |
-| `server/db.ts` | pg pool (error handler, keep-warm) |
-| `server/storage.ts` | App Storage with a lazy probe and disk fallback; `driver` field |
-| `server/auth.ts` | jose cookie `tb_session`, PIN limiter, `requireAuth`, `requireCan` |
-| `server/core-adapters.ts` | Rows ↔ core types, `toMyrSen`, `mintSkus`, `nearSku` |
-| `server/flags.ts`, `flag-ops.ts`, `flag-view.ts`, `delivery-ctx.ts`, `ledger-data.ts`, `events.ts` | Detection plumbing, views, ledger data |
-| `server/routes/*.ts` | `auth`, `documents`, `extract`, `orders` (POs/invoices/po-suggestions), `counts`, `deliveries`, `flag-actions`, `messages`, `money`, `evidence` (public), `home`, `extras` (e-invoice, CSV, checks, reset, fixtures), `stubs` |
-| `server/seed.ts` | Seed + reset, run inside a transaction; keeps the `extractions` cache |
-| `server/api.test.ts`, `server/scenarios.test.ts` | API tests on a cloned `test` schema; skipped without `DATABASE_URL` |
-| `shared/schema.ts` | Drizzle tables: suppliers, documents, extractions, purchase_orders, po_lines, invoices, invoice_lines, received_counts, price_list, aliases, flags (`stage` / `delivery_id` / `superseded_by`), flag_photos, einvoice_drafts, events, settings, deliveries, delivery_lines, delivery_counts |
-| `client/src/pages/*` | login, home, scan, read, review, count (invoice and delivery mode), compare, flags, flag-detail, suppliers, supplier-detail, orders, order-po, invoice-detail, einvoice, activity, settings, more, bon, evidence |
-| `client/src/components/*` | stamp, radio-row, flag-card, message-sheet, doc-image, line-crop, photo-viewer, scan-beam, page (SectionLabel, ErrorState, BackButton), bottom-nav, ui/* |
-| `client/src/i18n/ms.ts`, `en.ts` | BM default, EN toggle; identical key sets |
-| `.replit`, `package.json`, `vite.config.ts`, `tsconfig.json`, `drizzle.config.ts`, `components.json`, `.agents/memory/*` | Config. `.agents/memory` is Replit's own memory |
-
----
-
-## 4. Stack and key technical facts
-- **Client:** React 19, Vite 8, TypeScript, Tailwind 4 (`@tailwindcss/vite`, no config file), hand-written shadcn-style components (Radix + cva), `motion`, `@number-flow/react`, `sonner`, `lucide-react`, `wouter`, TanStack Query, `react-zoom-pan-pinch`, `pdfjs-dist` (lazy).
-- **Server:** Express 5 (wildcard route is `/{*splat}`), multer, jose, Drizzle + Replit Postgres, `@replit/object-storage`, compression.
-- **AI (Gemini only):**
-  - `gemini-3.8-flash` (thinking `low`; media resolution high) → `gemini-3.5-flash-lite` on 429/404/5xx/invalid output → fixture → manual entry;
-  - `maxRetries: 0`; per-model time budgets of 20 s and 15 s, 38 s server total;
-  - the read cache is keyed by sha256 (`extractions`);
-  - **never use Claude or any other provider** (the user's rule);
-  - the user's own `GEMINI_API_KEY`, not Replit's AI integration.
-- **Bug history:** a `z.tuple` box schema made Gemini reject every read with a 400 (the AI SDK emits draft-7 `items:[...]`). It was fixed in core `0ece73e`; a test now guards against it.
-- **Money:**
-  - integer **sen** everywhere; `formatRM` only at render time;
-  - foreign amounts in minor units with `exchange_rate_bp`; `toMyrSen` only in the adapters;
-  - **delivery-stage flags never enter money**.
-- **UI ELEVATION (2026-10-23, Claude, supersedes the no-shadow/no-gradient rules below where they conflict):** reference = Revolut home (https://mobbin.com/screens/a2e597fa-50af-426b-93ba-5726fc0ef3da). Home is an immersive blue→ink gradient screen (`--grad-hero`) with a huge animated amount, circular quick actions (existing routes only) and frosted cards (`.frosted`); Aduan/Pembekal/Pesanan/Lagi/Aktiviti/Tetapan get a gradient header band (`Page band`); detail/flow screens stay Paper/Ink/Stamp with layered depth (`shadow-card`, `shadow-elev`), a floating frosted nav (`.glass`), one `FixedBar`, a segmented pill `Tabs` (shared-layout spring), shimmer skeletons, `.press` tactile states and unlayered focus rings. Desktop = centred 480px device column over a paper-grain backdrop. Allowed motion: press, springs for tabs/nav/stamp, route fade (160ms), box draw-in (together), NumberFlow. Still banned: idle pulses, glow orbs, parallax, stagger >4. All contrast pairs are measured ≥4.5:1 (UI ≥3:1); QA: CLS 0.0000, frame p95 17ms, zero overflow at 360/390. Rollback tag: `pre-ui-redesign`.
-- **Design system ("Paper, Ink, Stamp", from FIX_PROMPT_2/3; replaces PRD §6):**
-  - **Colour:** paper `--bg #F5F3EC`, `--surface #FFFDF8`, `--line #E2DCCB`; ink `#13254A`; brand `#2457D6`.
-  - **Surfaces:** no shadows or gradients; one radius (14px).
-  - **Type:** IBM Plex Mono `.num` for numbers, DM Sans for text; Kalam is used **only** for changed counts.
-  - **Components:** ledger rows with dashed dividers; rectangular outline chips; underline tabs; `Stamp` (SELESAI / DIPERTIKAI / PENGHANTARAN TEPAT / INVOIS TEPAT…).
-  - **Motion budget:** only box draw-in, NumberFlow, sheets, the stamp thunk and the linear scan sweep. **No pulses, stagger, whileTap or glows** (the user called these "gimmicky").
-- **Deploy (`.replit`):**
-  - Reserved VM; build `npm run build`; run `sh -c "npm run db:push || echo …; npm run start"`;
-  - `drizzle-kit`, `esbuild` and `tsx` are in `dependencies`;
-  - module `nodejs-20` (ai@7 declares Node ≥22, but runs on 20.20; only switch to `nodejs-22` if you can re-test);
-  - port 5000 → 80.
-- **Secrets:** `GEMINI_API_KEY`, `SESSION_SECRET` (≥32 characters), `OWNER_PIN` ≠ `STAFF_PIN` (dev 1234 / 5678), `DEMO_FIXTURES=1`, `SEED_ON_BOOT=1`, optional `PUBLIC_BASE_URL` (https, `.replit.app`). **Never set `NODE_ENV` as a secret.**
-
----
-
-## 5. History (what happened, so you don't redo it)
-| Step | Commit(s) | Result |
-|---|---|---|
-| Tech stack chosen, then retargeted to Replit-native | `11306dd`…`c04871e`, `a4b9201` | Next.js + Supabase was dropped for Replit's React + Express + Postgres (fewer Agent loops) |
-| Build kit (PRD, `replit.md`, BUILD_PROMPT, core, fixtures) | `a4b9201`…`9c4b889` | 82 core tests; two agent cross-checks; IMPLEMENTATION_NOTES from a dry run |
-| Replit M0–M10 | `bc45272`…`0d28024` | Whole app built in one run. Replit found the core tuple bug |
-| Core box fix + FIX_PROMPT_1 | `0ece73e`, `f1870af` | — |
-| Replit FR1 (`98b1011`) | — | 25 of 30 items correct; deploy/reset/storage fixed; money roll-down working |
-| FIX_PROMPT_2 (de-slop redesign) | `41feff7` | User feedback: "looks generic/template", "gimmicky motion" |
-| Replit FR2 (`30ee06f`) | — | Bugs B1–B8 + paper/ink/stamp redesign + layout fixes; parts of U9/U10 and U12 skipped |
-| Three audits (52 functional, 66 UI, 15 demo/deploy) + the user's 4 scenarios → delivery core + Lim fixtures + FIX_PROMPT_3 | `5b753eb` | 116 core tests |
-| Replit FR3 | `5660a53`, `baf6bc1` | Claims nearly everything done (see §1); **not yet verified by Claude** |
-
-**Decisions already made (don't relitigate):**
-- **Name and roles:** Tepat Bill; Owner + Staff PINs.
-- **Flag rules:**
-  - "Wrong item" is built as `not_ordered`, with a substitution guard.
-  - Baseline: agreed → PO → last invoice; a supplier's first invoice raises no price flag.
-- **Money rules:**
-  - *Dihantar semula* is for short qty only, and owed is unchanged.
-  - Credit on a paid invoice carries to the next one.
-  - Disputed amounts stay owed.
-  - Reminder 14 days after sending.
-- **Deck extras:**
-  - E-invoice is a preview-only stub.
-  - Pay-per-check shows as the "Baki semakan" chip.
-  - Orbyte is pitched as "designed to plug into Orbyte".
-- **Product scope:** PDFs: page 1 only. Home shows the last 30 days.
-- **Hosting:** Replit Reserved VM.
-- **Demo safety:** seed suppliers have no WhatsApp numbers (so the demo never messages a stranger); the evidence highlight is static.
-
----
-
-## 6. How to verify in this environment (exact commands)
-
+## 6. Verify in a fresh environment
 ```bash
-cd /home/user/Tepat-Bill-   # or wherever the clone is; git pull origin main first
-
-# 1) Local Postgres 16 on port 5433. It can't run as root; the data dir must be outside the scratchpad.
-PGBIN=/usr/lib/postgresql/16/bin; PGD=/var/tmp/tb-pgdata
-[ -d $PGD ] || { mkdir -p $PGD && chown postgres:postgres $PGD && su postgres -c "$PGBIN/initdb -D $PGD -A trust -U postgres"; }
-su postgres -c "$PGBIN/pg_ctl -D $PGD -o '-p 5433 -k /var/tmp' -l $PGD/log start"
-psql -h /var/tmp -p 5433 -U postgres -c "create database tepat" 2>/dev/null || true
+# Postgres 16 (can't run as root; data dir outside the project). If /var/tmp/tb-pgdata is gone, initdb it (see archive §6).
+rm -f /var/tmp/tb-pgdata/postmaster.pid
+su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/tmp/tb-pgdata -o '-p 5433 -k /var/tmp' -l /var/tmp/pg.log start"
 export DATABASE_URL="postgresql://postgres@localhost/tepat?host=/var/tmp&port=5433"
-
-# 2) Install. The lockfile may contain Replit's internal registry; rewrite it temporarily, then restore it.
-sed -i 's#http://package-firewall.replit.internal/npm/#https://registry.npmjs.org/#g' package-lock.json
-npm ci --no-audit --no-fund && git checkout package-lock.json
-
-# 3) Checks
-npm run db:push && npm test && npm run typecheck && npm run typecheck:core && npm run build
-
-# 4) Run the built app (no Gemini key needed: fixture uploads hit the seeded cache)
+npm ci   # (or npm install)
+npm run typecheck && npm test        # 202 tests need DATABASE_URL; without it 56 are skipped
+npm run build                        # from the REPO ROOT (building from client/ once produced a wrong dist)
 NODE_ENV=production STORAGE_DRIVER=disk DEMO_FIXTURES=1 SEED_ON_BOOT=1 OWNER_PIN=1234 STAFF_PIN=5678 \
-SESSION_SECRET=0123456789abcdef0123456789abcdef PORT=5077 sh -c "npm run db:push; node dist/index.js"
-# → http://localhost:5077 , health: /api/health
+ SESSION_SECRET=0123456789abcdef0123456789abcdef PORT=5077 sh -c "npm run db:push; node dist/index.js"
+# health: http://localhost:5077/api/health  → ok, db, seeded all true (gemini false without a key)
 ```
+- Stop the server with `fuser -k 5077/tcp` (NOT `pkill -f`, it kills your own shell).
+- Postgres stops when the sandbox sleeps; if `/api/health` shows `db:false`, restart it as above.
+- Playwright MCP needs the wrapper `/opt/google/chrome/chrome` (shell script exec'ing `/opt/pw-browsers/chromium-*/chrome-linux/chrome --no-sandbox "$@"`); screenshots must be saved under `<repo>/.playwright-mcp/` (gitignored). First screenshot after navigate can be blank: wait ~1s.
+- Because the app now forces login on every load, **scripted tests must**: log in, click "Langkau" if the intro shows, then navigate inside the app (`history.pushState` + `popstate`) instead of `page.goto`.
+- Demo reset: log in as owner and POST `/api/dev/reset` (or Settings → Set semula demo).
+- Expected demo numbers: Home 85.80 flagged / 31.90 settled / 53.90 open; scenario 1 "PENGHANTARAN TEPAT"; invoice LB-7810 "INVOIS TEPAT · RM285.60"; bon DO-5512 Maggi 10→8 "Anggaran RM90.00"; INV-2291 vs DO-5512 "2 perbezaan · RM110.00"; supplier Pay now RM962.00 → RM872.00 after the credit note.
+- Button labels the e2e depends on (do not rename): Lulus, Abaikan, Hantar, Pertikai, Selesaikan, Simpan kiraan, Simpan invois, Lihat aduan, Hantar semula, Nota kredit, Ditolak daripada invois, Tandakan sudah dibayar, Sahkan tepat, Lihat bukti, Salin pautan, Langkau, Seterusnya, Mula guna.
+- Known harmless false FAIL in old scripts: "superseded caption" (case-sensitive regex).
 
-- **Browser:** Playwright is in `/opt/node-tools/node_modules/playwright`; Chromium is at `/opt/pw-browsers/chromium-*/chrome-linux/chrome`. Symlink `node_modules` into the script's directory, or set `NODE_PATH`. Viewports to check: 390×844 and 360×800.
-- **Playwright demo script outline:**
-  1. Log in with keypad 1234.
-  2. Scan the DO, then each invoice fixture, via the file input.
-  3. Count: Maggi 10 → 8.
-  4. Approve flags; report the Gula price as 2.80.
-  5. Open the message sheet.
-  6. Open the evidence page in a fresh logged-out context.
-  7. Settle → supplier page shows RM962.00 → RM872.00.
-  8. Log in as staff.
-  9. Assert the numbers in the DOM and save screenshots to the scratchpad.
-- **Review checklist for any Replit push:**
-  1. `git diff <prev> origin/main -- shared/core fixtures` must be **empty**;
-  2. read `docs/PROGRESS.md` and `docs/DECISIONS_LOG.md` (SKIPPED lines);
-  3. run the tests, typecheck and build;
-  4. three parallel Explore audits;
-  5. compare the claims against the code.
-- **Fixture generator:** `ln -sfn /opt/node-tools/node_modules fixtures/_generator/node_modules && node fixtures/_generator/generate.mjs <file-name> && rm fixtures/_generator/node_modules`. Render only new files so the existing PNGs stay byte-identical; the seed caches reads by sha256.
+## 7. Deploy so friends can test (Replit as host, no credits for running tests)
+1. Repl → Shell: `git pull origin main` then `npm install`.
+2. Secrets: `OWNER_PIN`, `STAFF_PIN` (4 digits each, different), `SESSION_SECRET` (32+ chars), `GEMINI_API_KEY`, `DEMO_FIXTURES=1`, `SEED_ON_BOOT=1`; enable Replit Postgres (`DATABASE_URL`).
+3. Deploy (Autoscale) → check `<url>/api/health` (`ok, db, seeded, gemini` true), log in as owner, Settings → Set semula demo. Give friends the **staff PIN** only. Owner can call `POST /api/gemini-check` once to prove the key/models.
+4. Demo has 50 AI reads ("Baki semakan"); reset between testers.
+- **Vercel is not suitable** (needs a long-running Express server + persistent uploads). Alternatives that cost nothing: run locally + Cloudflare Tunnel (`cloudflared tunnel --url http://localhost:5000`), or Render/Railway (+ a persistent disk or Neon Postgres).
+- Not yet verified by Claude: the live Replit deploy (storage "replit", PINs, real Gemini read, WhatsApp button on a real phone).
 
----
+## 8. Open items (ranked)
+1. **Submission:** deadline reportedly **25 Oct 2026 23:59 MYT (unverified; today is 24 Oct)**. The three submission PDFs named `SDC2026_TeamName_*` are placeholders and must be rewritten with "Alt+Win+R" content (files live on `origin/tetapbill_isaac`; PR #1 stays untouched).
+2. Deploy + smoke-test on Replit (§7); one real phone test.
+3. RunPod: ask the organiser; stay Gemini-only; only build a flag-gated non-blocking job if the organiser says it is mandatory.
+4. Optional polish (user wants "out of this world, no AI slop"): the deeper screens (Count, Compare, Review, Read, E-invoice) were only re-skinned by tokens + headers, not redesigned; ideas: a custom count screen, a celebratory "INVOIS TEPAT" moment, shared-element list→detail transitions, richer empty states. Always Mobbin-reference first, keep motion transform/opacity only, verify frame time (p95 ≤ 17ms), CLS 0, no overflow at 360/390.
+5. Preview artifact (`pv/`) is stale; refresh only if asked.
+6. Ask before any destructive/outward action. `npm audit fix` is NOT wanted (11 moderate/1 high dev-tool warnings are accepted).
 
-## 7. Working with Replit (protocol that worked)
-- **Prompts live in repo files.** The user pastes one short line: *"Pull is done. Open docs/FIX_PROMPT_N.md, copy the prompt inside the first ```text block, and execute it exactly… Follow rules R1–R6… end with the FINISH report."*
-- **Anti-loop rules** (keep them):
-  - R1: at most 2 attempts per item, then revert, log SKIPPED and move on.
-  - R2: change only what an item names; no new dependencies; never touch `shared/core` or `fixtures`.
-  - R3: tests + typecheck per section; browser testing only at FINISH.
-  - R4: no questions.
-  - R5: work in priority order.
-  - R6: stay within the motion budget.
-- **Prompt standards:**
-  - Every reference (file:line, route, function) must be verified against `main` before writing.
-  - Resolve every ambiguity in the prompt itself.
-  - Include a deploy smoke test.
-  - End with a fixed-format report (DONE / SKIPPED / TESTS / APP TEST / NOT VERIFIED).
-- **Git hygiene:**
-  - Before the user pastes a prompt in Replit: **Pull** in Replit's Git pane.
-  - After Replit finishes: **Pull, then Push**.
-  - Claude pushes kit and doc changes to `main` (allowed) and to `claude/dazzling-ritchie-1hkmlo`.
-  - Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and `Claude-Session: https://claude.ai/code/session_01BUm8rFeb3wbEiDtyM5AnCX`. Use the attribution the new session's system gives you if it differs.
-- **Budget:** about $20 of Replit credits per round. Sonnet 5.5 at Medium, High for hard rounds. App Testing is on, but only one full pass at FINISH.
-- **Replit quirks:**
-  - It can't take screenshots behind login.
-  - Its tester needs `OWNER_PIN` and `STAFF_PIN` overridden on the workflow.
-  - It reports honestly in `PROGRESS.md`.
-  - Its module is `nodejs-20`.
-
----
-
-## 8. Remaining roadmap to win
-1. **Verify FR3** (§1), then FR4 only for real gaps.
-2. **Deploy:**
-   - Publish as a Reserved VM with the secrets from §4.
-   - Check `/api/health`: `storage` must read `replit`, not disk.
-   - Reset the demo from Settings → *Set semula demo* (allowed when `DEMO_FIXTURES=1`).
-3. **Real-world checks** (human only; see `docs/DEMO_DAY_CHECKLIST.md`):
-   - Attach billing to the Gemini key.
-   - Photograph the printed INV-2291 live: does the primary model return boxes? How long does it take?
-   - Read 5+ real handwritten bons (spec requirement); log them in `docs/DECISIONS_LOG.md`.
-   - `wa.me` on iOS and Android; the evidence page inside WhatsApp's in-app browser.
-   - Two rehearsals on two phones.
-4. **Submission:** PR #1 adds `submission/SDC2026_TeamName_{Preliminary,Replit_POU,TechDeclaration}.pdf`; these probably need the real team name (§9).
-5. **Deck/PRD alignment:**
-   - The deck still says "reads delivery photos". It should say "reads bons and invoices"; delivery photos are evidence only.
-   - Show the two-phase flow (slides 4–5) exactly as built.
-   - The BM message wording comes from core.
-   - Pitch Orbyte as "designed to plug into".
-6. **Demo morning:** reset ≤1 hour before; never open reminder messages after the reset.
-
----
-
-## 9. PR #1 ("Tetapbill isaac", teammate ISAACTOHZHENYONG-2025): do NOT merge as-is
-- It's based on `41feff7` (before FR2/FR3) and **moves the whole app into `src/`** (`server` → `src/server`, `shared` → `src/shared`, …). It also edits `tsconfig`, `vite` and `vitest` configs, the README, and adds `submission/*.pdf`.
-- Merging it would conflict with FR2/FR3 and break every path in `replit.md`, the PRD, the prompts, `.replit` and the tests.
-- **Do this instead:**
-  1. Take only `submission/*.pdf` and any README text the teammate wants (`git checkout origin/tetapbill_isaac -- submission/`).
-  2. Commit that to `main`.
-  3. Comment on PR #1 explaining the folder move is not safe right before the demo. Ask the user before commenting or closing.
-- Confirm with the user whether the team name in the PDFs needs filling in.
-
----
-
-## 10. User profile and preferences (follow these)
-- **Communication:** blunt and casual. Wants **direct answers, no fluff**, and decisions made for them ("just decide for me").
-- **Rigour:** wants agents to cross-verify and question your own judgement before handing anything over. "Don't half-ass it."
-- **Credits:** hates loops and wasted Replit credits. One complete prompt per round, with A–Z coverage.
-- **Gemini only:** never propose Claude or another provider as fallback.
-- **Design taste:** premium and crafted, **not "AI slop"**. Dislikes generic template looks and gimmicky motion.
-- **Git:** pushing to `main` is fine (they asked for it). They push from Replit themselves.
-- **Mid-task messages:** sometimes interrupts mid-task with a new priority. Address it immediately and keep the work coherent.
-
----
-
-## 11. Gotchas (all of these happened)
-- **Gemini schema:** `z.tuple` → draft-7 `items:[...]` → Gemini 400. Box must stay `z.array(z.number()).length(4)`.
-- **AI SDK 7:**
-  - `generateObject` is deprecated; use `generateText` + `Output.object`.
-  - Images go as `{type:'file', mediaType}` parts.
-  - `MockLanguageModelV4` is the offline test model.
-  - Set `maxRetries: 0`, or the SDK retries twice and wraps the error in `RetryError`.
-- **Gemini 3.8 Flash** rejects thinking level `'minimal'`; use `'low'`.
-- **`tokenOverlap` is the overlap coefficient** (symmetric), so "Gula perang" ≈ "Gula pasir" at 0.67. Also require Jaccard ≥ 0.6 (`nearSku`).
-- **Tailwind 4:** CSS outside a layer beats utilities. Put custom classes in `@utility` or `@layer`.
-- **sonner** injects unlayered CSS. Style toasts through its CSS variables, not `className`.
-- **Express 5:** wildcard routes are `/{*splat}`; mount `/api` and its JSON 404 before the SPA fallback.
-- **Replit object storage:** `new Client()` never throws, so probe it with `exists()`; `downloadAsBytes` returns `r.value[0]`.
-- **Lockfile:** it contains `package-firewall.replit.internal` URLs, unreachable outside Replit (see §6).
-- **Postgres here:** `initdb` refuses to run as root, and the data dir must be readable by `postgres` (use `/var/tmp`).
-- **Seed dates** are relative to seed time, so the 30-day Home figures drift. Reset on demo morning.
-- **Opening a reminder:** used to log `flag.remind` on GET; it now logs on the POST of the send action (FR3 P0.13).
-- **`wa.me` with no number** opens WhatsApp's contact picker, which is intended. Real numbers are deliberately absent from the seed.
-- **Upload bytes:** the client re-encodes uploads only when needed, so fixture PNGs keep their sha256 and hit the seeded read cache.
+## 9. Git state
+- `main` carries everything. Rollback tags: `pre-ui-redesign` (before the Revolut Home), `pre-obsidian` (before the dark theme). Key commits: `65b6a1c` Revolut Home, `65c67f0` obsidian dark, `ea1f329` nav, `114f013` login/intro/headers/animations.
+- Decision log: `docs/DECISIONS_LOG.md` (append a line for every notable choice). Replit prompts for reference: `docs/FIX_PROMPT_4.md`–`6.md` (all executed).
