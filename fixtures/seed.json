@@ -57,6 +57,7 @@
       "received": { "maggi-kari": 10, "beras-rambutan-10kg": 5, "minyak-masak-buruh-5kg": 5, "gula-pasir-1kg": 50 },
       "ownerMarkedCorrect": true },
     { "id": "inv_lb7781", "invoiceNo": "LB-7781", "supplierId": "sup_lim", "poId": "po_002", "daysAgo": 18,
+      "fixture": "docs/invoice_lim_brothers_LB-7781.png", "bonFixture": "docs/do_lim_brothers_DO-LB-0788.png",
       "payment": "on_credit", "currency": "MYR", "totalSen": 59370, "lines": [
       { "lineId": "L1", "sku": "kicap-manis-cap-kipas-udang", "description": "KICAP MANIS KIPAS UDANG 320ML", "qty": 50, "unitPriceSen": 525 },
       { "lineId": "L2", "sku": "sardin-ayam-brand-425g", "description": "SARDIN AYAM BRAND 425G", "qty": 48, "unitPriceSen": 690 } ],

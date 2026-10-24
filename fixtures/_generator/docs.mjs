@@ -222,6 +222,27 @@ const limInvoice = {
     lines: limRows.map(r => ({ description: r[0], qty: r[1], unit: r[2], unitPrice: r[3], lineTotal: r[4] })) },
 };
 
-export const DOCS = [poNotebook, invoiceA, bon, waOrder, cashBill, foreign, delivery, limDo, limInvoice].map(d => ({
+
+// ---------- 10. Lim Brothers LB-7781 (seeded, open sardine shortage: billed 48, counted 42) ----------
+const lb7781Rows = [['KICAP MANIS KIPAS UDANG 320ML', 50, 'BTL', '5.25', '262.50'], ['SARDIN AYAM BRAND 425G', 48, 'TIN', '6.90', '331.20']];
+const limInvoice7781 = {
+  file: 'invoice_lim_brothers_LB-7781', width: 900, height: 1080,
+  html: limInvoice.html.replace('LB-7810', 'LB-7781').replace('25/10/2026', '06/10/2026').replace('DO-LB-0901', 'DO-LB-0788').replace('RM 285.60', 'RM 593.70')
+    .replace(/<tr data-line="0">[\s\S]*<\/tbody>/, `${lb7781Rows.map((r, i) => `<tr data-line="${i}"><td>${r[0]}</td><td class="n">${r[1]}</td><td>${r[2]}</td><td class="n">${r[3]}</td><td class="n">${r[4]}</td></tr>`).join('')}</tbody>`)
+    .replace('Terima kasih atas sokongan anda.', 'Terima kasih atas sokongan anda. · DOKUMEN DEMO SINTETIK'),
+  expected: { docType: 'invoice', supplierName: 'Lim Brothers Trading', docNo: 'LB-7781', docDate: '2026-10-06',
+    currency: 'MYR', supplierCountry: 'MY', totalAmount: '593.70',
+    lines: lb7781Rows.map(r => ({ description: r[0], qty: r[1], unit: r[2], unitPrice: r[3], lineTotal: r[4] })) },
+};
+const limDo0788 = {
+  file: 'do_lim_brothers_DO-LB-0788', width: 860, height: 900,
+  html: limDo.html.replace('DO-LB-0901', 'DO-LB-0788').replace('24/10/2026', '06/10/2026').replace('PO-2610-006', 'PO-2610-002')
+    .replace(/<tr data-line="0">[\s\S]*<\/table>/, `${lb7781Rows.map((r, i) => `<tr data-line="${i}"><td>${r[0]}</td><td>${r[1]} ${r[2]}<span class="pen">${i === 1 ? '42 terima' : '✓ ' + r[1]}</span></td></tr>`).join('')}</table>`)
+    .replace('Diterima dalam keadaan baik:', 'Diterima (sardin kurang 6 tin) · DOKUMEN DEMO SINTETIK:').replace('24/10/26', '06/10/26'),
+  expected: { docType: 'delivery_note', supplierName: 'Lim Brothers Trading', docNo: 'DO-LB-0788', docDate: '2026-10-06',
+    lines: lb7781Rows.map(r => ({ description: r[0], qty: r[1], unit: r[2] })) },
+};
+
+export const DOCS = [poNotebook, invoiceA, bon, waOrder, cashBill, foreign, delivery, limDo, limInvoice, limInvoice7781, limDo0788].map(d => ({
   ...d, expected: d.expected ?? { docType: 'other', supplierName: '', lines: [] },
 }));

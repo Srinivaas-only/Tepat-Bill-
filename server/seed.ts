@@ -2,7 +2,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Db } from './db';
 import { makeDb } from './db';
 import { makeStorage, type Storage } from './storage';
@@ -92,9 +92,11 @@ async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: b
 
   // 6. invoices
   const invDocs: Record<string, string> = {};
+  const invBons: Record<string, string> = {};
   for (const i of seed.invoices) {
     let docId: string | null = null; let expected: any = null;
     if (i.fixture) { const fx = await addDoc(i.fixture, 'invoice', 'invoice'); docId = fx.id; expected = fx.expected; invDocs[i.id] = fx.id; }
+    if (i.bonFixture) { const fx = await addDoc(i.bonFixture, 'delivery_note', 'signed_bon'); invBons[i.id] = fx.id; }
     const issuedAt = at(i.daysAgo)!;
     const bp = i.exchangeRateToMYR ? RATE_BP[i.currency] ?? null : null;
     const snapshot: PriceList = i.id === 'inv_2207' ? {} : (seed.priceList[i.supplierId] ?? {});
@@ -109,6 +111,7 @@ async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: b
       unitPriceSen: l.foreignUnitMinor !== undefined && bp ? toMyrSen(l.foreignUnitMinor, bp) : l.unitPriceSen,
       unitPriceForeignMinor: l.foreignUnitMinor ?? null, lineTotalSen: l.foreignUnitMinor !== undefined && bp ? toMyrSen(l.qty * l.foreignUnitMinor, bp) : l.qty * l.unitPriceSen,
       box: expected?.lines?.[n]?.box_2d ?? null, position: n })));
+    if (invBons[i.id]) await db.update(S.documents).set({ invoiceId: i.id }).where(eq(S.documents.id, invBons[i.id]));
     await db.insert(S.receivedCounts).values(Object.entries(i.received as Record<string, number>).map(([key, qty]) => ({
       invoiceId: i.id, key, qty, recordedByRole: 'staff', recordedAt: issuedAt })));
   }
@@ -127,7 +130,7 @@ async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: b
       baselineUnitSen: sf.baselineUnitSen ?? base.baselineUnitSen, baselineSource: sf.baselineSource ?? base.baselineSource,
       openedAt: at(sf.openedDaysAgo), sentAt: at(sf.sentDaysAgo), settledAt: at(sf.settledDaysAgo), createdAt: at(sf.openedDaysAgo ?? 0)!,
     });
-    const docIds = [invDocs[sf.invoiceId], poDocs[sf.poId]].filter(Boolean);
+    const docIds = [invDocs[sf.invoiceId], invBons[sf.invoiceId], poDocs[sf.poId]].filter(Boolean);
     for (const d of docIds) await db.insert(S.flagPhotos).values({ flagId: sf.id, documentId: d }).onConflictDoNothing();
   }
 

@@ -1,0 +1,30 @@
+{
+  "docType": "delivery_note",
+  "supplierName": "Lim Brothers Trading",
+  "docNo": "DO-LB-0788",
+  "docDate": "2026-10-06",
+  "lines": [
+    {
+      "description": "KICAP MANIS KIPAS UDANG 320ML",
+      "qty": 50,
+      "unit": "BTL",
+      "box_2d": [
+        295,
+        101,
+        400,
+        894
+      ]
+    },
+    {
+      "description": "SARDIN AYAM BRAND 425G",
+      "qty": 48,
+      "unit": "TIN",
+      "box_2d": [
+        388,
+        103,
+        492,
+        895
+      ]
+    }
+  ]
+}

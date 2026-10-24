@@ -423,6 +423,18 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(real.json.text).toBe(pv.json.text);
   });
 
+  it('the seeded sardine flag carries its invoice + signed bon as evidence, served on the public page', async () => {
+    const f = await call('GET', '/api/flags/flg_l1', ownerCookie);
+    expect(f.status).toBe(200);
+    expect(f.json.photos.length).toBeGreaterThanOrEqual(2);
+    expect(f.json.photos.map((p: any) => p.kind)).toEqual(expect.arrayContaining(['invoice', 'signed_bon']));
+    const ev = await fetch(base + `/api/public/evidence/${f.json.evidenceToken}`);
+    expect(ev.status).toBe(200);
+    const body = await ev.json() as any;
+    expect(body.photos.length).toBeGreaterThanOrEqual(2);
+    expect((await fetch(base + body.photos[0].url)).status).toBe(200);
+  });
+
   it('T3 a delivery document cannot be attached to an invoice', async () => {
     const fd = new FormData();
     fd.append('kind', 'delivery_note');

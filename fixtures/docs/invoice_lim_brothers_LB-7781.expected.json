@@ -1,0 +1,37 @@
+{
+  "docType": "invoice",
+  "supplierName": "Lim Brothers Trading",
+  "docNo": "LB-7781",
+  "docDate": "2026-10-06",
+  "currency": "MYR",
+  "supplierCountry": "MY",
+  "totalAmount": "593.70",
+  "lines": [
+    {
+      "description": "KICAP MANIS KIPAS UDANG 320ML",
+      "qty": 50,
+      "unit": "BTL",
+      "unitPrice": "5.25",
+      "lineTotal": "262.50",
+      "box_2d": [
+        295,
+        67,
+        340,
+        933
+      ]
+    },
+    {
+      "description": "SARDIN AYAM BRAND 425G",
+      "qty": 48,
+      "unit": "TIN",
+      "unitPrice": "6.90",
+      "lineTotal": "331.20",
+      "box_2d": [
+        340,
+        67,
+        386,
+        933
+      ]
+    }
+  ]
+}
