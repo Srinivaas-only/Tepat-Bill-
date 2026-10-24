@@ -219,7 +219,7 @@ export const en: Record<Key, string> = {
   'act.unknown': 'Activity',
   'home.qa.orders': 'Orders',
   'ev.compareBon': 'Order vs delivery order',
-  'scan.attach.hint': 'Attach to an invoice you already saved',
+  'scan.attach.hint': 'To a saved invoice',
   'compare.colPo': 'PO',
   'compare.colDo': 'DO',
   'compare.colInv': 'INV',
@@ -504,7 +504,6 @@ export const en: Record<Key, string> = {
   'settings.payloadNote': "The exact data that would go to the accounting partner once a real connection is configured. Draft schema, not a real contract.",
   'settings.handoffFail': "Handoff failed: the accounting partner did not accept the data.",
   'scan.noPhoto': "No photo? Type it in",
-  'scan.samples': "Sample files to try",
   'scan.samplesHint': "Synthetic documents. Tap one to scan it straight away, no photo of your own needed.",
   'flag.waHelp': "WhatsApp did not open? Tap Copy message, then paste it into the supplier's chat.",
   'flag.waNumber': "Supplier WhatsApp number",
@@ -519,4 +518,6 @@ export const en: Record<Key, string> = {
   'einv.submittedRibbon': "Submitted to LHDN ({env})",
   'settings.adjustments': "Download supplier adjustments (CSV)",
   'settings.adjustmentsNote': "One row per claim the supplier accepted. Generic format: map the columns when importing into AutoCount / SQL Account / Bukku.",
+  'scan.type': "Type",
+  'scan.samples': "Try sample files",
 };

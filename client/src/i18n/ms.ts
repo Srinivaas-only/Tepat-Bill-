@@ -218,7 +218,7 @@ export const ms = {
   'act.unknown': 'Aktiviti',
   'home.qa.orders': 'Pesanan',
   'ev.compareBon': 'Pesanan berbanding bon',
-  'scan.attach.hint': 'Lampirkan pada invois yang sudah ada',
+  'scan.attach.hint': 'Pada invois sedia ada',
   'compare.colPo': 'PO',
   'compare.colDo': 'BON',
   'compare.colInv': 'INV',
@@ -503,7 +503,6 @@ export const ms = {
   'settings.payloadNote': "Inilah data tepat yang akan dihantar kepada rakan perakaunan apabila sambungan sebenar dikonfigurasikan. Skema draf, bukan kontrak sebenar.",
   'settings.handoffFail': "Serahan gagal: rakan perakaunan tidak menerima data.",
   'scan.noPhoto': "Tiada gambar? Taip terus",
-  'scan.samples': "Fail contoh untuk dicuba",
   'scan.samplesHint': "Dokumen sintetik. Ketik satu untuk mengimbasnya terus, tanpa perlu gambar sendiri.",
   'flag.waHelp': "WhatsApp tidak terbuka? Ketik Salin mesej, kemudian tampal dalam sembang pembekal.",
   'flag.waNumber': "Nombor WhatsApp pembekal",
@@ -518,5 +517,7 @@ export const ms = {
   'einv.submittedRibbon': "Dihantar ke LHDN ({env})",
   'settings.adjustments': "Muat turun pelarasan pembekal (CSV)",
   'settings.adjustmentsNote': "Satu baris bagi setiap tuntutan yang diterima pembekal. Format umum: petakan lajur semasa mengimport ke AutoCount / SQL Account / Bukku.",
+  'scan.type': "Taip",
+  'scan.samples': "Cuba fail contoh",
 } as const;
 export type Key = keyof typeof ms;

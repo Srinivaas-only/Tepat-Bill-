@@ -6,7 +6,7 @@ import compression from 'compression';
 import { createApp, mountErrorHandlers } from './app';
 import { getDb } from './db';
 import { makeStorage } from './storage';
-import { seedIfEmpty } from './seed';
+import { ensureFixtureCache, seedIfEmpty } from './seed';
 import { upgradeSchema } from './schema-upgrade';
 import { getPins } from './auth';
 
@@ -31,6 +31,7 @@ async function main() {
   if (process.env.SEED_ON_BOOT === '1') {
     try { await seedIfEmpty(db, storage); } catch (e) { console.error('[seed] failed, continuing without it:', (e as Error).message); }
   }
+  if (process.env.DEMO_FIXTURES === '1' || process.env.NODE_ENV !== 'production') await ensureFixtureCache(db).then(n => n && console.log(`[fixtures] cached ${n} sample read(s)`)).catch(e => console.error('[fixtures] cache skipped:', (e as Error).message));
   for (const k of ['GEMINI_API_KEY', 'DEMO_FIXTURES', 'PUBLIC_BASE_URL']) if (!process.env[k]) console.warn(`[config] ${k} is not set`);
 
   const app = createApp({ db, storage }, [compression()]);

@@ -243,6 +243,30 @@ const limDo0788 = {
     lines: lb7781Rows.map(r => ({ description: r[0], qty: r[1], unit: r[2] })) },
 };
 
-export const DOCS = [poNotebook, invoiceA, bon, waOrder, cashBill, foreign, delivery, limDo, limInvoice, limInvoice7781, limDo0788].map(d => ({
+// ---------- realism: make every document look like a phone photo of real paper, not a flat render ----------
+const NOISE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3  0 0 0 0 .28  0 0 0 0 .25  0 0 0 .55 0'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>")`;
+const OVERLAY_CSS = `#doc{position:relative;overflow:hidden}
+  .ov{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 28% 18%,rgba(255,255,255,.16),rgba(255,255,255,0) 55%),radial-gradient(135% 115% at 50% 50%,rgba(0,0,0,0) 52%,rgba(0,0,0,.30) 100%),${NOISE};
+    mix-blend-mode:multiply}`;
+const FLAT = new Set(['invoice_borong_ali_INV-2291', 'invoice_foreign_GZ-2026-088', 'invoice_lim_brothers_LB-7810', 'invoice_lim_brothers_LB-7781']);
+const PAD = 90;
+function realistic(d) {
+  if (d.file === 'po_whatsapp_kilang_roti_sinar') return d;           // a phone screenshot stays a screenshot
+  let html = d.html, { width, height } = d;
+  if (FLAT.has(d.file)) {
+    // a flat white page: put it on a desk, slightly rotated and in perspective, with a paper shadow
+    html = html.replace(/#doc\b/g, '.docinner').replace('id="doc"', 'class="docinner"')
+      .replace('<body>', `<body><div id="doc"><div class="sheet">`).replace('</body>', `</div></div></body>`);
+    width += PAD * 2; height += PAD * 2;
+    html = html.replace('</style>', `#doc{width:${width}px;height:${height}px;background:linear-gradient(100deg,#8c6a4a,#a3815e 45%,#8a6847);padding:${PAD}px}
+      .sheet{width:${d.width}px;height:${d.height}px;transform:perspective(1800px) rotateX(2.2deg) rotateY(-1.6deg) rotate(-1.1deg);box-shadow:0 26px 40px rgba(0,0,0,.5),0 3px 6px rgba(0,0,0,.35);background:#fdfdfb}
+      .docinner{background:#fdfdfb}</style>`);
+  }
+  html = html.replace('</style>', `${OVERLAY_CSS}</style>`).replace(/<\/div>\s*<\/body>/, '<div class="ov"></div></div></body>');
+  return { ...d, html, width, height };
+}
+
+export const DOCS = [poNotebook, invoiceA, bon, waOrder, cashBill, foreign, delivery, limDo, limInvoice, limInvoice7781, limDo0788].map(realistic).map(d => ({
   ...d, expected: d.expected ?? { docType: 'other', supplierName: '', lines: [] },
 }));

@@ -140,6 +140,18 @@ async function seedInTx(db: Db, storage: Storage, now: number, opts: { quiet?: b
   if (!opts.quiet) console.log(`[seed] ok: ${seed.suppliers.length} suppliers, ${seed.purchaseOrders.length} POs, ${seed.invoices.length} invoices, ${seed.flags.length} flags, ${pngs.length} fixtures`);
 }
 
+/** Fixture reads cached by sha256 so sample documents never need a live Gemini call. Idempotent: run at every boot, so a redeploy with regenerated fixtures keeps working without a demo reset. */
+export async function ensureFixtureCache(db: Db) {
+  const dir = path.join(FX(), 'docs');
+  let n = 0;
+  for (const f of readdirSync(dir).filter(x => x.endsWith('.png'))) {
+    const expected = JSON.parse(readFileSync(path.join(dir, f.replace(/\.png$/, '.expected.json')), 'utf8'));
+    const r = await db.insert(S.extractions).values({ sha256: cacheKey(readFileSync(path.join(dir, f))), model: 'fixture', doc: expected }).onConflictDoNothing().returning({ sha: S.extractions.sha256 });
+    n += r.length;
+  }
+  return n;
+}
+
 export async function seedIfEmpty(db: Db, storage: Storage) {
   const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(S.suppliers);
   if (r.n === 0) await seedDatabase(db, storage);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
-import { Camera, FileUp, FileText, ReceiptText, Truck, Paperclip, PenLine, Sparkles } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, FileUp, FileText, ReceiptText, Truck, Paperclip, PenLine, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ export default function Scan() {
   const [pct, setPct] = useState(0);
   const [thumb, setThumb] = useState<string | null>(null);
   const [note, setNote] = useState(false);
+  const [samples, setSamples] = useState(false);
   const snap = useRef<HTMLInputElement>(null);
   const file = useRef<HTMLInputElement>(null);
   useEffect(() => () => { if (thumb) URL.revokeObjectURL(thumb); }, [thumb]);
@@ -86,39 +87,48 @@ export default function Scan() {
   return (
     <Page title={kind ? t(kinds.find(k => k.id === kind)!.key) : t('nav.scan')}>
       <Sheet open={!kind} onOpenChange={o => { if (!o) nav('/'); }}>
-        <SheetContent title={t('scan.what')}>
-          <div className="overflow-hidden rounded-card bg-surface shadow-card">
-            {kinds.map(k => (
-              <button key={k.id} type="button" onClick={() => choose(k.id)} className="press flex min-h-16 w-full items-center gap-4 border-t border-line px-4 py-3 text-left first:border-t-0 [@media(hover:hover)]:hover:bg-surface-2/60">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-brand-text/10 text-brand-text" aria-hidden><k.icon size={22} strokeWidth={1.75} /></span>
-                <span className="min-w-0"><span className="block text-base font-medium leading-5">{t(k.key)}</span><span className="block text-sm text-ink-2">{t(k.hint)}</span></span>
+        <SheetContent title={samples ? t('scan.samples') : t('scan.what')}>
+          {!samples ? (
+            <>
+              <div className="overflow-hidden rounded-card bg-surface shadow-card">
+                {kinds.map(k => (
+                  <div key={k.id} className="flex items-stretch border-t border-line first:border-t-0">
+                    <button type="button" onClick={() => choose(k.id)} className="press flex min-h-16 min-w-0 flex-1 items-center gap-4 px-4 py-3 text-left [@media(hover:hover)]:hover:bg-surface-2/60">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-brand-text/10 text-brand-text" aria-hidden><k.icon size={22} strokeWidth={1.75} /></span>
+                      <span className="min-w-0"><span className="block text-base font-medium leading-5">{t(k.key)}</span><span className="block truncate text-sm text-ink-2">{t(k.hint)}</span></span>
+                    </button>
+                    {k.id !== 'bon' && (
+                      <button type="button" onClick={() => nav(`/review/${k.id}/new`)} aria-label={`${t('scan.type')} · ${t(k.key)}`}
+                        className="press flex w-[68px] shrink-0 flex-col items-center justify-center gap-1 border-l border-line text-xs font-medium text-brand-text [@media(hover:hover)]:hover:bg-surface-2/60">
+                        <PenLine size={18} strokeWidth={1.75} aria-hidden />{t('scan.type')}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={() => setSamples(true)} className="press mt-3 flex min-h-12 w-full items-center gap-3 rounded-card px-4 text-left text-sm font-medium text-ink-2 [@media(hover:hover)]:hover:bg-surface/60">
+                <Sparkles size={18} className="text-brand-text" aria-hidden /><span className="flex-1">{t('scan.samples')}</span><ChevronRight size={18} aria-hidden />
               </button>
-            ))}
-          </div>
-          <div className="mt-4 rounded-card border border-brand-text/30 bg-brand-text/[.06] p-3">
-            <p className="mb-2 text-sm font-semibold text-ink">{t('scan.noPhoto')}</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {(['po', 'invoice', 'delivery'] as const).map(k => (
-                <Button key={k} type="button" variant="secondary" block className="h-auto min-h-12 whitespace-normal py-2 text-center leading-5" onClick={() => nav(`/review/${k}/new`)}><PenLine size={16} aria-hidden />{t('scan.manual')} · {t(kinds.find(x => x.id === k)!.key)}</Button>
-              ))}
-            </div>
-          </div>
-          <details className="mt-3 rounded-card bg-surface p-3" open>
-            <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-ink"><Sparkles size={16} className="text-brand-text" aria-hidden />{t('scan.samples')}</summary>
-            <p className="mb-2 text-xs text-ink-2">{t('scan.samplesHint')}</p>
-            <div className="space-y-3">
+            </>
+          ) : (
+            <div className="space-y-4">
+              <button type="button" onClick={() => setSamples(false)} className="press -ml-2 inline-flex min-h-11 items-center gap-1 rounded-btn px-2 text-sm font-medium text-ink-2"><ChevronLeft size={18} aria-hidden />{t('common.back')}</button>
               {kinds.map(k => (
-                <div key={k.id}>
+                <section key={k.id}>
                   <p className="eyebrow mb-1">{t(k.key)}</p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="overflow-hidden rounded-card bg-surface shadow-card">
                     {SAMPLES[k.id].map(sm => (
-                      <button key={sm.file + k.id} type="button" disabled={busy} onClick={() => void useSample(k.id, sm.file)} className="press inline-flex min-h-11 items-center rounded-full bg-surface-2 px-3 text-sm font-medium text-ink ring-1 ring-white/10">{lang === 'ms' ? sm.ms : sm.en}</button>
+                      <button key={sm.file + k.id} type="button" disabled={busy} onClick={() => void useSample(k.id, sm.file)} className="press flex min-h-16 w-full items-center gap-3 border-t border-line px-4 py-2 text-left first:border-t-0">
+                        <img src={`/api/samples/${sm.file}`} alt="" loading="lazy" className="h-12 w-10 shrink-0 rounded-md bg-surface-2 object-cover object-top ring-1 ring-white/10" />
+                        <span className="min-w-0 flex-1 text-sm font-medium leading-5">{lang === 'ms' ? sm.ms : sm.en}</span>
+                        <ChevronRight size={16} className="shrink-0 text-ink-3" aria-hidden />
+                      </button>
                     ))}
                   </div>
-                </div>
+                </section>
               ))}
             </div>
-          </details>
+          )}
         </SheetContent>
       </Sheet>
 
