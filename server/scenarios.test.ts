@@ -306,6 +306,21 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect((await call('GET', `/api/flags/${f.id}`, ownerCookie)).json.flag.status).toBe('proposed');
   });
 
+  it('supplier acceptance: only the accepted amount and reference are recorded and credited', async () => {
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'ACC-1', lines: [{ description: 'Kopi Tarik', qty: 6, unitPriceSen: 500 }], totalSen: 3000 });
+    const f = (await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 4 } })).json.flags[0];
+    expect(f.amountSen).toBe(1000);
+    expect((await call('POST', `/api/flags/${f.id}/approve`, ownerCookie, { request: 'deduct' })).status).toBe(200);
+    expect((await call('POST', `/api/flags/${f.id}/settle`, staffCookie, { settlement: 'credit_note', acceptedSen: 600 })).status).toBe(403);
+    expect((await call('POST', `/api/flags/${f.id}/settle`, ownerCookie, { settlement: 'credit_note', acceptedSen: 1001 })).status).toBe(409);
+    const ok = await call('POST', `/api/flags/${f.id}/settle`, ownerCookie, { settlement: 'credit_note', acceptedSen: 600, ref: 'CN-1042' });
+    expect(ok.status).toBe(200);
+    expect(ok.json.flag).toMatchObject({ status: 'settled', amountSen: 1000, acceptedSen: 600, settlementRef: 'CN-1042' });
+    const L = (await call('GET', '/api/suppliers/sup_ali/ledger', ownerCookie)).json.ledger;
+    expect(L.rows.find((r: any) => r.id === inv.json.id).netOwedSen).toBe(2400);
+    expect(JSON.stringify((await call('GET', '/api/activity', ownerCookie)).json)).toContain('flag.settle.credit_note');
+  });
+
   it('T3 a delivery document cannot be attached to an invoice', async () => {
     const fd = new FormData();
     fd.append('kind', 'delivery_note');

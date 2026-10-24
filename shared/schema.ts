@@ -169,6 +169,10 @@ export const flags = pgTable('flags', {
   amountSen: integer('amount_sen').notNull(),
   status: text('status').notNull().default('proposed'),
   settlement: text('settlement'),
+  /** what the supplier actually accepted (credit note / deduction), with the owner-recorded reference. Null = the full flagged amount. */
+  acceptedSen: integer('accepted_sen'),
+  settlementRef: text('settlement_ref'),
+  settlementNote: text('settlement_note'),
   request: text('request'),
   missingQty: integer('missing_qty'),
   invoiceUnitSen: integer('invoice_unit_sen'),

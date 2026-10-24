@@ -112,6 +112,36 @@ describe('dispute scope (audit counterexample)', () => {
   });
 });
 
+describe('supplier acceptance (deck slide 6: credit only after the supplier accepts)', () => {
+  it('unpaid invoice: only the ACCEPTED amount reduces what is owed; flagged money stays separate from recovered', () => {
+    const A = inv('A', 100_000, 1);
+    const f = transition(open(flag('f', 'A', 10_000)), 'settled', 3 * DAY, 'credit_note', 6_000);
+    const L = supplierLedger('S1', [A], [f]);
+    expect(L.owedSen).toBe(94_000);
+    expect(L.recoveredSen).toBe(6_000);
+    expect(last30Days([f], 5 * DAY).settledSen).toBe(6_000);
+    expect(last30Days([f], 5 * DAY).flaggedSen).toBe(10_000);
+  });
+  it('defaults to the full flagged amount when no accepted amount is recorded', () => {
+    const A = inv('A', 100_000, 1);
+    const L = supplierLedger('S1', [A], [transition(open(flag('f', 'A', 10_000)), 'settled', 3 * DAY, 'deducted')]);
+    expect(L.owedSen).toBe(90_000); expect(L.recoveredSen).toBe(10_000);
+  });
+  it('already-paid invoice: the accepted amount carries forward and is deducted from the next invoice', () => {
+    const A = inv('A', 100_000, 1, 'paid', 2), B = inv('B', 50_000, 6);
+    const f = transition(open(flag('f', 'A', 10_000), 3), 'settled', 5 * DAY, 'credit_note', 7_500);
+    const L = supplierLedger('S1', [A, B], [f]);
+    expect(L.owedSen).toBe(42_500);
+    expect(L.creditCarrySen).toBe(0);
+    const only = supplierLedger('S1', [A], [f]);
+    expect(only.creditCarrySen).toBe(7_500);
+  });
+  it('rejects an accepted amount above the flagged amount, or on a redelivery', () => {
+    expect(() => transition(open(flag('f', 'A', 10_000)), 'settled', DAY, 'credit_note', 10_001)).toThrow();
+    expect(() => transition(open(flag('f', 'A', 10_000)), 'settled', DAY, 'redelivered', 5_000)).toThrow();
+  });
+});
+
 describe('order state', () => {
   it('has_flags while anything unresolved; correct only after owner marks it', () => {
     const p = flag('F', 'I1', 1);

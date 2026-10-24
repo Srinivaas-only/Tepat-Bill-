@@ -472,4 +472,10 @@ export const en: Record<Key, string> = {
   'flag.draftPreviewNote': "Draft preview only. Approve the flag first to open WhatsApp; the evidence link works only after approval.",
   'flag.unverified': "Unverified: this is not an agreed price. Set an agreed price for stronger evidence.",
   'ev.unverified': "This reference price comes from earlier records, not a price that was agreed.",
+  'flag.acceptHelp': "Recorded by you. Claim {rm}. Enter the amount the supplier agreed (credit or deduction) and their reference.",
+  'flag.acceptedAmount': "Amount the supplier accepted",
+  'flag.acceptedRef': "Supplier reference / credit note no.",
+  'flag.acceptedRefPh': "e.g. CN-1042",
+  'flag.acceptConfirm': "Save supplier acceptance",
+  'flag.acceptedLabel': "Accepted by supplier (recorded by owner)",
 };

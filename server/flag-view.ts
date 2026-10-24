@@ -11,7 +11,7 @@ export interface FlagView {
   stage: string; deliveryId: string | null; supersededBy: string | null;
   lineDescription: string; supplierId: string; supplierName: string; poId: string | null; poNo: string | null;
   missingQty: number | null; invoiceUnitSen: number | null; baselineUnitSen: number | null; baselineSource: string | null; pricedQty: number | null;
-  direction: string | null; possibleSubstituteFor: string | null; request: string | null; settlement: string | null; note: string | null;
+  direction: string | null; possibleSubstituteFor: string | null; request: string | null; settlement: string | null; acceptedSen: number | null; settlementRef: string | null; settlementNote: string | null; note: string | null;
   reminderDue: boolean; needsRecheck: boolean; openedAt: number | null; sentAt: number | null; settledAt: number | null; createdAt: number;
 }
 
@@ -48,7 +48,7 @@ export async function toViews(db: Pick<Db, 'select'>, rows: FlagRow[]): Promise<
       : lines.find(l => l.invoiceId === r.invoiceId && l.lineId === r.invoiceLineId)?.description) ?? '',
     supplierId: r.supplierId, supplierName: sup.find(s => s.id === r.supplierId)?.name ?? '', poId: r.poId, poNo: pos.find(p => p.id === r.poId)?.poNo ?? null,
     missingQty: r.missingQty, invoiceUnitSen: r.invoiceUnitSen, baselineUnitSen: r.baselineUnitSen, baselineSource: r.baselineSource, pricedQty: r.pricedQty,
-    direction: r.direction, possibleSubstituteFor: r.possibleSubstituteFor, request: r.request, settlement: r.settlement, note: r.note,
+    direction: r.direction, possibleSubstituteFor: r.possibleSubstituteFor, request: r.request, settlement: r.settlement, acceptedSen: r.acceptedSen, settlementRef: r.settlementRef, settlementNote: r.settlementNote, note: r.note,
     needsRecheck: r.needsRecheck, reminderDue: dueIds.has(r.id) && !r.supersededBy, openedAt: r.openedAt?.getTime() ?? null, sentAt: r.sentAt?.getTime() ?? null, settledAt: r.settledAt?.getTime() ?? null, createdAt: r.createdAt.getTime(),
   }));
 }

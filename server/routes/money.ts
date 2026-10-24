@@ -19,14 +19,15 @@ export function moneyRouter(deps: AppDeps) {
   r.use(['/flags', '/suppliers', '/invoices'], requireAuth);
 
   /** One transition + its event in one transaction; the status compare-and-set turns a lost race into a 409. */
-  const move = (id: string, to: 'open' | 'disputed' | 'settled', role: 'owner' | 'staff', event: (out: typeof S.flags.$inferSelect) => [string, unknown?], opts: { settlement?: Settlement; note?: string } = {}) =>
+  const move = (id: string, to: 'open' | 'disputed' | 'settled', role: 'owner' | 'staff', event: (out: typeof S.flags.$inferSelect) => [string, unknown?], opts: { settlement?: Settlement; note?: string; acceptedSen?: number; ref?: string; settleNote?: string } = {}) =>
     db.transaction(async tx => {
       const [row] = await tx.select().from(S.flags).where(eq(S.flags.id, id));
       if (!row) throw new ApiError(404, 'not_found', 'Aduan tiada');
       await lockParent(tx, row);
       let next;
-      try { next = transition(flagRowToCore(row), to, Date.now(), opts.settlement); } catch (e) { throw new ApiError(409, 'bad_state', (e as Error).message); }
-      const out = await updateFlagAtomic(tx, row, { ...flagCoreToPatch(next), ...(opts.note !== undefined ? { note: opts.note } : {}) });
+      try { next = transition(flagRowToCore(row), to, Date.now(), opts.settlement, opts.acceptedSen); } catch (e) { throw new ApiError(409, 'bad_state', (e as Error).message); }
+      const out = await updateFlagAtomic(tx, row, { ...flagCoreToPatch(next), ...(opts.note !== undefined ? { note: opts.note } : {}),
+        ...(to === 'settled' ? { settlementRef: opts.ref ?? null, settlementNote: opts.settleNote ?? null } : {}) });
       // goods that were redelivered after a short delivery now count as received
       if (to === 'settled' && opts.settlement === 'redelivered' && out.stage === 'delivery' && out.deliveryId && out.missingQty) {
         const lines = await tx.select().from(S.deliveryLines).where(eq(S.deliveryLines.deliveryId, out.deliveryId));
@@ -55,10 +56,16 @@ export function moneyRouter(deps: AppDeps) {
     res.json({ flag: (await toViews(db, [out]))[0] });
   });
   r.post('/flags/:id/settle', requireCan('settle_flag'), async (req, res) => {
-    const body = z.object({ settlement: z.enum(['redelivered', 'credit_note', 'deducted']) }).safeParse(req.body);
+    const body = z.object({
+      settlement: z.enum(['redelivered', 'credit_note', 'deducted']),
+      acceptedSen: z.number().int().min(0).max(100_000_000).optional(),   // what the supplier accepted (credit note / deduction); default = the full flagged amount
+      ref: z.string().trim().max(80).optional(),                          // the supplier's credit-note / reference number, as the owner recorded it
+      note: z.string().trim().max(300).optional(),
+    }).safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Data tidak sah');
-    const settlement = body.data.settlement;
-    const out = await move(String(req.params.id), 'settled', req.role!, () => [`flag.settle.${settlement}`, { settlement }], { settlement });
+    const { settlement, acceptedSen, ref, note } = body.data;
+    const out = await move(String(req.params.id), 'settled', req.role!, o => [`flag.settle.${settlement}`, { settlement, ...(acceptedSen !== undefined ? { acceptedSen } : {}), ...(ref ? { ref } : {}) }],
+      { settlement, acceptedSen, ref: ref || undefined, settleNote: note || undefined });
     res.json({ flag: (await toViews(db, [out]))[0] });
   });
 

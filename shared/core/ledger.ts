@@ -8,6 +8,8 @@ export interface Flag {
   id: string; supplierId: string; invoiceId: string; poId: string; invoiceLineId: string;
   type: FlagType; amountSen: Sen; status: FlagStatus; settlement?: Settlement;
   request?: FlagRequest;
+  /** supplier-accepted amount for a credit note / deduction, recorded by the owner (default = the full flagged amount) */
+  acceptedSen?: Sen;
   baselineUnitSen?: Sen; baselineSource?: BaselineSource;
   openedAt?: number;   // ms epoch, set when owner approves (proposed -> open)
   sentAt?: number;     // ms epoch, set when owner taps "Open WhatsApp"
@@ -32,12 +34,17 @@ const allowed: Record<FlagStatus, FlagStatus[]> = {
   disputed: ['open', 'settled'],
   settled: [], dismissed: [],
 };
-export function transition(f: Flag, to: FlagStatus, at: number, settlement?: Settlement): Flag {
+export function transition(f: Flag, to: FlagStatus, at: number, settlement?: Settlement, acceptedSen?: Sen): Flag {
   if (!allowed[f.status].includes(to)) throw new Error(`illegal ${f.status} -> ${to}`);
   if (to === 'settled') {
     if (!settlement) throw new Error('settled needs a settlement kind');
     if (settlement === 'redelivered' && f.type !== 'short_qty') throw new Error('redelivered only applies to short_qty');
-    return { ...f, status: 'settled', settlement, settledAt: at };
+    if (acceptedSen !== undefined) {
+      if (settlement === 'redelivered') throw new Error('redelivered has no accepted amount');
+      assertSen(acceptedSen, 'accepted amount');
+      if (acceptedSen < 0 || acceptedSen > f.amountSen) throw new Error('accepted amount must be between 0 and the flagged amount');
+    }
+    return { ...f, status: 'settled', settlement, settledAt: at, ...(acceptedSen !== undefined ? { acceptedSen } : {}) };
   }
   return { ...f, status: to, openedAt: to === 'open' && f.openedAt === undefined ? at : f.openedAt };
 }
@@ -48,6 +55,8 @@ export function markSent(f: Flag, at: number): Flag {
 }
 
 /** Money-reducing = settled by credit note or deduction. Open/Disputed/Redelivered/Dismissed never move money. */
+/** Money the supplier actually accepted back (flagged money is NOT recovered money). Defaults to the flagged amount. */
+export const recoveredOf = (f: Flag): Sen => f.acceptedSen ?? f.amountSen;
 export const reducesOwed = (f: Flag) => f.status === 'settled' && (f.settlement === 'credit_note' || f.settlement === 'deducted');
 
 export interface InvoiceRow { id: string; grossSen: Sen; reductionSen: Sen; creditAppliedSen: Sen; netOwedSen: Sen }
@@ -79,10 +88,10 @@ export function supplierLedger(supplierId: string, invoices: Invoice[], flags: F
     const reds = fl.filter(f => f.invoiceId === inv.id && reducesOwed(f));
     let ownReduction = 0;
     for (const f of reds) {
-      recovered += f.amountSen;
+      recovered += recoveredOf(f);
       const paidBefore = inv.payment === 'paid' && (inv.paidAt === undefined || (f.settledAt ?? 0) >= inv.paidAt);
-      if (paidBefore) credits.push({ at: f.settledAt ?? inv.issuedAt, sen: f.amountSen });
-      else ownReduction += f.amountSen;
+      if (paidBefore) credits.push({ at: f.settledAt ?? inv.issuedAt, sen: recoveredOf(f) });
+      else ownReduction += recoveredOf(f);
     }
     if (inv.payment === 'paid') continue; // reductions settled before payment were netted into what the owner paid
     unpaid.push({ inv, reduction: ownReduction });
@@ -138,7 +147,7 @@ export function rangeSummary(flags: Flag[], from: number, to: number) {
   const sum = (xs: Flag[]) => xs.reduce((s, f) => s + f.amountSen, 0);
   return {
     flaggedSen: sum(counted),
-    settledSen: sum(counted.filter(f => f.status === 'settled')),
+    settledSen: counted.filter(f => f.status === 'settled').reduce((s, f) => s + (reducesOwed(f) ? recoveredOf(f) : f.amountSen), 0),
     openSen: sum(counted.filter(f => f.status === 'open' || f.status === 'disputed')),
   };
 }
@@ -150,7 +159,7 @@ export function monthSummary(flags: Flag[], year: number, month0: number) {
   const sum = (xs: Flag[]) => xs.reduce((s, f) => s + f.amountSen, 0);
   return {
     flaggedSen: sum(counted),
-    settledSen: sum(counted.filter(f => f.status === 'settled')),
+    settledSen: counted.filter(f => f.status === 'settled').reduce((s, f) => s + (reducesOwed(f) ? recoveredOf(f) : f.amountSen), 0),
     openSen: sum(counted.filter(f => f.status === 'open' || f.status === 'disputed')),
   };
 }

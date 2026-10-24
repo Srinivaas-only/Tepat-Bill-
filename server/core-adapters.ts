@@ -25,7 +25,7 @@ export function flagRowToCore(r: FlagRow, photoIds: string[] = []): Flag {
     id: r.id, supplierId: r.supplierId, invoiceId: r.invoiceId ?? r.deliveryId ?? '', poId: r.poId ?? '', invoiceLineId: r.invoiceLineId,
     type: r.type as FlagType, amountSen: r.amountSen, status: r.status as FlagStatus,
     settlement: (r.settlement ?? undefined) as Settlement | undefined,
-    request: (r.request ?? undefined) as FlagRequest | undefined,
+    request: (r.request ?? undefined) as FlagRequest | undefined, acceptedSen: r.acceptedSen ?? undefined,
     baselineUnitSen: r.baselineUnitSen ?? undefined, baselineSource: (r.baselineSource ?? undefined) as BaselineSource | undefined,
     openedAt: ms(r.openedAt), sentAt: ms(r.sentAt), settledAt: ms(r.settledAt), photoIds,
   };
@@ -33,7 +33,7 @@ export function flagRowToCore(r: FlagRow, photoIds: string[] = []): Flag {
 
 /** Core Flag -> the columns a transition can change. */
 export const flagCoreToPatch = (f: Flag) => ({
-  status: f.status, settlement: f.settlement ?? null, request: f.request ?? null,
+  status: f.status, settlement: f.settlement ?? null, request: f.request ?? null, acceptedSen: f.acceptedSen ?? null,
   openedAt: dateOf(f.openedAt), sentAt: dateOf(f.sentAt), settledAt: dateOf(f.settledAt),
 });
 

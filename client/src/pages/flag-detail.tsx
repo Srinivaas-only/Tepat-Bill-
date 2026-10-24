@@ -70,6 +70,9 @@ export default function FlagDetail() {
   const [msgOpenCount, setMsgOpenCount] = useState(0);
   const openMsg = () => { setMsgOpenCount(n => n + 1); setMsg(true); };
   const [settleOpen, setSettleOpen] = useState(false);
+  const [settleKind, setSettleKind] = useState<'credit_note' | 'deducted' | null>(null);
+  const [acceptedRM, setAcceptedRM] = useState('');
+  const [settleRef, setSettleRef] = useState('');
   const [dismissOpen, setDismissOpen] = useState(false);
   const [subClosed, setSubClosed] = useState(false);
   const ledgerFn = (sid: string) => () => api.get(`/suppliers/${sid}/ledger`);
@@ -183,6 +186,7 @@ export default function FlagDetail() {
 
           {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="ok" className="num">{t('flag.sentOn', { date: fmtDate(f.sentAt, lang) })}</Badge>}
           {f.needsRecheck && <Card className="px-4 py-3"><p className="text-sm font-medium text-dispute">{t('flag.recheck')}</p></Card>}
+          {f.status === 'settled' && f.acceptedSen != null && <Card className="px-4 py-3"><p className="eyebrow">{t('flag.acceptedLabel')}</p><p className="text-sm"><span className="num font-semibold">{formatMoney(f.acceptedSen, 'MYR')}</span>{f.settlementRef ? ` · ${f.settlementRef}` : ''}</p></Card>}
           {f.reminderDue && <p className="text-sm font-medium text-dispute">{t('flag.reminderCaption')}</p>}
           {f.note && <Card className="px-4 py-3"><p className="eyebrow">{t('flag.noteLabel')}</p><p className="text-sm">{f.note}</p></Card>}
           {owner && f.status !== 'proposed' && d.evidenceToken && (
@@ -238,10 +242,26 @@ export default function FlagDetail() {
         </FixedBar>
       )}
       {f && (
-        <Sheet open={settleOpen} onOpenChange={setSettleOpen}>
+        <Sheet open={settleOpen} onOpenChange={o => { setSettleOpen(o); if (!o) setSettleKind(null); }}>
           <SheetContent title={t('flag.settleSheet')} description={t('flag.settleQ')}>
-            <div className="space-y-2">{(f.type === 'short_qty' ? ['redelivered', 'credit_note', 'deducted'] as const : ['credit_note', 'deducted'] as const).map(sv => (
-              <Button key={sv} variant="secondary" block className="justify-start" disabled={act.isPending} onClick={() => act.mutate({ path: 'settle', body: { settlement: sv } })}>{t(settleKey[sv])}</Button>))}</div>
+            {settleKind === null ? (
+              <div className="space-y-2">{(f.type === 'short_qty' ? ['redelivered', 'credit_note', 'deducted'] as const : ['credit_note', 'deducted'] as const).map(sv => (
+                <Button key={sv} variant="secondary" block className="justify-start" disabled={act.isPending} onClick={() => {
+                  if (sv === 'redelivered') act.mutate({ path: 'settle', body: { settlement: sv } });
+                  else { setSettleKind(sv); setAcceptedRM((f.amountSen / 100).toFixed(2)); setSettleRef(''); }
+                }}>{t(settleKey[sv])}</Button>))}</div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-ink-2">{t('flag.acceptHelp', { rm: formatMoney(f.amountSen, 'MYR') })}</p>
+                <div><label htmlFor="acc" className="mb-1 block text-sm font-medium text-ink-2">{t('flag.acceptedAmount')}</label>
+                  <div className="relative"><span className="num pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-2" aria-hidden>RM</span><Input id="acc" inputMode="decimal" value={acceptedRM} onChange={e => setAcceptedRM(e.target.value)} className="num pl-12" /></div></div>
+                <div><label htmlFor="ref" className="mb-1 block text-sm font-medium text-ink-2">{t('flag.acceptedRef')}</label>
+                  <Input id="ref" value={settleRef} maxLength={80} onChange={e => setSettleRef(e.target.value)} placeholder={t('flag.acceptedRefPh')} /></div>
+                <Button block disabled={act.isPending || toSen(acceptedRM) === undefined || (toSen(acceptedRM) ?? 0) > f.amountSen}
+                  onClick={() => act.mutate({ path: 'settle', body: { settlement: settleKind, acceptedSen: toSen(acceptedRM), ...(settleRef.trim() ? { ref: settleRef.trim() } : {}) } })}>{t('flag.acceptConfirm')}</Button>
+                <Button block variant="ghost" onClick={() => setSettleKind(null)}>{t('common.back')}</Button>
+              </div>
+            )}
           </SheetContent>
         </Sheet>
       )}

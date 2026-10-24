@@ -471,5 +471,11 @@ export const ms = {
   'flag.draftPreviewNote': "Ini draf sahaja. Lulus aduan dahulu untuk membuka WhatsApp; pautan bukti hanya berfungsi selepas diluluskan.",
   'flag.unverified': "Belum disahkan: ini bukan harga yang dipersetujui. Tetapkan harga dipersetujui untuk bukti yang lebih kukuh.",
   'ev.unverified': "Harga rujukan ini diambil daripada rekod terdahulu, bukan harga yang telah dipersetujui.",
+  'flag.acceptHelp': "Direkodkan oleh anda. Tuntutan {rm}. Masukkan jumlah yang pembekal bersetuju (kredit atau tolak) dan rujukan mereka.",
+  'flag.acceptedAmount': "Jumlah diterima pembekal",
+  'flag.acceptedRef': "Rujukan / no. nota kredit pembekal",
+  'flag.acceptedRefPh': "cth. CN-1042",
+  'flag.acceptConfirm': "Simpan penerimaan pembekal",
+  'flag.acceptedLabel': "Diterima pembekal (direkodkan pemilik)",
 } as const;
 export type Key = keyof typeof ms;
