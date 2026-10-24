@@ -224,3 +224,10 @@ input:focus-visible, textarea:focus-visible { outline: none; box-shadow: 0 0 0 4
 @keyframes tb-drift-a { to { transform: translate(140px, 60px) scale(1.18); } }
 @keyframes tb-drift-b { to { transform: translate(-120px, 50px) scale(1.12); } }
 @media (prefers-reduced-motion: reduce) { .aurora::before, .aurora::after { animation: none !important; } }
+
+/* print / save as PDF (e-invoice): plain black on white, no app chrome */
+@media print {
+  .ambient, .aurora, .grain, nav { display: none !important; }
+  html, body, #root, main { background: #fff !important; }
+  * { color: #000 !important; box-shadow: none !important; text-shadow: none !important; backdrop-filter: none !important; }
+}

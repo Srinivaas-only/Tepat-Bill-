@@ -44,3 +44,18 @@ export function releaseDraft(d: SelfBilledDraft, role: Role, now: number): { dra
   if (d.status !== 'approved') throw new Error('approve before release');
   return { draft: { ...d, status: 'released_stub' }, event: { who: role, what: 'einvoice.release_stub', when: now, ref: d.invoiceId } };
 }
+
+export interface DraftIssue { code: 'buyer_tin' | 'buyer_brn' | 'buyer_address' | 'buyer_name' | 'rate' | 'supplier_country' | 'lines' | 'total'; }
+/** What LHDN would reject before it ever sees the document: missing buyer identity, missing exchange rate, unmapped supplier country, empty or zero-value invoice. */
+export function validateSelfBilled(d: SelfBilledDraft): DraftIssue[] {
+  const f = d.fields, out: DraftIssue[] = [];
+  if (!f.buyer.name?.trim()) out.push({ code: 'buyer_name' });
+  if (!f.buyer.tin?.trim()) out.push({ code: 'buyer_tin' });
+  if (!f.buyer.brn?.trim()) out.push({ code: 'buyer_brn' });
+  if (!f.buyer.address?.trim()) out.push({ code: 'buyer_address' });
+  if (f.currency !== 'MYR' && !(f.exchangeRateToMYR && f.exchangeRateToMYR > 0)) out.push({ code: 'rate' });
+  if (!f.supplierCountry?.trim()) out.push({ code: 'supplier_country' });
+  if (!f.lines.length) out.push({ code: 'lines' });
+  if (f.totalSen <= 0) out.push({ code: 'total' });
+  return out;
+}

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { supplierLedger, transition, needsReminder, markSent, orderState, canMarkCorrect, monthSummary, last30Days, type Flag, type Invoice } from './ledger';
 import { can, ACTIONS } from './roles';
-import { prepareSelfBilled, approveDraft, releaseDraft, type DraftStatus } from './einvoice';
+import { prepareSelfBilled, approveDraft, releaseDraft, validateSelfBilled, type DraftStatus } from './einvoice';
 import { buildEvidence, type Db } from './evidence';
 
 const DAY = 86_400_000;
@@ -300,5 +300,19 @@ describe('evidence payload', () => {
     const f: Flag = { ...open(flag('FP', 'I1', 2000, 'price_change')), baselineUnitSen: 1600, baselineSource: 'agreed' };
     const db: Db = { flags: [f], invoices: [{ ...inv('I1', 1, 1), lines: [] }], pos: [], photos: [] };
     expect(buildEvidence(db, 'FP').baseline).toEqual({ unitSen: 1600, source: 'agreed' });
+  });
+});
+
+describe('self-billed e-invoice validation (what LHDN would reject)', () => {
+  const sup = { id: 'S', name: 'Guangzhou Hengda', isForeign: true, country: 'CN' };
+  const inv = { id: 'I', invoiceNo: 'GZ-1', issuedAt: 0, currency: 'USD', exchangeRateToMYR: 4.2, lines: [{ description: 'Seaweed', qty: 2, unitPriceSen: 550 }] };
+  const buyer = { name: 'Kedai Maju', tin: 'C123', brn: '2020', address: 'Ipoh' };
+  it('a complete draft has no issues', () => expect(validateSelfBilled(prepareSelfBilled(sup, inv, buyer)!)).toEqual([]));
+  it('flags missing buyer identity, rate, country and value', () => {
+    const d = prepareSelfBilled({ ...sup, country: undefined }, { ...inv, exchangeRateToMYR: undefined, lines: [] }, { name: '', tin: '', brn: '', address: '' })!;
+    expect(validateSelfBilled(d).map(i => i.code).sort()).toEqual(['buyer_address', 'buyer_brn', 'buyer_name', 'buyer_tin', 'lines', 'rate', 'supplier_country', 'total']);
+  });
+  it('MYR invoices need no exchange rate', () => {
+    expect(validateSelfBilled(prepareSelfBilled(sup, { ...inv, currency: 'MYR', exchangeRateToMYR: undefined }, buyer)!)).toEqual([]);
   });
 });

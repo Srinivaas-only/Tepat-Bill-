@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { can } from '@shared/core';
-import { Download, RotateCcw, LogOut, ChevronRight, Send } from 'lucide-react';
+import { Building2, Download, RotateCcw, LogOut, ChevronRight, Send } from 'lucide-react';
+import { ShopSheet } from '@/components/shop-sheet';
 import { Page, SectionLabel } from '@/components/page';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const checks = useQuery({ queryKey: ['checks'], refetchOnMount: 'always', queryFn: () => api.get<{ checksLeft: number; demo: boolean }>('/checks') });
   const [confirm, setConfirm] = useState(false);
   const [handoff, setHandoff] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const showPayload = async () => { try { const r = await api.get<{ mode: string; payload: unknown }>('/accounting/payload'); setPreview(JSON.stringify(r.payload, null, 2)); } catch { toast.error(t('common.error')); } };
   const simulate = async () => {
@@ -44,6 +46,7 @@ export default function SettingsPage() {
           {checks.data && <span className="flex items-baseline gap-2"><span className="text-ink-2">{t('settings.checks')}</span><span className="num text-xl font-semibold">{checks.data.checksLeft}</span></span>}
         </Card>
         <Card className="divide-y divide-line overflow-hidden">
+          {owner && <button type="button" onClick={() => setShopOpen(true)} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><Building2 size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('shop.title')}<span className="block text-xs font-normal text-ink-2">{t('shop.note')}</span></span><ChevronRight size={20} className="text-ink-3" aria-hidden /></button>}
           {owner && <a href="/api/export.csv" download className="press flex min-h-14 items-center gap-3 px-4 font-medium [--p:.985]"><Download size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.export')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></a>}
           <button type="button" onClick={() => void logout()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><LogOut size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.switchUser')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></button>
           {owner && <button type="button" disabled={handoff} onClick={() => void simulate()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><Send size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.handoff')}<span className="block text-xs font-normal text-ink-2">{t('settings.handoffNote')}</span></span><Badge tone="neutral">{t('settings.simulation')}</Badge></button>}
@@ -52,6 +55,7 @@ export default function SettingsPage() {
           {owner && checks.data?.demo && <button type="button" onClick={() => setConfirm(true)} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium text-notord [--p:.985]"><RotateCcw size={22} strokeWidth={1.5} aria-hidden /><span className="flex-1">{t('settings.reset')}</span></button>}
         </Card>
       </div>
+      <ShopSheet open={shopOpen} onOpenChange={setShopOpen} />
       <Sheet open={preview !== null} onOpenChange={o => { if (!o) setPreview(null); }}>
         <SheetContent title={t('settings.payload')} description={t('settings.payloadNote')}>
           <pre className="num max-h-[50dvh] overflow-auto rounded-card bg-surface-2 p-3 text-xs">{preview}</pre>

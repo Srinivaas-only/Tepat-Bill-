@@ -478,6 +478,18 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect((await fetch(base + '/api/samples/nope.png', { headers: { cookie: staffCookie } })).status).toBe(404);
   });
 
+  it('company details (the e-invoice buyer): owner only, saved, and reported as issues when incomplete', async () => {
+    expect((await call('GET', '/api/shop', staffCookie)).status).toBe(403);
+    const before = (await call('GET', '/api/shop', ownerCookie)).json;
+    expect(before.name).toBeTruthy();
+    expect((await call('PATCH', '/api/shop', staffCookie, { tin: 'X' })).status).toBe(403);
+    expect((await call('PATCH', '/api/shop', ownerCookie, { tin: 'IG99999999999' })).status).toBe(200);
+    expect((await call('GET', '/api/shop', ownerCookie)).json.tin).toBe('IG99999999999');
+    await call('PATCH', '/api/shop', ownerCookie, { tin: before.tin });
+    const d = await call('GET', '/api/invoices/inv_gz088/einvoice', ownerCookie);
+    expect(Array.isArray(d.json.issues)).toBe(true);
+  });
+
   it('T3 a delivery document cannot be attached to an invoice', async () => {
     const fd = new FormData();
     fd.append('kind', 'delivery_note');

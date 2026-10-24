@@ -1,8 +1,9 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import * as S from '../../shared/schema';
-import { approveDraft, formatRM, prepareSelfBilled, releaseDraft, toMyInvoisUbl, type Buyer, type SelfBilledDraft } from '../../shared/core';
+import { approveDraft, formatRM, prepareSelfBilled, releaseDraft, toMyInvoisUbl, validateSelfBilled, type Buyer, type SelfBilledDraft } from '../../shared/core';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
@@ -24,7 +25,7 @@ const isoDmy = (s: string | null) => (s ? s.split('-').reverse().join('/') : '')
 export function extrasRouter(deps: AppDeps) {
   const r = Router();
   const { db } = deps;
-  r.use(['/invoices', '/export.csv', '/accounting', '/dev', '/checks'], requireAuth);
+  r.use(['/invoices', '/export.csv', '/accounting', '/dev', '/checks', '/shop'], requireAuth);
 
   r.get('/checks', async (_req, res) => {
     const [row] = await db.select().from(S.settings).where(eq(S.settings.key, 'checks_left'));
@@ -42,9 +43,22 @@ export function extrasRouter(deps: AppDeps) {
     return out;
   };
 
+  /** A draft that is not yet approved always carries the CURRENT company details (the owner may have just filled them in). */
+  const freshBuyer = async (row: typeof S.einvoiceDrafts.$inferSelect) => {
+    if (row.status !== 'draft') return row;
+    const [shop] = await db.select().from(S.settings).where(eq(S.settings.key, 'shop'));
+    const s = (shop?.value ?? {}) as Record<string, string>;
+    const buyer: Buyer = { name: s.name ?? '', tin: s.tin ?? '', brn: s.brn ?? '', address: s.address ?? '', msic: s.msic };
+    const stored = row.fields as { supplierId: string; fields: SelfBilledDraft['fields'] };
+    if (JSON.stringify(stored.fields.buyer) === JSON.stringify(buyer)) return row;
+    const fields = { ...stored, fields: { ...stored.fields, buyer } };
+    const [out] = await db.update(S.einvoiceDrafts).set({ fields, updatedAt: new Date() }).where(eq(S.einvoiceDrafts.invoiceId, row.invoiceId)).returning();
+    return out;
+  };
   r.get('/invoices/:id/einvoice', requireCan('approve_einvoice'), async (req, res) => {
-    const row = await loadDraft(String(req.params.id));
-    res.json({ draft: row ? asDraft(row) : null, submission: row?.submission ?? null, myinvois: { configured: myInvoisConfigured(), env: process.env.MYINVOIS_ENV === 'production' ? 'production' : 'sandbox' } });
+    const found = await loadDraft(String(req.params.id));
+    const row = found ? await freshBuyer(found) : undefined;
+    res.json({ draft: row ? asDraft(row) : null, issues: row ? validateSelfBilled(asDraft(row)) : [], submission: row?.submission ?? null, myinvois: { configured: myInvoisConfigured(), env: process.env.MYINVOIS_ENV === 'production' ? 'production' : 'sandbox' } });
   });
 
   r.post('/invoices/:id/einvoice', requireCan('approve_einvoice'), async (req, res) => {
@@ -85,6 +99,22 @@ export function extrasRouter(deps: AppDeps) {
     res.json({ draft: out.draft });
   });
 
+  // company details used as the BUYER on self-billed e-invoices (owner edits them in Settings)
+  r.get('/shop', requireCan('approve_einvoice'), async (_req, res) => {
+    const [shop] = await db.select().from(S.settings).where(eq(S.settings.key, 'shop'));
+    const v = (shop?.value ?? {}) as Record<string, string>;
+    res.json({ name: v.name ?? '', address: v.address ?? '', tin: v.tin ?? '', brn: v.brn ?? '', msic: v.msic ?? '' });
+  });
+  r.patch('/shop', requireCan('approve_einvoice'), async (req, res) => {
+    const body = z.object({ name: z.string().trim().max(120).optional(), address: z.string().trim().max(300).optional(), tin: z.string().trim().max(30).optional(), brn: z.string().trim().max(30).optional(), msic: z.string().trim().max(10).optional() }).safeParse(req.body);
+    if (!body.success || !Object.keys(body.data).length) throw new ApiError(400, 'bad_request', 'Data tidak sah');
+    const [shop] = await db.select().from(S.settings).where(eq(S.settings.key, 'shop'));
+    const value = { ...((shop?.value ?? {}) as Record<string, unknown>), ...body.data };
+    await db.insert(S.settings).values({ key: 'shop', value }).onConflictDoUpdate({ target: S.settings.key, set: { value } });
+    await logEvent(db, req.role!, 'shop.update', null, { fields: Object.keys(body.data) });
+    res.json({ ok: true });
+  });
+
   // MyInvois: the approved draft as a real UBL 2.1 JSON document (always downloadable); submission only when credentials are configured.
   const approvedDoc = async (invoiceId: string) => {
     const row = await loadDraft(invoiceId);
@@ -102,6 +132,8 @@ export function extrasRouter(deps: AppDeps) {
     if (!myInvoisConfigured()) throw new ApiError(409, 'not_configured', 'Sambungan MyInvois belum dikonfigurasikan (MYINVOIS_CLIENT_ID / MYINVOIS_CLIENT_SECRET)');
     const { row, d, ubl } = await approvedDoc(String(req.params.id));
     if ((row.submission as { ok?: boolean } | null)?.ok) throw new ApiError(409, 'already_submitted', 'Sudah dihantar');
+    const issues = validateSelfBilled(d);
+    if (issues.length) throw new ApiError(422, 'incomplete', 'Butiran e-invois belum lengkap', { issues });
     const result = await submitToMyInvois(ubl, d.fields.eInvoiceNo);
     await db.update(S.einvoiceDrafts).set({ submission: { ...result, at: new Date().toISOString() }, updatedAt: new Date() }).where(eq(S.einvoiceDrafts.invoiceId, row.invoiceId));
     await logEvent(db, req.role!, result.ok ? 'einvoice.submit' : 'einvoice.submit_failed', row.invoiceId, { env: result.env, ok: result.ok, detail: result.detail, submissionUid: result.submissionUid });
