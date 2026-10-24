@@ -7,6 +7,7 @@ import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
 import { logEvent } from '../events';
+import { buildAccountingPayload, connectorFromEnv } from '../accounting';
 import { seedDatabase } from '../seed';
 import { dmy as dmyKl } from '../core-adapters';
 
@@ -102,14 +103,14 @@ export function extrasRouter(deps: AppDeps) {
     res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="tepat-bill-export.csv"' }).send('\ufeff' + out.join('\r\n') + '\r\n');
   });
 
-  // ----- accounting-partner handoff: a labelled SIMULATION (no real API contract exists yet); it sends nothing anywhere, only summarises + logs -----
-  r.post('/accounting/handoff-simulation', requireCan('export_csv'), async (req, res) => {
-    const invs = await db.select({ id: S.invoices.id }).from(S.invoices);
-    const flags = (await db.select().from(S.flags)).filter(f => f.stage === 'invoice' && f.status !== 'proposed' && f.status !== 'dismissed');
-    const recoveredSen = flags.filter(f => f.status === 'settled' && (f.settlement === 'credit_note' || f.settlement === 'deducted')).reduce((a, f) => a + (f.acceptedSen ?? f.amountSen), 0);
-    const summary = { simulated: true, invoices: invs.length, approvedFlags: flags.length, recoveredSen };
-    await logEvent(db, req.role!, 'accounting.handoff_sim', null, summary);
-    res.json(summary);
+  // ----- accounting-partner handoff: the connector is a SIMULATION unless ACCOUNTING_WEBHOOK_URL + _SECRET are set (see server/accounting.ts) -----
+  r.get('/accounting/payload', requireCan('export_csv'), async (_req, res) => { res.json({ mode: connectorFromEnv().mode, payload: await buildAccountingPayload(db) }); });
+  r.post('/accounting/handoff', requireCan('export_csv'), async (req, res) => {
+    const payload = await buildAccountingPayload(db);
+    const result = await connectorFromEnv().send(payload);
+    await logEvent(db, req.role!, result.mode === 'webhook' ? 'accounting.handoff' : 'accounting.handoff_sim', null,
+      { mode: result.mode, ok: result.ok, suppliers: payload.suppliers.length, invoices: payload.suppliers.reduce((a, s) => a + s.invoices.length, 0), approvedFlags: payload.suppliers.reduce((a, s) => a + s.flags.length, 0) });
+    res.json({ ...result, simulated: result.mode === 'simulated', invoices: payload.suppliers.reduce((a, s) => a + s.invoices.length, 0), approvedFlags: payload.suppliers.reduce((a, s) => a + s.flags.length, 0) });
   });
 
   // ----- demo reset (dev, or a production deployment running in demo mode with DEMO_FIXTURES=1) -----

@@ -20,9 +20,11 @@ export default function SettingsPage() {
   const checks = useQuery({ queryKey: ['checks'], refetchOnMount: 'always', queryFn: () => api.get<{ checksLeft: number; demo: boolean }>('/checks') });
   const [confirm, setConfirm] = useState(false);
   const [handoff, setHandoff] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const showPayload = async () => { try { const r = await api.get<{ mode: string; payload: unknown }>('/accounting/payload'); setPreview(JSON.stringify(r.payload, null, 2)); } catch { toast.error(t('common.error')); } };
   const simulate = async () => {
     setHandoff(true);
-    try { const r = await api.post<{ invoices: number; approvedFlags: number }>('/accounting/handoff-simulation', {}); toast.success(t('settings.handoffDone', { i: r.invoices, f: r.approvedFlags })); } catch { toast.error(t('common.error')); } finally { setHandoff(false); }
+    try { const r = await api.post<{ invoices: number; approvedFlags: number; mode: string }>('/accounting/handoff', {}); toast.success(t('settings.handoffDone', { i: r.invoices, f: r.approvedFlags })); } catch { toast.error(t('common.error')); } finally { setHandoff(false); }
   };
   const reset = async () => {
     setConfirm(false);
@@ -45,9 +47,15 @@ export default function SettingsPage() {
           {owner && <a href="/api/export.csv" download className="press flex min-h-14 items-center gap-3 px-4 font-medium [--p:.985]"><Download size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.export')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></a>}
           <button type="button" onClick={() => void logout()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><LogOut size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.switchUser')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></button>
           {owner && <button type="button" disabled={handoff} onClick={() => void simulate()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><Send size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.handoff')}<span className="block text-xs font-normal text-ink-2">{t('settings.handoffNote')}</span></span><Badge tone="neutral">{t('settings.simulation')}</Badge></button>}
+          {owner && <button type="button" onClick={() => void showPayload()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><Send size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.payload')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></button>}
           {owner && checks.data?.demo && <button type="button" onClick={() => setConfirm(true)} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium text-notord [--p:.985]"><RotateCcw size={22} strokeWidth={1.5} aria-hidden /><span className="flex-1">{t('settings.reset')}</span></button>}
         </Card>
       </div>
+      <Sheet open={preview !== null} onOpenChange={o => { if (!o) setPreview(null); }}>
+        <SheetContent title={t('settings.payload')} description={t('settings.payloadNote')}>
+          <pre className="num max-h-[50dvh] overflow-auto rounded-card bg-surface-2 p-3 text-xs">{preview}</pre>
+        </SheetContent>
+      </Sheet>
       <Sheet open={confirm} onOpenChange={setConfirm}>
         <SheetContent title={t('settings.reset')} description={t('settings.resetConfirm')}>
           <div className="space-y-2">

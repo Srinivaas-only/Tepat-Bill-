@@ -499,5 +499,7 @@ export const ms = {
   'flag.residueOpen': "Baki {rm} belum dipulihkan",
   'flag.residueLink': "Dijejaki sebagai aduan dipertikai. Ketik untuk buka.",
   'flag.residueOf': "Baki daripada aduan asal yang diterima sebahagian",
+  'settings.payload': "Pratonton muatan serahan",
+  'settings.payloadNote': "Inilah data tepat yang akan dihantar kepada rakan perakaunan apabila sambungan sebenar dikonfigurasikan. Skema draf, bukan kontrak sebenar.",
 } as const;
 export type Key = keyof typeof ms;

@@ -500,4 +500,6 @@ export const en: Record<Key, string> = {
   'flag.residueOpen': "{rm} not recovered",
   'flag.residueLink': "Tracked as a disputed flag. Tap to open.",
   'flag.residueOf': "Balance of an original claim that was only partly accepted",
+  'settings.payload': "Preview handoff payload",
+  'settings.payloadNote': "The exact data that would go to the accounting partner once a real connection is configured. Draft schema, not a real contract.",
 };

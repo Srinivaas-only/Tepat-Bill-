@@ -349,12 +349,19 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(f.filter(x => x.received === 0).every(x => x.status === 'not_delivered' && x.outstanding === x.ordered)).toBe(true);
   });
 
-  it('accounting handoff is a labelled simulation: owner only, sends nothing, is logged', async () => {
-    expect((await call('POST', '/api/accounting/handoff-simulation', staffCookie, {})).status).toBe(403);
-    const r = await call('POST', '/api/accounting/handoff-simulation', ownerCookie, {});
+  it('accounting handoff is a labelled simulation: owner only, sends nothing, is logged; payload equals the ledger', async () => {
+    expect((await call('POST', '/api/accounting/handoff', staffCookie, {})).status).toBe(403);
+    expect((await call('GET', '/api/accounting/payload', staffCookie)).status).toBe(403);
+    const r = await call('POST', '/api/accounting/handoff', ownerCookie, {});
     expect(r.status).toBe(200);
-    expect(r.json.simulated).toBe(true);
+    expect(r.json).toMatchObject({ simulated: true, mode: 'simulated', ok: true });
     expect(JSON.stringify((await call('GET', '/api/activity', ownerCookie)).json)).toContain('accounting.handoff_sim');
+    const p = await call('GET', '/api/accounting/payload', ownerCookie);
+    expect(p.json.mode).toBe('simulated');
+    for (const s of p.json.payload.suppliers) {
+      const L = (await call('GET', `/api/suppliers/${s.id}/ledger`, ownerCookie)).json.ledger;
+      expect([s.payNowSen, s.disputedSen, s.owedSen, s.creditCarrySen, s.recoveredSen]).toEqual([L.payNowSen, L.disputedSen, L.owedSen, L.creditCarrySen, L.recoveredSen]);
+    }
   });
 
   it('delivery recount under a sent complaint needs the owner + reason even with no invoice, and resets the confirmation', async () => {
