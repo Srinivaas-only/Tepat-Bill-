@@ -349,6 +349,14 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(f.filter(x => x.received === 0).every(x => x.status === 'not_delivered' && x.outstanding === x.ordered)).toBe(true);
   });
 
+  it('accounting handoff is a labelled simulation: owner only, sends nothing, is logged', async () => {
+    expect((await call('POST', '/api/accounting/handoff-simulation', staffCookie, {})).status).toBe(403);
+    const r = await call('POST', '/api/accounting/handoff-simulation', ownerCookie, {});
+    expect(r.status).toBe(200);
+    expect(r.json.simulated).toBe(true);
+    expect(JSON.stringify((await call('GET', '/api/activity', ownerCookie)).json)).toContain('accounting.handoff_sim');
+  });
+
   it('T3 a delivery document cannot be attached to an invoice', async () => {
     const fd = new FormData();
     fd.append('kind', 'delivery_note');

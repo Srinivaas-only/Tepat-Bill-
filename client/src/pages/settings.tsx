@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { can } from '@shared/core';
-import { Download, RotateCcw, LogOut, ChevronRight } from 'lucide-react';
+import { Download, RotateCcw, LogOut, ChevronRight, Send } from 'lucide-react';
 import { Page, SectionLabel } from '@/components/page';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -19,6 +19,11 @@ export default function SettingsPage() {
   const owner = !!role && can(role, 'export_csv');
   const checks = useQuery({ queryKey: ['checks'], refetchOnMount: 'always', queryFn: () => api.get<{ checksLeft: number; demo: boolean }>('/checks') });
   const [confirm, setConfirm] = useState(false);
+  const [handoff, setHandoff] = useState(false);
+  const simulate = async () => {
+    setHandoff(true);
+    try { const r = await api.post<{ invoices: number; approvedFlags: number }>('/accounting/handoff-simulation', {}); toast.success(t('settings.handoffDone', { i: r.invoices, f: r.approvedFlags })); } catch { toast.error(t('common.error')); } finally { setHandoff(false); }
+  };
   const reset = async () => {
     setConfirm(false);
     try { await api.post('/dev/reset', {}); toast.success(t('settings.resetDone')); setTimeout(() => window.location.assign('/'), 600); } catch { toast.error(t('common.error')); }
@@ -39,6 +44,7 @@ export default function SettingsPage() {
         <Card className="divide-y divide-line overflow-hidden">
           {owner && <a href="/api/export.csv" download className="press flex min-h-14 items-center gap-3 px-4 font-medium [--p:.985]"><Download size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.export')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></a>}
           <button type="button" onClick={() => void logout()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><LogOut size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.switchUser')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></button>
+          {owner && <button type="button" disabled={handoff} onClick={() => void simulate()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><Send size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.handoff')}<span className="block text-xs font-normal text-ink-2">{t('settings.handoffNote')}</span></span><Badge tone="neutral">{t('settings.simulation')}</Badge></button>}
           {owner && checks.data?.demo && <button type="button" onClick={() => setConfirm(true)} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium text-notord [--p:.985]"><RotateCcw size={22} strokeWidth={1.5} aria-hidden /><span className="flex-1">{t('settings.reset')}</span></button>}
         </Card>
       </div>

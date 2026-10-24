@@ -184,7 +184,7 @@ export default function FlagDetail() {
             </section>
           )}
 
-          {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="ok" className="num">{t('flag.sentOn', { date: fmtDate(f.sentAt, lang) })}</Badge>}
+          {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="neutral" className="num">{t('flag.sentOn', { date: fmtDate(f.sentAt, lang) })}</Badge>}
           {f.needsRecheck && <Card className="px-4 py-3"><p className="text-sm font-medium text-dispute">{t('flag.recheck')}</p></Card>}
           {f.status === 'settled' && f.acceptedSen != null && <Card className="px-4 py-3"><p className="eyebrow">{t('flag.acceptedLabel')}</p><p className="text-sm"><span className="num font-semibold">{formatMoney(f.acceptedSen, 'MYR')}</span>{f.settlementRef ? ` · ${f.settlementRef}` : ''}</p></Card>}
           {f.reminderDue && <p className="text-sm font-medium text-dispute">{t('flag.reminderCaption')}</p>}

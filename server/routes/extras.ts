@@ -22,7 +22,7 @@ const isoDmy = (s: string | null) => (s ? s.split('-').reverse().join('/') : '')
 export function extrasRouter(deps: AppDeps) {
   const r = Router();
   const { db } = deps;
-  r.use(['/invoices', '/export.csv', '/dev', '/checks'], requireAuth);
+  r.use(['/invoices', '/export.csv', '/accounting', '/dev', '/checks'], requireAuth);
 
   r.get('/checks', async (_req, res) => {
     const [row] = await db.select().from(S.settings).where(eq(S.settings.key, 'checks_left'));
@@ -100,6 +100,16 @@ export function extrasRouter(deps: AppDeps) {
     }
     await logEvent(db, req.role!, 'export.csv', null);
     res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="tepat-bill-export.csv"' }).send('\ufeff' + out.join('\r\n') + '\r\n');
+  });
+
+  // ----- accounting-partner handoff: a labelled SIMULATION (no real API contract exists yet); it sends nothing anywhere, only summarises + logs -----
+  r.post('/accounting/handoff-simulation', requireCan('export_csv'), async (req, res) => {
+    const invs = await db.select({ id: S.invoices.id }).from(S.invoices);
+    const flags = (await db.select().from(S.flags)).filter(f => f.stage === 'invoice' && f.status !== 'proposed' && f.status !== 'dismissed');
+    const recoveredSen = flags.filter(f => f.status === 'settled' && (f.settlement === 'credit_note' || f.settlement === 'deducted')).reduce((a, f) => a + (f.acceptedSen ?? f.amountSen), 0);
+    const summary = { simulated: true, invoices: invs.length, approvedFlags: flags.length, recoveredSen };
+    await logEvent(db, req.role!, 'accounting.handoff_sim', null, summary);
+    res.json(summary);
   });
 
   // ----- demo reset (dev, or a production deployment running in demo mode with DEMO_FIXTURES=1) -----
