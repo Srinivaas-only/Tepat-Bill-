@@ -272,7 +272,6 @@ Covered: the rules engine and ledger (including property-based invariants), deli
 - **Storage:** Uploaded documents are stored in Replit App Storage (with a local-disk fallback in the code).
 - **Secrets:** The Gemini key, PINs and session secret live in Replit Secrets, never in the code.
 
-📄 Proof of use: [`submission/SDC2026_AltWinR_Replit_POU.pdf`](submission/SDC2026_AltWinR_Replit_POU.pdf)
 
 ## How We Use RunPod *(Required)*
 
