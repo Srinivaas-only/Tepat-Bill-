@@ -307,13 +307,6 @@ Covered: the rules engine and ledger (including property-based invariants), deli
 | Srinivaas A/L Thiruch Selvam           | Full Stack Developer              | [@Srinivaas-only](https://github.com/Srinivaas-only)                     |
 | Lievaashini A/P Thanasegaran           | Pitching Lead                     | [@Lievaashini](https://github.com/Lievaashini)                           |
 
---------------------- | ----------- | ------ |
-| Isaac Toh Zhen Yong   | Team Leader | *to be added* |
-| *Member name*         | *Role*      | *to be added* |
-| *Member name*         | *Role*      | *to be added* |
-| *Member name*         | *Role*      | *to be added* |
-| *Member name*         | *Role*      | *to be added* |
-
 ---
 
 ## Submission Checklist
