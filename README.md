@@ -174,8 +174,10 @@ Then: approve → message → WhatsApp → evidence link (logged out) → *Seles
 │       ├── core/            # Pure, tested business logic: rules, ledger, delivery, messages, evidence, roles
 │       └── schema.ts        # Drizzle tables
 ├── submission/              # Required submission documents
-│   ├── SDC2026_AltWinR_Replit_POU.pdf        # Replit proof of use
-│   └── README.md            # Which submission files are added / still to come
+│   ├── SDC2026_Alt + Win + R_Replit_POU.pdf        # Replit proof of use
+│   ├── SDC2026_ Alt + Win + R_Preliminary.pdf
+│   ├── SDC2026_Alt + Win + R_TechDeclaration.pdf
+│   └── SDC2026_Alt + Win + R_PitchDeck.pdf
 ├── tests/
 │   ├── core/                # Rules, ledger (property-based), delivery, messages, Gemini fallback, fixtures
 │   └── server/              # API, end-to-end scenarios, accounting, MyInvois, schema upgrade
