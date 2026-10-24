@@ -24,11 +24,18 @@ export interface DeliveryCheckInput {
  * Each line is priced at its baseline (agreed -> PO price -> last invoice), else 0, so amountSen is an estimate
  * ("Anggaran") for display only. Price changes are an invoice-time question and are never raised here.
  */
+/** Estimate fallback: the order line has no usable price (different sku, or no order), so price the line from the supplier's price history by description. Display only. */
+function priceByHistory(i: DeliveryCheckInput, l: DeliveryLine): Sen | undefined {
+  const hist: PoLine[] = Object.keys(i.priceList).map(sku => ({ sku, description: sku.replace(/-/g, ' '), orderedQty: 0 }));
+  const h = matchLine(i.supplierId, { lineId: l.lineId, description: l.description, qty: l.qty, unitPriceSen: 0 }, hist, i.aliases);
+  return h ? baseline(i.priceList[h.sku])?.sen : undefined;
+}
+
 export function checkDelivery(i: DeliveryCheckInput): DetectedFlag[] {
   const priced: InvLine[] = i.lines.map(l => {
     const m = matchLine(i.supplierId, { lineId: l.lineId, description: l.description, qty: l.qty, unitPriceSen: 0 }, i.po, i.aliases);
     return { lineId: l.lineId, description: l.description, qty: assertQty(l.qty, 'delivery qty'),
-      unitPriceSen: m ? baseline(i.priceList[m.sku], m)?.sen ?? 0 : 0, box: l.box };
+      unitPriceSen: m ? baseline(i.priceList[m.sku], m)?.sen ?? priceByHistory(i, l) ?? 0 : 0, box: l.box };
   });
   const received: Record<string, number> = { ...i.received };
   for (const l of i.lines) received[`line:${l.lineId}`] = deliveredCount(i.received, l); // untouched lines = as delivered
