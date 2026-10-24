@@ -50,7 +50,8 @@ export function messagesRouter(deps: AppDeps) {
     if (flag.supersededBy) throw new ApiError(409, 'superseded', 'Aduan ini sudah dibawa ke invois');
     const p = await parentOf(flag);
     const live = p.siblings.filter(s => !s.supersededBy);
-    const group = preview ? [flag] : reminder
+    // the preview is exactly what would go out if this flag were approved now: it plus the open, unsent siblings of the same invoice
+    const group = !preview && reminder
       ? live.filter(s => s.id === flag.id || (flag.sentAt && s.sentAt?.getTime() === flag.sentAt.getTime() && (s.status === 'open' || s.status === 'disputed')))
       : live.filter(s => s.id === flag.id || (s.status === 'open' && !s.sentAt));
     const asked = typeof req.query.request === 'string' ? req.query.request : undefined;

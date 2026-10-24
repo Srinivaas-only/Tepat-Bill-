@@ -407,6 +407,22 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect((await call('POST', `/api/flags/${f.id}/settle`, ownerCookie, { settlement: 'credit_note' })).status).toBe(200);
   });
 
+  it('the draft preview groups exactly like the real send (siblings + total line)', async () => {
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'GRP-1', lines: [{ description: 'Kopi O Satu', qty: 6, unitPriceSen: 500 }, { description: 'Kopi O Dua', qty: 4, unitPriceSen: 300 }], totalSen: 4200 });
+    const fl = (await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 4, 'line:L2': 2 }, confirmed: 'all' })).json.flags.filter((x: any) => x.type === 'short_qty');
+    expect(fl).toHaveLength(2);
+    const [a, b] = fl;
+    await call('POST', `/api/flags/${a.id}/approve`, ownerCookie, { request: 'deduct' });
+    const pv = await call('GET', `/api/flags/${b.id}/message?lang=ms`, ownerCookie);
+    expect(pv.json.preview).toBe(true);
+    expect(pv.json.flagIds.sort()).toEqual([a.id, b.id].sort());
+    expect(pv.json.text).toContain('Jumlah: RM16.00');
+    await call('POST', `/api/flags/${b.id}/approve`, ownerCookie, { request: 'deduct' });
+    const real = await call('GET', `/api/flags/${b.id}/message?lang=ms`, ownerCookie);
+    expect(real.json.preview).toBe(false);
+    expect(real.json.text).toBe(pv.json.text);
+  });
+
   it('T3 a delivery document cannot be attached to an invoice', async () => {
     const fd = new FormData();
     fd.append('kind', 'delivery_note');
