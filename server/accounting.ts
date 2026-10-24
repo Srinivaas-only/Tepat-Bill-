@@ -69,3 +69,19 @@ export function connectorFromEnv(env: NodeJS.ProcessEnv = process.env, fetchImpl
   const url = env.ACCOUNTING_WEBHOOK_URL?.trim(), secret = env.ACCOUNTING_WEBHOOK_SECRET?.trim();
   return url && secret && /^https:\/\//.test(url) ? webhookConnector(url, secret, fetchImpl) : simulatedConnector;
 }
+
+const csvCell = (v: unknown) => { const t = String(v ?? ''); return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+const rm = (sen: number) => (sen / 100).toFixed(2);
+/**
+ * Generic supplier-adjustment CSV (one row per recovered claim): the lowest common denominator that AutoCount / SQL Account / Bukku
+ * import templates can be mapped from. Header names are ours, NOT a vendor template: map columns when importing.
+ */
+export function adjustmentsCsv(p: AccountingPayload): string {
+  const head = ['doc_type', 'doc_no', 'supplier_name', 'ref_invoice_no', 'currency', 'amount', 'flagged_amount', 'status', 'claim_type', 'reason'];
+  const out = [head.join(',')];
+  for (const s of p.suppliers) for (const f of s.flags) {
+    if (f.recoveredSen <= 0) continue;
+    out.push([f.settlement === 'credit_note' ? 'credit_note' : 'purchase_adjustment', f.reference ?? '', s.name, f.invoiceNo, p.currency, rm(f.recoveredSen), rm(f.parentFlagId ? f.residueSen : f.flaggedSen), f.status, f.type, 'Supplier-accepted claim recorded in Tepat Bill'].map(csvCell).join(','));
+  }
+  return '\ufeff' + out.join('\r\n') + '\r\n';
+}

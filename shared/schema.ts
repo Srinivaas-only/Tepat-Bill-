@@ -204,6 +204,8 @@ export const einvoiceDrafts = pgTable('einvoice_drafts', {
   invoiceId: text('invoice_id').notNull().unique(),
   status: text('status').notNull().default('draft'),
   fields: jsonb('fields').notNull(),
+  /** result of a real MyInvois submission (sandbox or production); null = never submitted */
+  submission: jsonb('submission'),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
 });

@@ -1,6 +1,7 @@
 import { Link } from 'wouter';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { LangSwitch } from '@/components/lang-switch';
 import { useIntroOpen } from '@/lib/intro';
 import { ChevronRight, ClipboardList, History, ScanLine, Users } from 'lucide-react';
 import { can } from '@shared/core';
@@ -67,7 +68,10 @@ function StaffHome() {
   const today = (q.data?.invoices ?? []).filter(i => i.issuedAt >= start.getTime());
   return (
     <HeroPage>
-      <h1 className="text-xl font-semibold tracking-[-0.02em]">{t('app.name')}</h1>
+      <header className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold tracking-[-0.02em]">{t('app.name')}</h1>
+        <LangSwitch />
+      </header>
       <div className="mt-10 text-center">
         <p className="eyebrow">{t('home.todayInvoices')}</p>
         <p className="num mt-2 text-display font-semibold tracking-[-0.03em]">{q.isLoading ? '–' : today.length}</p>
@@ -106,8 +110,9 @@ function OwnerHome() {
     <HeroPage>
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold tracking-[-0.02em]">{t('app.name')}</h1>
-        {d && <span className="num rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-ink ring-1 ring-white/15 backdrop-blur">{t('checks.left', { n: d.checksLeft })}</span>}
+        <LangSwitch />
       </header>
+      {d && <p className="mt-2"><span className="num rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-ink ring-1 ring-white/15 backdrop-blur">{t('checks.left', { n: d.checksLeft })}</span></p>}
       {q.isError ? <div className="mt-8 text-ink"><ErrorState onRetry={() => void q.refetch()} /></div> : !d ? (
         <div className="mt-10 space-y-4"><Skeleton className="mx-auto h-24 w-3/4" /><Skeleton className="h-14 w-full" /><Skeleton className="h-40 w-full" /></div>
       ) : (

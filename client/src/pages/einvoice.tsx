@@ -12,19 +12,28 @@ import type { Key } from '@/i18n/ms';
 import { formatMoney } from '@/lib/money-input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Download, Send } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
+interface Submission { ok: boolean; env: string; submissionUid?: string; detail: string; accepted?: { uuid: string }[]; rejected?: { error?: { message?: string } }[] }
 const Row = ({ k, v }: { k: string; v: string }) => <div className="flex justify-between gap-4 py-2"><dt className="text-ink-2">{k}</dt><dd className="num text-right font-semibold">{v}</dd></div>;
 
 export default function EInvoice() {
   const { id } = useParams<{ id: string }>();
   const { t } = useI18n();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['einvoice', id], queryFn: () => api.get<{ draft: SelfBilledDraft | null }>(`/invoices/${id}/einvoice`) });
+  const q = useQuery({ queryKey: ['einvoice', id], queryFn: () => api.get<{ draft: SelfBilledDraft | null; submission: Submission | null; myinvois: { configured: boolean; env: string } }>(`/invoices/${id}/einvoice`) });
   const act = useMutation({
     mutationFn: (p: 'approve' | 'release') => api.post<{ draft: SelfBilledDraft }>(`/invoices/${id}/einvoice/${p}`, {}),
-    onSuccess: r => qc.setQueryData(['einvoice', id], r), onError: () => toast.error(t('common.error')),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['einvoice', id] }), onError: () => toast.error(t('common.error')),
   });
+  const submit = useMutation({
+    mutationFn: () => api.post(`/invoices/${id}/einvoice/submit`, {}),
+    onSuccess: () => { toast.success(t('einv.submitOk')); void qc.invalidateQueries({ queryKey: ['einvoice', id] }); },
+    onError: () => { toast.error(t('einv.submitFail')); void qc.invalidateQueries({ queryKey: ['einvoice', id] }); },
+  });
+  const sub = q.data?.submission ?? null;
+  const cfg = q.data?.myinvois;
   const { role } = useAuth();
   const d = q.data?.draft;
   const f = d?.fields;
@@ -36,7 +45,7 @@ export default function EInvoice() {
       : q.data && !d ? <EmptyState text={t('common.error')} />
       : !d || !f ? <Skeleton className="h-80 w-full" /> : (
         <Card className="relative overflow-hidden p-5">
-          <div className="mb-4 flex items-start justify-between gap-3"><p className="eyebrow text-notord">{t('einv.ribbon')}</p><Stamp status="ok" label={t(`einv.status.${d.status}` as Key)} /></div>
+          <div className="mb-4 flex items-start justify-between gap-3"><p className={`eyebrow ${sub?.ok ? 'text-ok' : 'text-notord'}`}>{sub?.ok ? t('einv.submittedRibbon', { env: sub.env }) : t('einv.ribbon')}</p><Stamp status="ok" label={t(`einv.status.${d.status}` as Key)} /></div>
           <dl className="divide-y divide-line text-sm">
             <Row k={t('einv.type')} v={t('einv.typeVal')} />
             <Row k={t('einv.no')} v={f.eInvoiceNo} />
@@ -54,7 +63,11 @@ export default function EInvoice() {
           <div className="mt-5 space-y-2">
             {d.status === 'draft' && <Button block disabled={act.isPending} onClick={() => act.mutate('approve')}>{t('einv.approve')}</Button>}
             {d.status === 'approved' && <Button block disabled={act.isPending} onClick={() => act.mutate('release')}>{t('einv.release')}</Button>}
-            {d.status === 'released_stub' && <p className="rounded-card bg-surface-2 px-4 py-3 text-ink-2">{t('einv.releasedNote')}</p>}
+            {d.status === 'released_stub' && !sub?.ok && <p className="rounded-card bg-surface-2 px-4 py-3 text-ink-2">{t('einv.releasedNote')}</p>}
+            {d.status !== 'draft' && <Button block variant="secondary" asChild><a href={`/api/invoices/${id}/einvoice/myinvois.json`} download><Download size={18} aria-hidden />{t('einv.download')}</a></Button>}
+            {d.status !== 'draft' && !sub?.ok && cfg?.configured && <Button block disabled={submit.isPending} onClick={() => submit.mutate()}><Send size={18} aria-hidden />{t('einv.submit', { env: cfg.env })}</Button>}
+            {d.status !== 'draft' && !sub?.ok && cfg && !cfg.configured && <p className="rounded-card bg-surface-2 px-4 py-3 text-sm text-ink-2">{t('einv.notConfigured')}</p>}
+            {sub && <p className={`rounded-card px-4 py-3 text-sm ${sub.ok ? 'bg-ok-bg text-ok' : 'bg-notord-bg text-notord'}`}>{sub.ok ? t('einv.submitted', { uid: sub.submissionUid ?? '', env: sub.env }) : t('einv.submitRejected', { why: sub.rejected?.[0]?.error?.message ?? sub.detail })}</p>}
           </div>
         </Card>
       )}

@@ -6,3 +6,4 @@ export * from './einvoice';
 export * from './evidence';
 export * from './messages';
 export * from './delivery';
+export * from './myinvois';

@@ -48,7 +48,7 @@ function listFixtures(docType?: string) {
 
 export function extractRouter(deps: AppDeps) {
   const r = Router();
-  r.use(['/documents', '/fixtures'], requireAuth);
+  r.use(['/documents', '/fixtures', '/samples'], requireAuth);
 
   const getDoc = async (id: string) => {
     const [doc] = await deps.db.select().from(S.documents).where(eq(S.documents.id, id));
@@ -115,6 +115,13 @@ export function extractRouter(deps: AppDeps) {
     if (out === 'timeout') { res.json({ status: 'manual', reason: 'timeout' }); return; }
     if (!out.ok) { res.json({ status: 'manual', reason: out.reason }); return; }
     res.json({ status: 'ok', model: MODELS[out.model], cached: false, doc: view(MODELS[out.model], out.doc) });
+  });
+
+  /** Synthetic sample documents so anyone (e.g. a judge) can try every scan type without having their own photos. Names are whitelisted against the fixtures folder. */
+  r.get('/samples/:file', (req, res) => {
+    const file = String(req.params.file);
+    if (!/^[A-Za-z0-9_.-]+\.png$/.test(file) || !readdirSync(fixturesDir()).includes(file)) throw new ApiError(404, 'not_found', 'Not found');
+    res.set({ 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' }).send(readFileSync(path.join(fixturesDir(), file)));
   });
 
   r.get('/fixtures', (req, res) => {

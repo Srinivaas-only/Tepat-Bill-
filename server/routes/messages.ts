@@ -76,7 +76,7 @@ export function messagesRouter(deps: AppDeps) {
       lang, shopName: (shop?.value as { name?: string } | undefined)?.name ?? 'Kedai', supplierName: sup?.name ?? '', invoiceNo: p.refNo,
       invoiceDate: p.refDate, poNo: p.poNo, lines, evidenceUrl, docKind: flag.stage === 'delivery' ? 'delivery' : 'invoice',
     });
-    res.json({ text, lang, preview, phone: sup?.whatsapp ?? null, link: waLink(text, sup?.whatsapp ?? undefined), flagIds: group.map(g => g.id), evidenceUrl });
+    res.json({ text, lang, preview, supplierId: flag.supplierId, phone: sup?.whatsapp ?? null, link: waLink(text, sup?.whatsapp ?? undefined), flagIds: group.map(g => g.id), evidenceUrl });
   });
 
   /** Owner tapped "Open WhatsApp". First tap stamps sentAt (all flags in the message share it); a reminder only logs flag.remind. */

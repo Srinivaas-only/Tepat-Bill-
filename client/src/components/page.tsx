@@ -3,6 +3,7 @@ import { AlertTriangle, ChevronLeft } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useI18n } from '@/i18n';
 import { Button } from '@/components/ui/button';
+import { LangSwitch } from '@/components/lang-switch';
 
 /** history.back() when there is somewhere to go back to, else the given route. */
 export function BackButton({ fallback = '/' }: { fallback?: string }) {
@@ -22,7 +23,7 @@ export function Page({ title, children, action, back, band }: { title?: string; 
       <main className="pb-8">
         <header className="flex min-h-[72px] items-end justify-between px-5 pb-4 pt-[calc(24px+var(--safe-top))]">
           <h1 className="page-title">{title}</h1>
-          {action}
+          <div className="flex items-center gap-2">{action}<LangSwitch /></div>
         </header>
         <div className="stagger px-5">{children}</div>
       </main>
@@ -34,7 +35,7 @@ export function Page({ title, children, action, back, band }: { title?: string; 
       {title && (
         <header className="mb-5 flex items-center justify-between">
           <h1 className="page-title">{title}</h1>
-          {action}
+          <div className="flex items-center gap-2">{action}<LangSwitch /></div>
         </header>
       )}
       {children}

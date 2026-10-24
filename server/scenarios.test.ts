@@ -356,6 +356,11 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(r.status).toBe(200);
     expect(r.json).toMatchObject({ simulated: true, mode: 'simulated', ok: true });
     expect(JSON.stringify((await call('GET', '/api/activity', ownerCookie)).json)).toContain('accounting.handoff_sim');
+    const csv = await fetch(base + '/api/accounting/adjustments.csv', { headers: { cookie: ownerCookie } });
+    expect(csv.status).toBe(200);
+    const text = await csv.text();
+    expect(text).toContain('doc_type,doc_no,supplier_name,ref_invoice_no');
+    expect((await fetch(base + '/api/accounting/adjustments.csv', { headers: { cookie: staffCookie } })).status).toBe(403);
     const p = await call('GET', '/api/accounting/payload', ownerCookie);
     expect(p.json.mode).toBe('simulated');
     for (const s of p.json.payload.suppliers) {
@@ -447,6 +452,30 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     const body = await ev.json() as any;
     expect(body.photos.length).toBeGreaterThanOrEqual(2);
     expect((await fetch(base + body.photos[0].url)).status).toBe(200);
+  });
+
+  it('e-invoice: approved draft downloads as MyInvois UBL JSON; submission stays off without credentials', async () => {
+    const id = 'inv_gz088';
+    await call('POST', `/api/invoices/${id}/einvoice`, ownerCookie, {});
+    expect((await call('GET', `/api/invoices/${id}/einvoice/myinvois.json`, ownerCookie)).status).toBe(409);   // not approved yet
+    expect((await call('POST', `/api/invoices/${id}/einvoice/approve`, ownerCookie, {})).status).toBe(200);
+    expect((await call('GET', `/api/invoices/${id}/einvoice/myinvois.json`, staffCookie)).status).toBe(403);
+    const dl = await fetch(base + `/api/invoices/${id}/einvoice/myinvois.json`, { headers: { cookie: ownerCookie } });
+    expect(dl.status).toBe(200);
+    const ubl = await dl.json() as any;
+    expect(ubl.Invoice[0].InvoiceTypeCode[0]._).toBe('11');
+    const sub = await call('POST', `/api/invoices/${id}/einvoice/submit`, ownerCookie, {});
+    expect(sub.status).toBe(409); expect(sub.json.error.code).toBe('not_configured');
+    const st = await call('GET', `/api/invoices/${id}/einvoice`, ownerCookie);
+    expect(st.json.myinvois.configured).toBe(false);
+  });
+
+  it('sample documents are served to signed-in users only, from a whitelist', async () => {
+    expect((await fetch(base + '/api/samples/po_notebook_borong_ali.png')).status).toBe(401);
+    const ok = await fetch(base + '/api/samples/po_notebook_borong_ali.png', { headers: { cookie: staffCookie } });
+    expect(ok.status).toBe(200); expect(ok.headers.get('content-type')).toBe('image/png');
+    expect((await fetch(base + '/api/samples/..%2Fseed.json', { headers: { cookie: staffCookie } })).status).toBe(404);
+    expect((await fetch(base + '/api/samples/nope.png', { headers: { cookie: staffCookie } })).status).toBe(404);
   });
 
   it('T3 a delivery document cannot be attached to an invoice', async () => {

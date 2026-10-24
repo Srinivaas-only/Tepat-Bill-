@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import * as S from '../../shared/schema';
-import { approveDraft, formatRM, prepareSelfBilled, releaseDraft, type Buyer, type SelfBilledDraft } from '../../shared/core';
+import { approveDraft, formatRM, prepareSelfBilled, releaseDraft, toMyInvoisUbl, type Buyer, type SelfBilledDraft } from '../../shared/core';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
 import { logEvent } from '../events';
-import { buildAccountingPayload, connectorFromEnv } from '../accounting';
+import { adjustmentsCsv, buildAccountingPayload, connectorFromEnv } from '../accounting';
+import { myInvoisConfigured, submitToMyInvois } from '../myinvois';
 import { seedDatabase } from '../seed';
 import { dmy as dmyKl } from '../core-adapters';
 
@@ -43,7 +44,7 @@ export function extrasRouter(deps: AppDeps) {
 
   r.get('/invoices/:id/einvoice', requireCan('approve_einvoice'), async (req, res) => {
     const row = await loadDraft(String(req.params.id));
-    res.json({ draft: row ? asDraft(row) : null });
+    res.json({ draft: row ? asDraft(row) : null, submission: row?.submission ?? null, myinvois: { configured: myInvoisConfigured(), env: process.env.MYINVOIS_ENV === 'production' ? 'production' : 'sandbox' } });
   });
 
   r.post('/invoices/:id/einvoice', requireCan('approve_einvoice'), async (req, res) => {
@@ -84,6 +85,29 @@ export function extrasRouter(deps: AppDeps) {
     res.json({ draft: out.draft });
   });
 
+  // MyInvois: the approved draft as a real UBL 2.1 JSON document (always downloadable); submission only when credentials are configured.
+  const approvedDoc = async (invoiceId: string) => {
+    const row = await loadDraft(invoiceId);
+    if (!row) throw new ApiError(404, 'not_found', 'Draf tiada');
+    if (row.status === 'draft') throw new ApiError(409, 'bad_state', 'Luluskan draf dahulu');
+    const d = asDraft(row);
+    return { row, d, ubl: toMyInvoisUbl(d, new Date()) };
+  };
+  r.get('/invoices/:id/einvoice/myinvois.json', requireCan('approve_einvoice'), async (req, res) => {
+    const { d, ubl } = await approvedDoc(String(req.params.id));
+    await logEvent(db, req.role!, 'einvoice.download', d.invoiceId);
+    res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': `attachment; filename="${d.fields.eInvoiceNo}.myinvois.json"` }).send(JSON.stringify(ubl, null, 2));
+  });
+  r.post('/invoices/:id/einvoice/submit', requireCan('release_einvoice'), async (req, res) => {
+    if (!myInvoisConfigured()) throw new ApiError(409, 'not_configured', 'Sambungan MyInvois belum dikonfigurasikan (MYINVOIS_CLIENT_ID / MYINVOIS_CLIENT_SECRET)');
+    const { row, d, ubl } = await approvedDoc(String(req.params.id));
+    if ((row.submission as { ok?: boolean } | null)?.ok) throw new ApiError(409, 'already_submitted', 'Sudah dihantar');
+    const result = await submitToMyInvois(ubl, d.fields.eInvoiceNo);
+    await db.update(S.einvoiceDrafts).set({ submission: { ...result, at: new Date().toISOString() }, updatedAt: new Date() }).where(eq(S.einvoiceDrafts.invoiceId, row.invoiceId));
+    await logEvent(db, req.role!, result.ok ? 'einvoice.submit' : 'einvoice.submit_failed', row.invoiceId, { env: result.env, ok: result.ok, detail: result.detail, submissionUid: result.submissionUid });
+    res.status(result.ok ? 200 : 502).json({ result });
+  });
+
   // ----- CSV for the accountant: one row per invoice x approved flag (invoices without flags get one row) -----
   r.get('/export.csv', requireCan('export_csv'), async (req, res) => {
     const invs = await db.select().from(S.invoices).orderBy(S.invoices.issuedAt);
@@ -105,6 +129,10 @@ export function extrasRouter(deps: AppDeps) {
 
   // ----- accounting-partner handoff: the connector is a SIMULATION unless ACCOUNTING_WEBHOOK_URL + _SECRET are set (see server/accounting.ts) -----
   r.get('/accounting/payload', requireCan('export_csv'), async (_req, res) => { res.json({ mode: connectorFromEnv().mode, payload: await buildAccountingPayload(db) }); });
+  r.get('/accounting/adjustments.csv', requireCan('export_csv'), async (req, res) => {
+    await logEvent(db, req.role!, 'export.adjustments', null);
+    res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="tepat-bill-supplier-adjustments.csv"' }).send(adjustmentsCsv(await buildAccountingPayload(db)));
+  });
   r.post('/accounting/handoff', requireCan('export_csv'), async (req, res) => {
     const payload = await buildAccountingPayload(db);
     const result = await connectorFromEnv().send(payload);
