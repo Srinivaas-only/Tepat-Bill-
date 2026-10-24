@@ -76,6 +76,9 @@ NODE_ENV=production STORAGE_DRIVER=disk DEMO_FIXTURES=1 SEED_ON_BOOT=1 OWNER_PIN
 5. Preview artifact (`pv/`) is stale; refresh only if asked.
 6. Ask before any destructive/outward action. `npm audit fix` is NOT wanted (11 moderate/1 high dev-tool warnings are accepted).
 
+## 8b. Codex audit fixes done on 2026-10-24 (all on `main`)
+Critical: one quantity record (LB-7781 root cause fixed), count-screen Back crash, per-invoice dispute cap, foreign-line clamp. High: fulfilment view, owner-confirmed completion (`confirm` state), draft preview before approval, delivery evidence into complaints, owner-reviewed recounts (`needsRecheck`), unverified price source, supplier acceptance (accepted amount + ref). Medium: accurate WhatsApp/activity wording, labelled accounting simulation. Detail: `docs/DECISIONS_LOG.md` (2026-10-24 Codex lines). 225 tests green. Still NOT verified: live Replit deploy, real Gemini read, phone camera/WhatsApp. Not done on purpose: deck edits, Python ledger merge, real Orbyte/LHDN integration.
+
 ## 9. Git state
 - `main` carries everything. Rollback tags: `pre-ui-redesign` (before the Revolut Home), `pre-obsidian` (before the dark theme). Key commits: `65b6a1c` Revolut Home, `65c67f0` obsidian dark, `ea1f329` nav, `114f013` login/intro/headers/animations.
 - Decision log: `docs/DECISIONS_LOG.md` (append a line for every notable choice). Replit prompts for reference: `docs/FIX_PROMPT_4.md`–`6.md` (all executed).
