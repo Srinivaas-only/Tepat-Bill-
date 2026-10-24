@@ -454,5 +454,18 @@ export const ms = {
   'intro.4.body': 'Lulus aduan, hantar mesej WhatsApp dengan pautan bukti, dan ikuti sehingga pembekal menyelesaikannya.',
   'intro.demo.invoice': 'Dalam invois',
   'intro.demo.got': 'Diterima',
+  'count.uncounted': "belum dikira",
+  'count.confirmTitle': "{n} baris belum dikira",
+  'count.confirmBody': "Baris ini masih ikut kuantiti invois, belum dikira. Sahkan semuanya diterima, atau semak semula.",
+  'count.confirmAll': "Ya, semua diterima",
+  'count.confirmBack': "Semak semula",
+  'count.reasonTitle': "Pembetulan kiraan",
+  'count.reasonBody': "Kiraan ini sudah disemak atau ada aduan. Nyatakan sebab pembetulan; ia direkodkan dalam log aktiviti.",
+  'count.reasonPlaceholder': "Contoh: bekalan tiba lewat",
+  'count.reasonSubmit': "Simpan pembetulan",
+  'count.ownerOnly': "Hanya pemilik boleh membetulkan kiraan selepas diluluskan.",
+  'flag.recheck': "Kuantiti telah berubah selepas aduan ini. Semak semula.",
+  'act.count.corrected': "Kiraan dibetulkan",
+  'act.invoice.resync': "Kiraan invois dikemas kini",
 } as const;
 export type Key = keyof typeof ms;

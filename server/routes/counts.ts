@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import * as S from '../../shared/schema';
-import { baseline, canMarkCorrect, matchLine, orderState, readyToPay } from '../../shared/core';
+import { baseline, can, canMarkCorrect, matchLine, orderState, readyToPay } from '../../shared/core';
 import type { AppDeps } from '../app';
 import { ApiError } from '../app';
 import { requireAuth, requireCan } from '../auth';
@@ -10,7 +10,7 @@ import { logEvent } from '../events';
 import { cleanPriceList, flagRowToCore } from '../core-adapters';
 import { lockInvoice } from '../flag-ops';
 import { ledgerFor } from '../ledger-data';
-import { defaultCounts, firstSaveAutofill, loadContext, replaceProposedFlags, attachPhotos, runDetection, snapshotOf } from '../flags';
+import { defaultCounts, firstSaveAutofill, loadContext, markStaleFlags, replaceProposedFlags, attachPhotos, runDetection, snapshotOf } from '../flags';
 import { toViews } from '../flag-view';
 
 export function countsRouter(deps: AppDeps) {
@@ -65,11 +65,17 @@ export function countsRouter(deps: AppDeps) {
         documentId: c.inv.documentId, doc: doc ? { width: doc.width, height: doc.height } : null,
       },
       lines, poOnly, counts: { ...defaultCounts(c), ...c.saved }, hasCounts: Object.keys(c.saved).length > 0, photos, flags,
+      // 'default' = untouched billed-qty placeholder, not a verified count
+      countSources: Object.fromEntries(Object.keys({ ...defaultCounts(c), ...c.saved }).map(k => [k, c.savedSources[k] ?? 'default'])),
     });
   });
 
   r.put('/invoices/:id/counts', requireCan('record_count'), async (req, res) => {
-    const body = z.object({ counts: z.record(z.string(), z.number().int().min(0).max(100000)).default({}) }).safeParse(req.body);
+    const body = z.object({
+      counts: z.record(z.string(), z.number().int().min(0).max(100000)).default({}),
+      confirmed: z.union([z.literal('all'), z.array(z.string()).max(500)]).optional(),   // lines a person explicitly confirmed (untouched lines stay "belum dikira")
+      reason: z.string().trim().max(300).optional(),                                       // required for an owner-reviewed correction
+    }).safeParse(req.body);
     if (!body.success) throw new ApiError(400, 'bad_request', 'Kiraan tidak sah');
     const id = String(req.params.id);
     if (Object.keys(body.data.counts).length > 500) throw new ApiError(400, 'bad_request', 'Terlalu banyak kiraan');
@@ -81,16 +87,30 @@ export function countsRouter(deps: AppDeps) {
       if (Object.keys(body.data.counts).some(k => !allowedKeys.has(k))) throw new ApiError(400, 'bad_request', 'Kiraan tidak sah');
       const first = c.inv.priceListSnapshot === null;
       const snapshot = snapshotOf(c);
-      const merged = { ...defaultCounts(c), ...c.saved, ...body.data.counts };
+      const defaults = defaultCounts(c);
+      const prev = { ...defaults, ...c.saved };
+      const merged = { ...prev, ...body.data.counts };
+      const changes = Object.keys(merged).filter(k => merged[k] !== prev[k]).map(k => ({ key: k, from: prev[k] ?? null, to: merged[k] }));
+      // A recount must not silently contradict an approved invoice, a paid invoice or a live complaint: owner + reason, and it is logged with before/after.
+      const live = await tx.select({ id: S.flags.id }).from(S.flags).where(and(eq(S.flags.invoiceId, id), eq(S.flags.stage, 'invoice'), inArray(S.flags.status, ['open', 'disputed', 'settled'])));
+      const guarded = !first && changes.length > 0 && (c.inv.ownerMarkedCorrect || c.inv.payment === 'paid' || live.length > 0);
+      if (guarded) {
+        if (!can(req.role!, 'mark_correct')) throw new ApiError(403, 'owner_review_required', 'Kiraan semula selepas lulus/aduan perlu semakan pemilik');
+        if (!body.data.reason) throw new ApiError(422, 'reason_required', 'Sebab pembetulan diperlukan', { changes });
+      }
       const detected = runDetection(c, merged, snapshot);
       if (first) {
         await tx.update(S.invoices).set({ priceListSnapshot: cleanPriceList(snapshot) }).where(eq(S.invoices.id, id));
         await firstSaveAutofill(tx, c, detected);
       }
+      const confirmed = body.data.confirmed === 'all' ? null : new Set(body.data.confirmed ?? []);
+      const sourceOf = (k: string) => confirmed === null || confirmed.has(k) || (k in body.data.counts && body.data.counts[k] !== defaults[k]) ? 'staff' : (c.savedSources[k] ?? 'default');
       await tx.delete(S.receivedCounts).where(eq(S.receivedCounts.invoiceId, id));
-      await tx.insert(S.receivedCounts).values(Object.entries(merged).map(([key, qty]) => ({ invoiceId: id, key, qty, recordedByRole: req.role! })));
+      await tx.insert(S.receivedCounts).values(Object.entries(merged).map(([key, qty]) => ({ invoiceId: id, key, qty, source: sourceOf(key), recordedByRole: req.role! })));
       await replaceProposedFlags(tx, c, detected);
-      await logEvent(tx, req.role!, 'delivery.record_counts', id, { flags: detected.length });
+      const stale = await markStaleFlags(tx, id, detected);
+      await logEvent(tx, req.role!, 'delivery.record_counts', id, { flags: detected.length, ...(changes.length && !first ? { changes: changes.slice(0, 50) } : {}) });
+      if (guarded) await logEvent(tx, req.role!, 'count.corrected', id, { reason: body.data.reason, changes: changes.slice(0, 50), recheck: stale });
       return await tx.select().from(S.flags).where(eq(S.flags.invoiceId, id));
     });
     const flags = await toViews(db, out);

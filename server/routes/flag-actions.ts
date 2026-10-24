@@ -171,7 +171,7 @@ export function flagActionsRouter(deps: AppDeps) {
       counts[`line:${line.lineId}`] = c.saved[`line:${line.lineId}`] ?? line.qty; // once matched, an uncounted line defaults to its billed qty (notes 13)
       delete counts[target.sku];
       await tx.delete(S.receivedCounts).where(and(eq(S.receivedCounts.invoiceId, c.inv.id), inArray(S.receivedCounts.key, [`line:${line.lineId}`, target.sku])));
-      await tx.insert(S.receivedCounts).values({ invoiceId: c.inv.id, key: `line:${line.lineId}`, qty: counts[`line:${line.lineId}`], recordedByRole: req.role! });
+      await tx.insert(S.receivedCounts).values({ invoiceId: c.inv.id, key: `line:${line.lineId}`, qty: counts[`line:${line.lineId}`], source: c.savedSources[`line:${line.lineId}`] ?? 'default', recordedByRole: req.role! });
       await replaceProposedFlags(tx, c, runDetection(c, counts, snapshotOf(c)));
       await logEvent(tx, req.role!, 'flag.link_substitute', row.id, { sku: body.data.sku });
       return await tx.select().from(S.flags).where(eq(S.flags.invoiceId, c.inv.id));

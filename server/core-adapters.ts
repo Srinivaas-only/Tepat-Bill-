@@ -46,6 +46,8 @@ export function invoiceRowToCore(r: InvoiceRow): Invoice {
 
 export const invLineRowToCore = (l: InvoiceLineRow): InvLine => ({
   lineId: l.lineId, description: l.description, qty: l.qty, unitPriceSen: l.unitPriceSen, box: (l.box ?? undefined) as InvLine['box'],
+  // foreign lines only: their unit price was rounded to sen, so claims are capped by the billed line total
+  lineTotalSen: l.unitPriceForeignMinor != null && l.lineTotalSen != null ? l.lineTotalSen : undefined,
 });
 
 export const poLineRowToCore = (l: PoLineRow): PoLine => ({

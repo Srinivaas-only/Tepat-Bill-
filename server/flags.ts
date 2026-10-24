@@ -1,5 +1,5 @@
 // Flag detection pipeline: DB rows -> core detectFlags -> flag rows. All money logic stays in shared/core.
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { randomBytes } from 'node:crypto';
 import * as S from '../shared/schema';
@@ -19,6 +19,7 @@ export interface InvoiceContext {
   aliases: ReturnType<typeof aliasTableFromRows>;
   priceNow: PriceList;
   saved: Record<string, number>;
+  savedSources: Record<string, string>;
 }
 
 export async function loadContext(db: Conn, invoiceId: string): Promise<InvoiceContext | null> {
@@ -47,7 +48,18 @@ export async function loadContext(db: Conn, invoiceId: string): Promise<InvoiceC
     });
   }
   const savedRows = await db.select().from(S.receivedCounts).where(eq(S.receivedCounts.invoiceId, invoiceId));
-  return { inv, lines, invLines, po, implicitPo: implicit, poRow, aliases, priceNow, saved: Object.fromEntries(savedRows.map(r => [r.key, r.qty])) };
+  // ONE quantity record: a count stored under a matched PO sku (`<sku>`) is the count of that invoice line, so it is read as `line:<id>`.
+  // (Otherwise the billed-qty default for `line:<id>` wins and shows "48 received" next to a "6 missing" flag.)
+  const saved: Record<string, number> = {}, savedSources: Record<string, string> = {};
+  for (const r of savedRows) if (r.key.startsWith('line:')) { saved[r.key] = r.qty; savedSources[r.key] = r.source; }
+  for (const r of savedRows) {
+    if (r.key.startsWith('line:')) continue;
+    const l = invLines.find(x => matchLine(inv.supplierId, x, po, aliases)?.sku === r.key);
+    const k = l ? `line:${l.lineId}` : r.key;
+    if (l && k in saved) continue;
+    saved[k] = r.qty; savedSources[k] = r.source;
+  }
+  return { inv, lines, invLines, po, implicitPo: implicit, poRow, aliases, priceNow, saved, savedSources };
 }
 
 /** Notes 13: defaults = each matched invoice line -> its invoice qty; each PO-only sku -> 0. Body counts merge over the top. */
@@ -129,4 +141,21 @@ export async function firstSaveAutofill(db: Conn, c: InvoiceContext, detected: D
     await db.insert(S.priceList).values({ supplierId: c.inv.supplierId, sku: l.sku, lastInvoiceSen: e.lastInvoiceSen ?? null, agreedSen: e.agreedSen ?? null })
       .onConflictDoUpdate({ target: [S.priceList.supplierId, S.priceList.sku], set: { lastInvoiceSen: e.lastInvoiceSen ?? null } });
   }
+}
+
+/**
+ * After counts change: approved/open/disputed/settled invoice flags are never rewritten silently. Any whose line/type no longer
+ * matches the fresh detection (gone, or different missing qty / amount) is marked needsRecheck for the owner; matching ones are cleared.
+ * Returns how many flags now need a recheck.
+ */
+export async function markStaleFlags(db: Conn, invoiceId: string, detected: DetectedFlag[]): Promise<number> {
+  const rows = await db.select().from(S.flags).where(and(eq(S.flags.invoiceId, invoiceId), eq(S.flags.stage, 'invoice'), ne(S.flags.status, 'proposed'), ne(S.flags.status, 'dismissed'), isNull(S.flags.supersededBy)));
+  let stale = 0;
+  for (const f of rows) {
+    const d = detected.find(x => x.invoiceLineId === f.invoiceLineId && x.type === f.type);
+    const differs = !d || (d.missingQty ?? null) !== (f.missingQty ?? null) || d.amountSen !== f.amountSen;
+    if (differs) stale++;
+    if (differs !== f.needsRecheck) await db.update(S.flags).set({ needsRecheck: differs }).where(eq(S.flags.id, f.id));
+  }
+  return stale;
 }

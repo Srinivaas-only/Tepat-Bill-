@@ -12,6 +12,7 @@ import { logEvent } from '../events';
 import { aliasTableFromRows, flagRowToCore, poLineRowToCore } from '../core-adapters';
 import { attachDeliveryPhotos, defaultDeliveryCounts, loadDeliveryContext, replaceProposedDeliveryFlags, runDeliveryCheck } from '../delivery-ctx';
 import { lockDelivery } from '../flag-ops';
+import { resyncComparedInvoice } from '../compare-sync';
 import { toViews } from '../flag-view';
 import { Box, SupplierRef, pgCode, resolveSupplier } from './orders';
 
@@ -112,6 +113,7 @@ export function deliveriesRouter(deps: AppDeps) {
       await tx.insert(S.deliveryCounts).values(Object.entries(merged).map(([key, qty]) => ({ deliveryId: id, key, qty, recordedByRole: req.role! })));
       const detected = runDeliveryCheck(c, merged);
       await replaceProposedDeliveryFlags(tx, c, detected);
+      await resyncComparedInvoice(tx, id, req.role!);
       await logEvent(tx, req.role!, 'delivery.record_counts', id, { flags: detected.length });
       return await tx.select().from(S.flags).where(eq(S.flags.deliveryId, id));
     });

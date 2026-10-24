@@ -84,6 +84,34 @@ describe('settlement', () => {
   });
 });
 
+describe('dispute scope (audit counterexample)', () => {
+  it('a dispute on a fully credited invoice does not hide Pay now on another invoice', () => {
+    const A = inv('A', 10_000, 1), B = inv('B', 50_000, 2);
+    const fa = { ...transition(open(flag('fa', 'A', 10_000)), 'settled', 3 * DAY, 'credit_note') };
+    const fb = transition(open(flag('fb', 'A', 5_000, 'price_change')), 'disputed', 3 * DAY);
+    const L = supplierLedger('S1', [A, B], [fa, fb]);
+    expect(L.owedSen).toBe(50_000);
+    expect(L.disputedSen).toBe(0);
+    expect(L.payNowSen).toBe(50_000);
+  });
+  it('a dispute still holds back its own invoice', () => {
+    const A = inv('A', 10_000, 1), B = inv('B', 50_000, 2);
+    const L = supplierLedger('S1', [A, B], [transition(open(flag('f', 'B', 7_000)), 'disputed', 3 * DAY)]);
+    expect(L.disputedSen).toBe(7_000);
+    expect(L.payNowSen).toBe(53_000);
+  });
+  it('disputedSen never exceeds the net owed on disputed invoices', () => {
+    fc.assert(fc.property(fc.integer({ min: 0, max: 100_000 }), fc.integer({ min: 0, max: 100_000 }), (credit, dis) => {
+      const A = inv('A', 100_000, 1), B = inv('B', 30_000, 2);
+      const fa = transition(open(flag('fa', 'A', credit)), 'settled', 3 * DAY, 'deducted');
+      const fd = transition(open(flag('fd', 'A', dis)), 'disputed', 3 * DAY);
+      const L = supplierLedger('S1', [A, B], [fa, fd]);
+      const netA = L.rows.find(r => r.id === 'A')!.netOwedSen;
+      return L.disputedSen <= netA && L.payNowSen === L.owedSen - L.disputedSen;
+    }));
+  });
+});
+
 describe('order state', () => {
   it('has_flags while anything unresolved; correct only after owner marks it', () => {
     const p = flag('F', 'I1', 1);

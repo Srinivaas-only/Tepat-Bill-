@@ -231,9 +231,28 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(after.status).toBe(200);
     expect(after.json.flag.status).toBe('open');
     expect(after.json.evidenceToken).toBe(token);
-    const none = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 6 } });
+    // changing a checked quantity under a live complaint is an owner-reviewed correction (audit): staff cannot, the owner needs a reason
+    const staffTry = await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: { 'line:L1': 6 } });
+    expect(staffTry.status).toBe(403);
+    const noReason = await call('PUT', `/api/invoices/${inv.json.id}/counts`, ownerCookie, { counts: { 'line:L1': 6 } });
+    expect(noReason.status).toBe(422);
+    const none = await call('PUT', `/api/invoices/${inv.json.id}/counts`, ownerCookie, { counts: { 'line:L1': 6 }, reason: 'Kiraan semula, bekalan sampai kemudian' });
     expect(none.status).toBe(200);
-    expect((await call('GET', `/api/flags/${f.id}`, ownerCookie)).json.flag.status).toBe('open');
+    const kept = (await call('GET', `/api/flags/${f.id}`, ownerCookie)).json.flag;
+    expect(kept.status).toBe('open');            // never rewritten silently...
+    expect(kept.needsRecheck).toBe(true);        // ...but the owner is told it no longer matches the counts
+    expect(kept.missingQty).toBe(2);
+    const ev = await call('GET', '/api/activity', ownerCookie);
+    expect(JSON.stringify(ev.json)).toContain('count.corrected');
+  });
+
+  it('LB-7781: received qty, billed qty and the "6 missing" flag come from ONE record', async () => {
+    const r = await call('GET', '/api/invoices/inv_lb7781', ownerCookie);
+    expect(r.status).toBe(200);
+    const sardin = r.json.lines.find((l: any) => l.lineId === 'L2');
+    expect(r.json.counts['line:L2']).toBe(42);                       // seed stores it under the sku; it must not be shadowed by the billed-qty default (48)
+    expect(sardin.qty - r.json.counts['line:L2']).toBe(r.json.flags.find((f: any) => f.invoiceLineId === 'L2' && f.type === 'short_qty').missingQty);
+    expect(r.json.counts['line:L1']).toBe(50);
   });
 
   it('T3 a delivery document cannot be attached to an invoice', async () => {

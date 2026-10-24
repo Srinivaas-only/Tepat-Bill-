@@ -102,9 +102,13 @@ export function supplierLedger(supplierId: string, invoices: Invoice[], flags: F
     rows.push({ id: inv.id, grossSen: inv.totalSen, reductionSen: reduction, creditAppliedSen: applied, netOwedSen: net });
   }
   const owedSen = rows.reduce((s, r) => s + r.netOwedSen, 0);
-  const unpaidIds = new Set(unpaid.map(u => u.inv.id));
-  const disputedRaw = fl.filter(f => f.status === 'disputed' && unpaidIds.has(f.invoiceId)).reduce((s, f) => s + f.amountSen, 0);
-  const disputedSen = Math.min(disputedRaw, owedSen);
+  // a dispute only holds back money that is actually still owed on ITS OWN invoice: a disputed flag on a fully credited invoice must not hide what is owed on another one
+  const netById = new Map(rows.map(r => [r.id, r.netOwedSen]));
+  const disputedByInvoice = new Map<string, number>();
+  for (const f of fl) if (f.status === 'disputed' && netById.has(f.invoiceId)) disputedByInvoice.set(f.invoiceId, (disputedByInvoice.get(f.invoiceId) ?? 0) + f.amountSen);
+  let disputedSen = 0;
+  for (const [id, sum] of disputedByInvoice) disputedSen += Math.min(sum, netById.get(id) ?? 0);
+  disputedSen = Math.min(disputedSen, owedSen);
   return { owedSen, disputedSen, payNowSen: owedSen - disputedSen,
     creditCarrySen: pool.reduce((s, c) => s + c.sen, 0), recoveredSen: recovered, rows };
 }

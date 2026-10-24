@@ -17,7 +17,7 @@ import { BackButton, SectionLabel, ErrorState } from '@/components/page';
 interface Detail {
   invoice: { id: string; invoiceNo: string; supplierId: string; supplierName: string; poNo: string | null; currency: string; totalSen: number; payment: string; state?: string; canMarkCorrect?: boolean; hasDraft?: boolean; compared?: boolean; documentId: string | null; doc: { width: number; height: number } | null };
   lines: { lineId: string; description: string; qty: number; unitPriceSen: number; lineTotalSen: number; box: [number, number, number, number] | null }[];
-  counts: Record<string, number>; hasCounts: boolean; flags: FlagView[];
+  counts: Record<string, number>; countSources?: Record<string, string>; hasCounts: boolean; flags: FlagView[];
 }
 
 export default function InvoiceDetail() {
@@ -74,7 +74,7 @@ export default function InvoiceDetail() {
               {d.lines.map((l, i) => (
                 <div key={l.lineId} className="flex items-start justify-between gap-3 border-t border-line py-3 text-sm">
                   <span className="num pt-0.5 text-xs text-ink-2">{String(i + 1).padStart(2, '0')}</span>
-                  <div className="min-w-0 flex-1"><p className="font-medium">{l.description}</p><p className="num text-xs text-ink-2">{d.counts[`line:${l.lineId}`] ?? l.qty} / {l.qty} × {formatMoney(l.unitPriceSen, 'MYR')}</p></div>
+                  <div className="min-w-0 flex-1"><p className="font-medium">{l.description}</p><p className="num text-xs text-ink-2">{d.counts[`line:${l.lineId}`] ?? l.qty} / {l.qty} × {formatMoney(l.unitPriceSen, 'MYR')}{(d.countSources?.[`line:${l.lineId}`] ?? 'default') === 'default' && <span className="ml-2 normal-case">· {t('count.uncounted')}</span>}</p></div>
                   <p className="num shrink-0 font-semibold">{formatMoney(l.lineTotalSen, 'MYR')}</p>
                 </div>))}
               <div className="flex items-baseline justify-between border-t border-line py-3"><span className="text-ink-2">{t('inv.total')}</span><span className="inline-block"><Money sen={d.invoice.totalSen} className="text-xl font-semibold" /></span></div>

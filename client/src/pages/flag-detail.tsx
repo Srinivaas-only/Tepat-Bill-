@@ -181,6 +181,7 @@ export default function FlagDetail() {
           )}
 
           {f.sentAt && owner && (f.status === 'open' || f.status === 'disputed') && <Badge tone="ok" className="num">{t('flag.sentOn', { date: fmtDate(f.sentAt, lang) })}</Badge>}
+          {f.needsRecheck && <Card className="px-4 py-3"><p className="text-sm font-medium text-dispute">{t('flag.recheck')}</p></Card>}
           {f.reminderDue && <p className="text-sm font-medium text-dispute">{t('flag.reminderCaption')}</p>}
           {f.note && <Card className="px-4 py-3"><p className="eyebrow">{t('flag.noteLabel')}</p><p className="text-sm">{f.note}</p></Card>}
           {owner && f.status !== 'proposed' && d.evidenceToken && (

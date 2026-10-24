@@ -207,7 +207,7 @@ export function ordersRouter(deps: AppDeps) {
       const detected = runDetection(c, received, c.priceNow);
       await tx.update(S.invoices).set({ priceListSnapshot: cleanPriceList(c.priceNow) }).where(eq(S.invoices.id, id));
       await firstSaveAutofill(tx, c, detected);
-      await tx.insert(S.receivedCounts).values(Object.entries(received).map(([key, qty]) => ({ invoiceId: id, key, qty, recordedByRole: req.role! })));
+      await tx.insert(S.receivedCounts).values(Object.entries(received).map(([key, qty]) => ({ invoiceId: id, key, qty, source: 'delivery', recordedByRole: req.role! })));
       await replaceProposedFlags(tx, c, detected);
       const rows = await tx.select().from(S.flags).where(eq(S.flags.invoiceId, id));
       await supersedeDeliveryFlags(tx, del.id, rows);

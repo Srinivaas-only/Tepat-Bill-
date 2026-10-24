@@ -23,7 +23,7 @@ interface RawDetail {
   invoice: { id: string; invoiceNo: string; supplierName: string; poNo: string | null };
   lines: { lineId: string; description: string; qty: number; unit: string | null; matchedSku: string | null }[];
   poOnly: { sku: string; description: string; orderedQty: number }[];
-  counts: Record<string, number>; hasCounts: boolean;
+  counts: Record<string, number>; hasCounts: boolean; countSources?: Record<string, string>;
   photos: { id: string; photoKind: string | null; kind: string }[];
   flags: FlagView[];
 }
@@ -32,7 +32,7 @@ interface Detail {
   ref: string; supplierName: string; poNo: string | null;
   lines: { lineId: string; description: string; qty: number; unit: string | null }[];
   poOnly: { sku: string; description: string; orderedQty: number }[];
-  counts: Record<string, number>;
+  counts: Record<string, number>; sources: Record<string, string>;
   photos: { id: string; photoKind: string | null; kind: string }[];
   flags: FlagView[];
 }
@@ -73,30 +73,34 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
   const qc = useQueryClient();
   const isDel = mode === 'delivery';
   const base = isDel ? `/deliveries/${id}` : `/invoices/${id}`;
-  const qkey = [isDel ? 'delivery' : 'invoice', id];
+  const qkey = ['count', isDel ? 'delivery' : 'invoice', id]; // own cache entry: invoice-detail caches a different shape under ['invoice', id]
   const q = useQuery({
     queryKey: qkey, refetchOnMount: 'always',
     queryFn: async (): Promise<Detail> => {
       if (isDel) {
         const r = await api.get<RawDelivery>(base);
         return { ref: r.delivery.doNo, supplierName: r.delivery.supplierName, poNo: r.delivery.poNo, lines: r.lines, poOnly: [], flags: r.flags, photos: r.photos,
-          counts: Object.fromEntries(r.lines.map(l => [`line:${l.lineId}`, l.receivedQty])) };
+          counts: Object.fromEntries(r.lines.map(l => [`line:${l.lineId}`, l.receivedQty])), sources: {} };
       }
       const r = await api.get<RawDetail>(base);
-      return { ref: r.invoice.invoiceNo, supplierName: r.invoice.supplierName, poNo: r.invoice.poNo, lines: r.lines, poOnly: r.poOnly, counts: r.counts, photos: r.photos, flags: r.flags };
+      return { ref: r.invoice.invoiceNo, supplierName: r.invoice.supplierName, poNo: r.invoice.poNo, lines: r.lines, poOnly: r.poOnly, counts: r.counts, sources: r.countSources ?? {}, photos: r.photos, flags: r.flags };
     },
   });
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [result, setResult] = useState<{ flags: FlagView[]; processed: boolean; sen: number } | null>(null);
   const [shown, setShown] = useState(0);
   const seeded = useRef(false);
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [reasonOpen, setReasonOpen] = useState(false);
+  const [reason, setReason] = useState('');
   const delivery = useRef<HTMLInputElement>(null);
   const bon = useRef<HTMLInputElement>(null);
   useEffect(() => { if (q.data && !seeded.current) { seeded.current = true; setCounts(q.data.counts); } }, [q.data]);
 
-  const refresh = () => { for (const k of ['flags', 'flag', 'home', 'ledger', 'ledgers', 'deliveries', 'invoices']) void qc.invalidateQueries({ queryKey: [k] }); void qc.invalidateQueries({ queryKey: qkey }); };
+  const refresh = () => { for (const k of ['flags', 'flag', 'home', 'ledger', 'ledgers', 'deliveries', 'invoices', 'invoice', 'delivery']) void qc.invalidateQueries({ queryKey: [k] }); void qc.invalidateQueries({ queryKey: qkey }); };
   const save = useMutation({
-    mutationFn: () => api.put<{ flags: FlagView[]; totalSen?: number; estimateSen?: number }>(`${base}/counts`, { counts }),
+    mutationFn: (o: { all?: boolean; reason?: string } = {}) => api.put<{ flags: FlagView[]; totalSen?: number; estimateSen?: number }>(`${base}/counts`, { counts, confirmed: o.all ? 'all' : [...touched], ...(o.reason ? { reason: o.reason } : {}) }),
     onSuccess: r => {
       buzz(14); setShown(0);
       const open = r.flags.filter(f => f.status === 'proposed' && !f.supersededBy && (f.type !== 'price_change' || f.direction !== 'down'));
@@ -104,7 +108,10 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
       setResult({ flags: open, processed, sen: r.estimateSen ?? r.totalSen ?? 0 });
       refresh();
     },
-    onError: () => toast.error(t('common.error')),
+    onError: e => {
+      if (e instanceof ApiError && e.code === 'reason_required') { setReasonOpen(true); return; }
+      toast.error(e instanceof ApiError && e.code === 'owner_review_required' ? t('count.ownerOnly') : t('common.error'));
+    },
   });
   const markCorrect = useMutation({
     mutationFn: () => api.post(`${base}/mark-correct`),
@@ -120,8 +127,10 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
     onError: () => toast.error(t('count.photoFail')),
   });
 
-  const set = (key: string, n: number) => setCounts(c => ({ ...c, [key]: n }));
+  const set = (key: string, n: number) => { setTouched(x => new Set(x).add(key)); setCounts(c => ({ ...c, [key]: n })); };
   const d = q.data;
+  const isUncounted = (key: string) => !isDel && !touched.has(key) && (d?.sources[key] ?? 'default') === 'default';
+  const uncounted = d ? d.lines.filter(l => isUncounted(`line:${l.lineId}`)).length : 0;
   useEffect(() => { if (!result) return; const tm = setTimeout(() => setShown(result.sen), 250); return () => clearTimeout(tm); }, [result]);
   const thumb = (kind: string) => [...(d?.photos ?? [])].reverse().find(p => p.photoKind === kind)?.id;
   const hasBon = d?.photos.some(p => p.photoKind === 'signed_bon');
@@ -145,7 +154,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
                   {diff !== 0 && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-short" />}
                   <div className="flex items-start justify-between gap-2">
                     <p className="flex gap-2 font-medium leading-5"><span className="num w-6 shrink-0 text-xs leading-5 text-ink-2">{String(i + 1).padStart(2, '0')}</span><span>{l.description}</span></p>
-                    {diff !== 0 && <Badge tone="short" className="num shrink-0">{diff > 0 ? '−' : '+'}{Math.abs(diff)}</Badge>}
+                    {diff !== 0 ? <Badge tone="short" className="num shrink-0">{diff > 0 ? '−' : '+'}{Math.abs(diff)}</Badge> : isUncounted(key) && <Badge tone="neutral" className="shrink-0">{t('count.uncounted')}</Badge>}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                     <p className="pl-8 text-sm text-ink-2">{billedLabel} <span className="num">{l.qty}{l.unit ? ` ${l.unit}` : ''}</span></p>
@@ -181,7 +190,27 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
         </div>
       )}
 
-      <FixedBar><Button block disabled={!d || save.isPending || photo.isPending} onClick={() => save.mutate()}>{save.isPending ? t('count.saving') : t('count.save')}</Button></FixedBar>
+      <FixedBar><Button block disabled={!d || save.isPending || photo.isPending} onClick={() => uncounted > 0 ? setConfirmOpen(true) : save.mutate({})}>{save.isPending ? t('count.saving') : t('count.save')}</Button></FixedBar>
+
+      <Sheet open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <SheetContent title={t('count.confirmTitle', { n: uncounted })}>
+          <div className="space-y-3">
+            <p className="text-ink-2">{t('count.confirmBody')}</p>
+            <Button block onClick={() => { setConfirmOpen(false); save.mutate({ all: true }); }}>{t('count.confirmAll')}</Button>
+            <Button block variant="ghost" onClick={() => setConfirmOpen(false)}>{t('count.confirmBack')}</Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={reasonOpen} onOpenChange={setReasonOpen}>
+        <SheetContent title={t('count.reasonTitle')}>
+          <div className="space-y-3">
+            <p className="text-ink-2">{t('count.reasonBody')}</p>
+            <textarea value={reason} onChange={e => setReason(e.target.value)} maxLength={300} rows={3} aria-label={t('count.reasonTitle')} placeholder={t('count.reasonPlaceholder')} className="w-full rounded-btn border border-line bg-surface p-3 text-base focus-visible:border-brand" />
+            <Button block disabled={reason.trim().length < 3 || save.isPending} onClick={() => { setReasonOpen(false); save.mutate({ all: true, reason: reason.trim() }); }}>{t('count.reasonSubmit')}</Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={!!result} onOpenChange={() => undefined}>
         <SheetContent title={t('count.resultTitle')} onInteractOutside={e => e.preventDefault()} onEscapeKeyDown={e => e.preventDefault()}>

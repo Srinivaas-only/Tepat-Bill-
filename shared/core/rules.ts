@@ -39,7 +39,11 @@ export const learnAlias = (t: AliasTable, supplierId: string, invoiceDesc: strin
   ({ ...t, [supplierId]: { ...(t[supplierId] ?? {}), [normalise(invoiceDesc)]: sku } });
 
 export interface PoLine { sku: string; description: string; orderedQty: number; unitPriceSen?: Sen }
-export interface InvLine { lineId: string; description: string; qty: number; unitPriceSen: Sen; box?: [number, number, number, number] }
+export interface InvLine {
+  lineId: string; description: string; qty: number; unitPriceSen: Sen; box?: [number, number, number, number];
+  /** Billed line total in MYR sen. Foreign invoices round the unit price, so claims are derived from this and never exceed it. */
+  lineTotalSen?: Sen;
+}
 
 export const MATCH_THRESHOLD = 0.6;
 /** Pack sizes in canonical units (grams / millilitres), read from the raw text so decimals survive: "1.5kg" = "1500g", "1L" = "1000ml". */
@@ -144,20 +148,22 @@ export function detectFlags(i: LineCheckInput): DetectedFlag[] {
     matched.add(m.sku);
     const rec = assertQty(i.received[`line:${line.lineId}`] ?? i.received[m.sku] ?? 0, 'received qty');
     const missing = line.qty - rec;
+    // billed-line share: exact when the unit price is exact, and never above the billed total when the unit price was rounded (foreign invoices)
+    const shortSen = missing > 0 ? (line.lineTotalSen !== undefined && line.qty > 0 ? Math.min(line.lineTotalSen, Math.round(line.lineTotalSen * missing / line.qty)) : missing * line.unitPriceSen) : 0;
     if (missing > 0) out.push({ type: 'short_qty', sku: m.sku, invoiceLineId: line.lineId, missingQty: missing,
-      invoiceUnitSen: line.unitPriceSen, amountSen: missing * line.unitPriceSen });
+      invoiceUnitSen: line.unitPriceSen, amountSen: shortSen });
     const b = baseline(i.priceList[m.sku], m);
     const pricedQty = Math.min(line.qty, rec);
     if (b !== undefined && b.sen !== line.unitPriceSen && pricedQty > 0) {   // nothing received -> nothing to re-price (the shortage covers it)
       const diff = line.unitPriceSen - b.sen;
       out.push({ type: 'price_change', sku: m.sku, invoiceLineId: line.lineId, invoiceUnitSen: line.unitPriceSen,
         baselineUnitSen: b.sen, baselineSource: b.source, pricedQty, direction: diff > 0 ? 'up' : 'down',
-        amountSen: diff > 0 ? diff * pricedQty : 0 });
+        amountSen: diff > 0 ? (line.lineTotalSen !== undefined ? Math.max(0, Math.min(diff * pricedQty, line.lineTotalSen - shortSen)) : diff * pricedQty) : 0 });
     }
   }
   const substituteCandidates = i.po.filter(p => !matched.has(p.sku) && (i.received[p.sku] ?? 0) === 0);
   for (const line of unmatched) {
-    out.push({ type: 'not_ordered', invoiceLineId: line.lineId, amountSen: line.qty * line.unitPriceSen,
+    out.push({ type: 'not_ordered', invoiceLineId: line.lineId, amountSen: line.lineTotalSen ?? line.qty * line.unitPriceSen,
       invoiceUnitSen: line.unitPriceSen, possibleSubstituteFor: substituteCandidates.shift()?.sku });
   }
   return out;

@@ -9,6 +9,7 @@ import { requireAuth, requireCan } from '../auth';
 import { logEvent } from '../events';
 import { flagCoreToPatch, flagRowToCore } from '../core-adapters';
 import { lockParent, updateFlagAtomic } from '../flag-ops';
+import { resyncComparedInvoice } from '../compare-sync';
 import { toViews } from '../flag-view';
 import { ledgerFor as ledgerForDb } from '../ledger-data';
 
@@ -35,6 +36,7 @@ export function moneyRouter(deps: AppDeps) {
         const qty = (saved?.qty ?? l?.qty ?? 0) + out.missingQty;
         await tx.insert(S.deliveryCounts).values({ deliveryId: out.deliveryId, key, qty, recordedByRole: role })
           .onConflictDoUpdate({ target: [S.deliveryCounts.deliveryId, S.deliveryCounts.key], set: { qty, recordedByRole: role, recordedAt: new Date() } });
+        await resyncComparedInvoice(tx, out.deliveryId, role);
       }
       const [action, meta] = event(out);
       await logEvent(tx, role, action, out.id, meta);

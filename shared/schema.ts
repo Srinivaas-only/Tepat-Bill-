@@ -101,6 +101,8 @@ export const receivedCounts = pgTable('received_counts', {
   invoiceId: text('invoice_id').notNull(),
   key: text('key').notNull(),
   qty: integer('qty').notNull(),
+  // staff = counted/confirmed by a person, delivery = taken from the linked delivery, default = untouched billed-qty placeholder (NOT verified receipt)
+  source: text('source').notNull().default('staff'),
   recordedByRole: text('recorded_by_role').notNull(),
   recordedAt: ts('recorded_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.invoiceId, t.key] })]);
@@ -158,6 +160,8 @@ export const flags = pgTable('flags', {
   stage: text('stage').notNull().default('invoice'), // invoice | delivery
   deliveryId: text('delivery_id'),
   supersededBy: text('superseded_by'),
+  /** a recount changed the quantities behind this (already approved/settled) flag: the owner must review it */
+  needsRecheck: boolean('needs_recheck').notNull().default(false),
   poId: text('po_id'),
   invoiceLineId: text('invoice_line_id').notNull(),
   sku: text('sku'),

@@ -175,3 +175,32 @@ describe('integers only', () => {
     expect(() => detectFlags(base({ invoice: [{ lineId: 'L1', description: 'Beras 10kg', qty: 2, unitPriceSen: 45.5 }] }))).toThrow();
   });
 });
+
+describe('foreign-currency rounding (audit counterexample)', () => {
+  it('a shortage never exceeds the billed line total', () => {
+    // unit price rounded UP to RM46.31 while the true line total is RM1386.00 for 30 units (RM46.20/unit)
+    const f = detectFlags({ supplierId: 'S', po: [{ sku: 'X', description: 'Item X', orderedQty: 30 }],
+      invoice: [{ lineId: 'L1', description: 'Item X', qty: 30, unitPriceSen: 4631, lineTotalSen: 138_600 }],
+      received: { 'line:L1': 0 }, priceList: {}, aliases: {} });
+    expect(f).toHaveLength(1);
+    expect(f[0]).toMatchObject({ type: 'short_qty', missingQty: 30, amountSen: 138_600 });
+  });
+  it('partial shortage is a proportional share of the billed total', () => {
+    const f = detectFlags({ supplierId: 'S', po: [{ sku: 'X', description: 'Item X', orderedQty: 3 }],
+      invoice: [{ lineId: 'L1', description: 'Item X', qty: 3, unitPriceSen: 334, lineTotalSen: 1000 }],
+      received: { 'line:L1': 1 }, priceList: {}, aliases: {} });
+    expect(f[0].amountSen).toBe(667);
+  });
+  it('without lineTotalSen behaviour is unchanged', () => {
+    expect(detectFlags(base({ received: { BERAS10: 8 } }))[0].amountSen).toBe(9000);
+  });
+  it('short + price never exceeds the billed line', () => {
+    fc.assert(fc.property(fc.integer({ min: 1, max: 50 }), fc.integer({ min: 0, max: 50 }), fc.integer({ min: 100, max: 9000 }), fc.integer({ min: 100, max: 9000 }), (qty, rec, unit, basel) => {
+      const total = qty * unit - 3; // a rounded unit price slightly above the true one
+      const f = detectFlags({ supplierId: 'S', po: [{ sku: 'X', description: 'Item X', orderedQty: qty }],
+        invoice: [{ lineId: 'L1', description: 'Item X', qty, unitPriceSen: unit, lineTotalSen: total }],
+        received: { 'line:L1': Math.min(rec, qty) }, priceList: { X: { lastInvoiceSen: basel } }, aliases: {} });
+      return f.reduce((s, x) => s + x.amountSen, 0) <= total;
+    }));
+  });
+});
