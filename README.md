@@ -22,11 +22,21 @@ SDC Hackathon 2026 · Domain 2 · Orbyte Smart SME Challenge · Team **Alt + Win
 
 <table>
   <tr>
+    <td align="center" colspan="2" bgcolor="#2457D6"><br/><b>&nbsp;&nbsp;&nbsp;LOG IN WITH A DEMO PIN&nbsp;&nbsp;&nbsp;</b><br/><br/></td>
+  </tr>
+  <tr>
     <td align="center" bgcolor="#2457D6">
       <br/>
-      <b>&nbsp;&nbsp;&nbsp;LOG IN WITH THIS DEMO PIN&nbsp;&nbsp;&nbsp;</b>
+      <b>&nbsp;&nbsp;&nbsp;OWNER&nbsp;&nbsp;&nbsp;</b>
+      <h1>&nbsp;&nbsp;🔑&nbsp;&nbsp;<code>1 2 3 4</code>&nbsp;&nbsp;</h1>
+      <sub>Everything: approve, send, settle, export</sub>
+      <br/><br/>
+    </td>
+    <td align="center" bgcolor="#2457D6">
+      <br/>
+      <b>&nbsp;&nbsp;&nbsp;STAFF&nbsp;&nbsp;&nbsp;</b>
       <h1>&nbsp;&nbsp;🔑&nbsp;&nbsp;<code>5 6 7 8</code>&nbsp;&nbsp;</h1>
-      <sub>Staff access · scan, count and record deliveries</sub>
+      <sub>Scan, count and record deliveries</sub>
       <br/><br/>
     </td>
   </tr>
@@ -79,7 +89,7 @@ A shop receives goods, gets a signed delivery bon, and later an invoice. Shortag
 
 ## Try it in two minutes
 
-1. Open the live demo and enter the demo PIN **`5678`** (staff access). The PIN screen appears on every page load by design. The owner PIN, which can approve, send and settle, is in the submission notes.
+1. Open the live demo and enter **`1234`** (owner: approves, sends, settles) or **`5678`** (staff: scan and count only). The PIN screen appears on every page load by design.
 2. Tap **Imbas / Scan**, then **Cuba fail contoh / Try sample files**. Tap *Invois Borong Ali (has differences)*. The sample documents are synthetic, so you do not need photos of your own.
 3. Review the read, save, enter the received counts, and see the flags in RM.
 4. As owner, approve a flag, preview the message, and open WhatsApp.
