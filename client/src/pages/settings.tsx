@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [confirm, setConfirm] = useState(false);
   const [handoff, setHandoff] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [orbyte, setOrbyte] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const showPayload = async () => { try { const r = await api.get<{ mode: string; payload: unknown }>('/accounting/payload'); setPreview(JSON.stringify(r.payload, null, 2)); } catch { toast.error(t('common.error')); } };
   const simulate = async () => {
@@ -49,13 +50,26 @@ export default function SettingsPage() {
           {owner && <button type="button" onClick={() => setShopOpen(true)} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><Building2 size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('shop.title')}<span className="block text-xs font-normal text-ink-2">{t('shop.note')}</span></span><ChevronRight size={20} className="text-ink-3" aria-hidden /></button>}
           {owner && <a href="/api/export.csv" download className="press flex min-h-14 items-center gap-3 px-4 font-medium [--p:.985]"><Download size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.export')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></a>}
           <button type="button" onClick={() => void logout()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><LogOut size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.switchUser')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></button>
-          {owner && <button type="button" disabled={handoff} onClick={() => void simulate()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><Send size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.handoff')}<span className="block text-xs font-normal text-ink-2">{t('settings.handoffNote')}</span></span><Badge tone="neutral">{t('settings.simulation')}</Badge></button>}
-          {owner && <a href="/api/accounting/adjustments.csv" download className="press flex min-h-14 items-center gap-3 px-4 font-medium [--p:.985]"><Download size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.adjustments')}<span className="block text-xs font-normal text-ink-2">{t('settings.adjustmentsNote')}</span></span><ChevronRight size={20} className="text-ink-3" aria-hidden /></a>}
-          {owner && <button type="button" onClick={() => void showPayload()} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><Send size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('settings.payload')}</span><ChevronRight size={20} className="text-ink-3" aria-hidden /></button>}
+          {owner && <button type="button" onClick={() => setOrbyte(true)} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium [--p:.985]"><Send size={22} strokeWidth={1.5} className="text-brand-text" aria-hidden /><span className="flex-1">{t('orbyte.title')}<span className="block text-xs font-normal text-ink-2">{t('orbyte.note')}</span></span><Badge tone="neutral">{t('settings.simulation')}</Badge></button>}
           {owner && checks.data?.demo && <button type="button" onClick={() => setConfirm(true)} className="press flex min-h-14 w-full items-center gap-3 px-4 text-left font-medium text-notord [--p:.985]"><RotateCcw size={22} strokeWidth={1.5} aria-hidden /><span className="flex-1">{t('settings.reset')}</span></button>}
         </Card>
       </div>
       <ShopSheet open={shopOpen} onOpenChange={setShopOpen} />
+      <Sheet open={orbyte} onOpenChange={setOrbyte}>
+        <SheetContent title={t('orbyte.title')} description={t('orbyte.sim')}>
+          <div className="space-y-3">
+            <div className="overflow-hidden rounded-card bg-surface shadow-card">
+              {(['orbyte.roles', 'orbyte.approvals', 'orbyte.audit'] as const).map(k => (
+                <div key={k} className="flex items-center justify-between gap-3 border-t border-line px-4 py-3 first:border-t-0"><span className="font-medium">{t(k)}</span><Badge tone="ok">{t('orbyte.ready')}</Badge></div>
+              ))}
+              <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3"><span className="font-medium">{t('orbyte.wallet')}</span><span className="num font-semibold">{checks.data?.checksLeft ?? '–'}</span></div>
+            </div>
+            <Button block disabled={handoff} onClick={() => void simulate()}><Send size={18} aria-hidden />{t('settings.handoff')}</Button>
+            <Button block variant="secondary" onClick={() => void showPayload()}>{t('settings.payload')}</Button>
+            <Button block variant="secondary" asChild><a href="/api/accounting/adjustments.csv" download><Download size={18} aria-hidden />{t('settings.adjustments')}</a></Button>
+          </div>
+        </SheetContent>
+      </Sheet>
       <Sheet open={preview !== null} onOpenChange={o => { if (!o) setPreview(null); }}>
         <SheetContent title={t('settings.payload')} description={t('settings.payloadNote')}>
           <pre className="num max-h-[50dvh] overflow-auto rounded-card bg-surface-2 p-3 text-xs">{preview}</pre>

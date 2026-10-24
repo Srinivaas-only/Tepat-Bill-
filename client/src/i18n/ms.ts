@@ -527,7 +527,7 @@ export const ms = {
   'shop.brn': "No. pendaftaran syarikat (BRN)",
   'shop.msic': "Kod MSIC",
   'shop.saved': "Butiran disimpan",
-  'einv.incomplete': "Belum lengkap untuk dihantar ke LHDN",
+  'einv.incomplete': "Butiran e-invois belum lengkap",
   'einv.print': "Cetak / simpan PDF",
   'einv.issue.buyer_name': "Nama syarikat pembeli",
   'einv.issue.buyer_tin': "No. TIN pembeli",
@@ -537,5 +537,13 @@ export const ms = {
   'einv.issue.supplier_country': "Negara pembekal",
   'einv.issue.lines': "Tiada barisan barang",
   'einv.issue.total': "Jumlah mesti lebih daripada sifar",
+  'orbyte.title': "Orbyte dan rakan perakaunan",
+  'orbyte.note': "Peranan, kelulusan, jejak audit, dompet kredit",
+  'orbyte.sim': "Simulasi: tiada sambungan sebenar. Direka untuk disambungkan ke Orbyte.",
+  'orbyte.roles': "Peranan (pemilik / staf)",
+  'orbyte.approvals': "Kelulusan pemilik",
+  'orbyte.audit': "Jejak audit (log aktiviti)",
+  'orbyte.wallet': "Dompet kredit (baki semakan AI)",
+  'orbyte.ready': "Sedia",
 } as const;
 export type Key = keyof typeof ms;
