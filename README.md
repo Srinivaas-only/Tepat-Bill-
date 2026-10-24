@@ -63,7 +63,7 @@
 | Live Demo         | https://tepat-bill.replit.app                                        |
 | RunPod Endpoint   | Not used. The AI workload is hosted Google Gemini (see [How We Use RunPod](#how-we-use-runpod-required)) |
 | Slide Deck        | https://canva.link/9150sq3p3v9oxsl                                            |
-| Demo Video        | *To be added by the team*                                            |
+| Demo Video        | [*To be added by the team* ](https://youtu.be/EH5FW8Sp2-8)                                           |
 
 ---
 
