@@ -21,8 +21,7 @@ function pngSize(buf: Buffer): { width: number; height: number } {
 }
 
 export type SeedProfile = 'fresh' | 'full';
-/** Demo default is `fresh` (shop setup only, nothing pre-made); DEMO_SEED=full brings back the pre-filled story. */
-export const demoProfile = (): SeedProfile => (process.env.DEMO_SEED === 'full' ? 'full' : 'fresh');
+/** `full` = pre-filled demo story (first boot, tests). `fresh` = shop setup only, no records: what the owner's reset button gives. */
 
 export async function seedDatabase(rootDb: Db, storage: Storage, now = Date.now(), opts: { quiet?: boolean; profile?: SeedProfile } = {}) {
   await rootDb.transaction(async db => { await seedInTx(db as unknown as Db, storage, now, opts); });
@@ -166,11 +165,11 @@ export async function ensureFixtureCache(db: Db) {
 
 export async function seedIfEmpty(db: Db, storage: Storage) {
   const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(S.suppliers);
-  if (r.n === 0) await seedDatabase(db, storage, Date.now(), { profile: demoProfile() });
+  if (r.n === 0) await seedDatabase(db, storage);
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]).endsWith(path.join('server', 'seed.ts'));
 if (isMain) {
   const { db, pool } = makeDb();
-  seedDatabase(db, makeStorage(), Date.now(), { profile: demoProfile() }).then(() => pool.end()).catch(e => { console.error(e); process.exit(1); });
+  seedDatabase(db, makeStorage(), Date.now()).then(() => pool.end()).catch(e => { console.error(e); process.exit(1); });
 }

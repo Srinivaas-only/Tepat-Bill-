@@ -134,7 +134,7 @@ The AI never calculates amounts, and nothing is sent, paid or settled without th
 ### Try It in Two Minutes
 
 1. Open the [live demo](https://tepat-bill.replit.app) and enter **`1234`** (Owner: approves, sends, settles) or **`5678`** (Manager: scan and count only). The PIN screen appears on every page load by design.
-2. The app opens **empty on purpose**: only the shop setup (4 suppliers and their price history) is loaded. Nothing is pre-made, so you create everything yourself. Tap **Imbas / Scan**, then **Cuba fail contoh / Try sample files**. The samples are synthetic, so you do not need photos of your own.
+2. For a clean start, the Owner taps *Settings → Kosongkan semua rekod*: only the shop setup (4 suppliers and their price history) stays, so you create everything yourself. Tap **Imbas / Scan**, then **Cuba fail contoh / Try sample files**. The samples are synthetic, so you do not need photos of your own.
 3. Scan in this order: *Pesanan* → *Nota pesanan tulisan tangan*, then *Penghantaran* → *Bon bertandatangan (Maggi 8 sahaja)*. Review each read, save, enter the received counts, and see the flag in RM.
 4. As Owner, approve a flag, preview the message and open WhatsApp.
 5. Open the evidence link in a private window (no login) to see what the supplier sees.
@@ -156,7 +156,7 @@ Switch between **BM and EN** from the header on any screen.
 | 3 | **Wrong delivery** | First scan Order → *Handwritten order notebook*. Then Scan → New delivery → *Signed bon (only 8 Maggi)* → change Maggi 10 → 8 | "1 perbezaan · Anggaran RM90.00" (an estimate; the ledger is untouched) |
 | 4 | **Wrong invoice** | Scan → Invoice → *Borong Ali invoice (has differences)*, compare with that order and bon | "2 perbezaan · RM110.00": Maggi short RM90.00 and sugar +RM20.00 |
 
-Then: approve → message → WhatsApp → evidence link (logged out) → *Selesaikan → Nota kredit* → the supplier's **Pay now drops RM962.00 → RM872.00**. The demo starts empty (Home shows RM0.00) and fills as you scan. The Owner can wipe it back to empty from *Settings → Set semula demo*. Running the app with `DEMO_SEED=full` loads the older pre-filled story instead (Home RM85.80 flagged · RM31.90 settled · RM53.90 open).
+Then: approve → message → WhatsApp → evidence link (logged out) → *Selesaikan → Nota kredit* → the supplier's **Pay now drops RM962.00 → RM872.00**. A first boot loads a pre-filled demo (Home **RM85.80 flagged · RM31.90 settled · RM53.90 open**). The Owner can wipe every record from *Settings → Kosongkan semua rekod* (Clear all records), then build it again by scanning the samples. Suppliers and price history stay.
 
 ---
 
@@ -223,7 +223,7 @@ Design rules that keep it trustworthy: **the AI never computes** (it only fills 
    - `DATABASE_URL` — provided by Replit PostgreSQL
    - Do **not** set `NODE_ENV`; the start script sets it.
 3. In the Shell run `npm install && npm run db:push && npm run build`, then click **Run** (or **Publish**).
-4. Open `<your-url>/api/health`. `ok`, `db`, `seeded` and `gemini` should all be `true`. Log in as Owner and tap *Settings → Set semula demo*.
+4. Open `<your-url>/api/health`. `ok`, `db`, `seeded` and `gemini` should all be `true`. Log in as Owner and tap *Settings → Kosongkan semua rekod* if you want it empty.
 
 ### Option 2 — Run Locally
 

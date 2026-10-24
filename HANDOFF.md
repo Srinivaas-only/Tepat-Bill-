@@ -57,15 +57,15 @@ NODE_ENV=production STORAGE_DRIVER=disk DEMO_FIXTURES=1 SEED_ON_BOOT=1 OWNER_PIN
 - Postgres stops when the sandbox sleeps; if `/api/health` shows `db:false`, restart it as above.
 - Playwright MCP needs the wrapper `/opt/google/chrome/chrome` (shell script exec'ing `/opt/pw-browsers/chromium-*/chrome-linux/chrome --no-sandbox "$@"`); screenshots must be saved under `<repo>/.playwright-mcp/` (gitignored). First screenshot after navigate can be blank: wait ~1s.
 - Because the app now forces login on every load, **scripted tests must**: log in, click "Langkau" if the intro shows, then navigate inside the app (`history.pushState` + `popstate`) instead of `page.goto`.
-- Demo reset: log in as owner and POST `/api/dev/reset` (or Settings → Set semula demo).
-- The demo now starts EMPTY (profile `fresh`; set `DEMO_SEED=full` for the pre-filled story). Scan order -> bon -> invoice to build the numbers. Full-profile numbers: Home 85.80 flagged / 31.90 settled / 53.90 open; scenario 1 "PENGHANTARAN TEPAT"; invoice LB-7810 "INVOIS TEPAT · RM285.60"; bon DO-5512 Maggi 10→8 "Anggaran RM90.00"; INV-2291 vs DO-5512 "2 perbezaan · RM110.00"; supplier Pay now RM962.00 → RM872.00 after the credit note.
+- Demo reset: log in as owner and POST `/api/dev/reset` (or Settings → Kosongkan semua rekod).
+- First boot loads the pre-filled demo. The owner's reset button (Settings → Kosongkan semua rekod, `POST /dev/reset`) wipes all records and keeps suppliers/price history; then scan order -> bon -> invoice. Pre-filled numbers: Home 85.80 flagged / 31.90 settled / 53.90 open; scenario 1 "PENGHANTARAN TEPAT"; invoice LB-7810 "INVOIS TEPAT · RM285.60"; bon DO-5512 Maggi 10→8 "Anggaran RM90.00"; INV-2291 vs DO-5512 "2 perbezaan · RM110.00"; supplier Pay now RM962.00 → RM872.00 after the credit note.
 - Button labels the e2e depends on (do not rename): Lulus, Abaikan, Hantar, Pertikai, Selesaikan, Simpan kiraan, Simpan invois, Lihat aduan, Hantar semula, Nota kredit, Ditolak daripada invois, Tandakan sudah dibayar, Sahkan tepat, Lihat bukti, Salin pautan, Langkau, Seterusnya, Mula guna.
 - Known harmless false FAIL in old scripts: "superseded caption" (case-sensitive regex).
 
 ## 7. Deploy so friends can test (Replit as host, no credits for running tests)
 1. Repl → Shell: `git pull origin main` then `npm install`.
 2. Secrets: `OWNER_PIN`, `STAFF_PIN` (4 digits each, different), `SESSION_SECRET` (32+ chars), `GEMINI_API_KEY`, `DEMO_FIXTURES=1`, `SEED_ON_BOOT=1`; enable Replit Postgres (`DATABASE_URL`).
-3. Deploy (Autoscale) → check `<url>/api/health` (`ok, db, seeded, gemini` true), log in as owner, Settings → Set semula demo. Give friends the **staff PIN** only. Owner can call `POST /api/gemini-check` once to prove the key/models.
+3. Deploy (Autoscale) → check `<url>/api/health` (`ok, db, seeded, gemini` true), log in as owner, Settings → Kosongkan semua rekod only if you want it empty. Give friends the **staff PIN** only. Owner can call `POST /api/gemini-check` once to prove the key/models.
 4. Demo has 50 AI reads ("Baki semakan"); reset between testers.
 - **Vercel is not suitable** (needs a long-running Express server + persistent uploads). Alternatives that cost nothing: run locally + Cloudflare Tunnel (`cloudflared tunnel --url http://localhost:5000`), or Render/Railway (+ a persistent disk or Neon Postgres).
 - Not yet verified by Claude: the live Replit deploy (storage "replit", PINs, real Gemini read, WhatsApp button on a real phone).

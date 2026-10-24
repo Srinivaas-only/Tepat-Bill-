@@ -10,7 +10,7 @@ import { requireAuth, requireCan } from '../auth';
 import { logEvent } from '../events';
 import { adjustmentsCsv, buildAccountingPayload, connectorFromEnv } from '../accounting';
 import { myInvoisConfigured, submitToMyInvois } from '../myinvois';
-import { demoProfile, seedDatabase } from '../seed';
+import { seedDatabase } from '../seed';
 import { dmy as dmyKl } from '../core-adapters';
 
 const csvCell = (v: string | number | null | undefined) => {
@@ -176,7 +176,7 @@ export function extrasRouter(deps: AppDeps) {
   // ----- demo reset (dev, or a production deployment running in demo mode with DEMO_FIXTURES=1) -----
   r.post('/dev/reset', requireCan('edit_supplier'), async (req, res) => {
     if (process.env.NODE_ENV === 'production' && process.env.DEMO_FIXTURES !== '1') throw new ApiError(404, 'not_found', 'Tiada');
-    await seedDatabase(db, deps.storage, Date.now(), { quiet: true, profile: demoProfile() });
+    await seedDatabase(db, deps.storage, Date.now(), { quiet: true, profile: 'fresh' });
     await logEvent(db, req.role!, 'demo.reset', null);
     res.json({ ok: true });
   });
