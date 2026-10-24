@@ -6,7 +6,7 @@
 
 ## Architecture in one sentence
 
-A mobile-first React + Express app built and hosted on Replit. Staff photograph the invoice and type the counts; **Gemini 3.8 Flash** reads every line and says where on the page it read it; a tested pure-TypeScript integer-sen rules engine (never the AI) computes every RM flag; the owner approves; and one tap opens WhatsApp with a factual message linking to an evidence page where the supplier sees the exact line highlighted.
+A mobile-first React + Express app built and hosted on Replit. Managers photograph the invoice and type the counts; **Gemini 3.8 Flash** reads every line and says where on the page it read it; a tested pure-TypeScript integer-sen rules engine (never the AI) computes every RM flag; the owner approves; and one tap opens WhatsApp with a factual message linking to an evidence page where the supplier sees the exact line highlighted.
 
 ---
 
@@ -42,7 +42,7 @@ A mobile-first React + Express app built and hosted on Replit. Staff photograph 
 |---|---|
 | **Replit PostgreSQL** (`DATABASE_URL`, separate dev/prod DBs) + **Drizzle ORM** | Zero setup inside Replit; typed schema; money as integer columns. |
 | **Replit App Storage** (`@replit/object-storage`), files keyed by SHA-256, streamed through authed/token routes | Private photos without public buckets; dedup for free. |
-| **Two PINs (Owner / Staff)** → `jose` HS256 cookie; server checks `can(role, action)` | Deck slide 8 made real: staff record, only the owner approves. No sign-up (spec). |
+| **Two PINs (Owner / Manager)** → `jose` HS256 cookie; server checks `can(role, action)` | Deck slide 8 made real: managers record, only the owner approves. No sign-up (spec). |
 | **`events` table** | Every action logged (deck: activity log). |
 | **Unguessable 128-bit evidence token per flag** | Supplier sees one flag's proof with no login; `noindex`; whitelist-tested. |
 
@@ -73,7 +73,7 @@ Avoided: `vaul` (unmaintained since 2024; shadcn bottom `Sheet` instead) and `br
 
 ## Decisions (deck vs spec), all final
 See PRD section 15.
-- **Name and roles:** Tepat Bill · Owner + Staff.
+- **Name and roles:** Tepat Bill · Owner + Manager.
 - **Flag rules:** wrong item is built (with a substitution guard); price baseline is agreed → PO → last invoice.
 - **Money:** redelivered leaves owed unchanged; credit on a paid invoice goes to the next invoice; disputed stays owed; reminder 14 days after sending.
 - **Deck extras:** e-invoice preview stub · "Checks left" chip · "designed to plug into Orbyte".

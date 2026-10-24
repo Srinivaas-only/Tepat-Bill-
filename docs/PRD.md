@@ -32,11 +32,11 @@
 | Role | Who | How they sign in | Can |
 |---|---|---|---|
 | **Owner** | Shop owner (e.g. En. Rahman) | 4-digit PIN (`OWNER_PIN`) | Everything |
-| **Staff** | Shop helper | 4-digit PIN (`STAFF_PIN`) | View · upload documents · correct AI reads · record received counts. **Can't** approve, dismiss, send, dispute, settle, mark correct, set prices, mark paid, edit suppliers, export, or touch e-invoices. |
+| **Manager** | Shop helper | 4-digit PIN (`STAFF_PIN`) | View · upload documents · correct AI reads · record received counts. **Can't** approve, dismiss, send, dispute, settle, mark correct, set prices, mark paid, edit suppliers, export, or touch e-invoices. |
 | **Supplier** | The person at the supplier who gets the WhatsApp message | No login: unguessable link `/e/:token` | Read one flag's evidence page only |
 
 - Permissions are enforced server-side with `can(role, action)` (`shared/core/roles.ts`).
-- In the UI, owner-only actions are hidden for staff and replaced with a quiet note: "Menunggu kelulusan pemilik" (Waiting for owner approval).
+- In the UI, owner-only actions are hidden for managers and replaced with a quiet note: "Menunggu kelulusan pemilik" (Waiting for owner approval).
 - Switch user: Settings → "Tukar pengguna" logs out to the PIN screen.
 
 ## 2. Scope
@@ -70,7 +70,7 @@
 | Pesanan (PO) | Order (PO) | The owner's own order: notebook page, WhatsApp message or typed. Gets `PO-YYMM-###`. |
 | Invois | Invoice | Supplier's bill (photo, screenshot or PDF). |
 | Bon / DO | Delivery order | Delivery slip. The **signed bon** is photographed as evidence, after the owner writes "8 terima" on it. |
-| Kiraan diterima | Received count | What staff counted and typed. |
+| Kiraan diterima | Received count | What the manager counted and typed. |
 | Aduan / Tanda | Flag | A difference found by the rules. |
 | Pembekal | Supplier | |
 | Hutang / Perlu bayar | Amount owed / Pay now | |
@@ -96,8 +96,8 @@ Story numbers match the spec (1–35). **D-** stories come from the deck.
 - Foreign invoices: store the original currency, total and per-line `unit_price_foreign_minor`, and ask for the exchange rate (default 4.20 for USD). The ledger uses MYR sen; the e-invoice preview uses the foreign amounts, formatted with the currency code (not `formatRM`).
 
 ### E3 Delivery evidence and counts (stories 8–10)
-- **8–9.** On the count screen, staff can attach a **delivery photo** and a **signed bon photo** (two labelled tiles). Neither is read for counts.
-- **10.** Each invoice line shows a big number stepper (−/+ and tap-to-type) prefilled with the **invoice qty**. Staff change only what differs. Counts are saved per invoice line as key `line:<lineId>` (and per sku `<sku>` for PO-only lines). "Simpan kiraan" (Save counts) runs `detectFlags()` server-side and creates **Proposed** flags (replacing earlier Proposed flags for that invoice).
+- **8–9.** On the count screen, managers can attach a **delivery photo** and a **signed bon photo** (two labelled tiles). Neither is read for counts.
+- **10.** Each invoice line shows a big number stepper (−/+ and tap-to-type) prefilled with the **invoice qty**. Managers change only what differs. Counts are saved per invoice line as key `line:<lineId>` (and per sku `<sku>` for PO-only lines). "Simpan kiraan" (Save counts) runs `detectFlags()` server-side and creates **Proposed** flags (replacing earlier Proposed flags for that invoice).
 - Lines the PO expected but the invoice didn't bill: show them greyed with qty 0, so a substitution can be detected.
 
 ### E4 Flags (stories 11–16, D-wrong-item)
@@ -145,12 +145,12 @@ Story numbers match the spec (1–35). **D-** stories come from the deck.
 
 Navigation:
 - **Bottom tab bar:** Utama (Home) · Aduan (Flags, with a badge = Proposed + reminders) · **centre Scan button** · Pembekal (Suppliers) · Lagi (More: Orders, Activity, Settings).
-- Owner and staff see the same nav. Staff see no owner-only buttons.
+- Owner and managers see the same nav. Managers see no owner-only buttons.
 
 | Route | Purpose | Key components and states |
 |---|---|---|
-| `/login` | PIN entry | Brand mark, "Tepat Bill" wordmark, 4 PIN dots, a numeric keypad with large keys (no system keyboard), shake animation plus haptic on a wrong PIN, Owner/Staff detected from the PIN. |
-| `/` Home | Money at a glance + what needs action | Hero card "30 hari lepas" (Last 30 days) with 3 NumberFlow figures. "Perlu tindakan" (Needs action) list: proposed flags (owner), reminders. Supplier credit chips. Recent activity (5). Checks chip. **Staff home:** a big "Rekod penghantaran" (Record delivery) CTA and today's deliveries. Empty state: illustration plus "Imbas invois pertama anda" (Scan your first invoice). |
+| `/login` | PIN entry | Brand mark, "Tepat Bill" wordmark, 4 PIN dots, a numeric keypad with large keys (no system keyboard), shake animation plus haptic on a wrong PIN, Owner/Manager detected from the PIN. |
+| `/` Home | Money at a glance + what needs action | Hero card "30 hari lepas" (Last 30 days) with 3 NumberFlow figures. "Perlu tindakan" (Needs action) list: proposed flags (owner), reminders. Supplier credit chips. Recent activity (5). Checks chip. **Manager home:** a big "Rekod penghantaran" (Record delivery) CTA and today's deliveries. Empty state: illustration plus "Imbas invois pertama anda" (Scan your first invoice). |
 | `/scan` | Capture | Sheet: "Apa yang anda imbas?" (What are you scanning?): Pesanan / Invois / Bon. Then camera or file. Client-side downscale or PDF raster with a thumbnail preview. Upload with a progress ring. |
 | `/read/:documentId` | **The reading moment** (hero UX) | Full-width image with a scanning-beam animation while Gemini works. Rotating status text ("Membaca baris…", "Menyemak harga…"). Then each box draws in with a stagger while its row slides into the list. If >12 s: "Masih membaca…"; if `DEMO_FIXTURES`: a "Guna bacaan demo" link. On failure: "Tak dapat baca, isi sendiri" (Couldn't read, fill it in yourself), going to manual entry. |
 | `/review/po/:documentId` | Correct the PO read | Editable rows (tap a row to highlight its box on the image, and the reverse). Supplier picker. Save → PO number toast. |
@@ -271,7 +271,7 @@ Tap targets ≥ 44px · contrast AA on all tokens · visible focus ring (`--bran
 5. Empty, error and offline states designed (an illustration or icon plus one CTA).
 6. Lists stagger in; sheets spring; buttons press-scale; reduced motion respected.
 7. All text from i18n; BM default; no truncation of BM strings at 360px.
-8. Owner-only actions are invisible to staff, and the server returns 403.
+8. Owner-only actions are invisible to managers, and the server returns 403.
 9. Lighthouse mobile: Performance ≥ 85, Accessibility ≥ 95 (check once at M10).
 
 ## 7. Data model (`shared/schema.ts`, Drizzle, PostgreSQL)
@@ -406,7 +406,7 @@ Rules:
 
 - **Bon (DO) reads** are for evidence and cross-checking quantities only; counts are always typed.
 - **Expected live result** (asserted in `shared/core/fixtures.test.ts`):
-  - Staff types Maggi **8** (others unchanged) → **Maggi short RM90.00** + **Gula +RM0.40 × 50 = RM20.00** (baseline: last invoice RM2.80).
+  - Manager types Maggi **8** (others unchanged) → **Maggi short RM90.00** + **Gula +RM0.40 × 50 = RM20.00** (baseline: last invoice RM2.80).
   - Borong Ali Pay now is **RM962.00** after upload (RM993.90 − RM31.90 supplier credit), then **RM872.00** after the RM90 deduction settles.
 - Seed also gives:
   - Lim Brothers: one Open flag 15 days after sending (reminder) and one Disputed (Under dispute RM12.50).
@@ -440,7 +440,7 @@ Rules:
 | Question | Decision |
 |---|---|
 | Name | **Tepat Bill** |
-| Single user (spec) vs staff (deck) | Owner + Staff PINs |
+| Single user (spec) vs manager (deck) | Owner + Manager PINs |
 | Wrong item | Built as `not_ordered`, with a substitution guard |
 | Agreed price source | agreed → PO price → last invoice → none |
 | Supplier's first invoice | No price flag; becomes the baseline |

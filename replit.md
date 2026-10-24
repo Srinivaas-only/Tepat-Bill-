@@ -4,7 +4,7 @@
 > Keep this file's rules intact. You may append to the **Agent notes** section at the bottom; do not rewrite the sections above it.
 
 ## What we're building
-**Tepat Bill** ("Check every delivery. Check every bill."): a mobile-first web app for Malaysian *kedai runcit* owners. Staff photograph supplier invoices and type the counts they received. Gemini reads the documents. Fixed code rules flag shortages, price changes and items not ordered, in RM. The owner approves and sends a prepared WhatsApp message to the supplier, with a read-only evidence link. The app tracks every complaint until it is settled and what is still owed. Hackathon: SDC 2026, Domain 2, Orbyte Smart SME Challenge.
+**Tepat Bill** ("Check every delivery. Check every bill."): a mobile-first web app for Malaysian *kedai runcit* owners. Managers photograph supplier invoices and type the counts they received. Gemini reads the documents. Fixed code rules flag shortages, price changes and items not ordered, in RM. The owner approves and sends a prepared WhatsApp message to the supplier, with a read-only evidence link. The app tracks every complaint until it is settled and what is still owed. Hackathon: SDC 2026, Domain 2, Orbyte Smart SME Challenge.
 
 **Principle: AI reads → rules decide → the owner approves.** The app never sends, pays or settles anything by itself, and never decides who is right.
 
@@ -55,7 +55,7 @@ docs/        PRD.md BUILD_PROMPT.md PROGRESS.md DECISIONS_LOG.md
 `npm test` is green · the typecheck passes · the milestone's acceptance checks in `docs/BUILD_PROMPT.md` pass in App Testing on a 390px-wide viewport · `docs/PROGRESS.md` is ticked with a one-line note · go straight on to the next milestone.
 
 ## Never
-Swap the stack · rewrite `shared/core` · store money as floats · let staff approve, send or settle · auto-send messages · expose other flags or totals on the evidence page · add sign-up, password reset or multi-shop · count stock from photos · claim "% time saved" anywhere · submit anything to LHDN · call Gemini from the browser.
+Swap the stack · rewrite `shared/core` · store money as floats · let managers approve, send or settle · auto-send messages · expose other flags or totals on the evidence page · add sign-up, password reset or multi-shop · count stock from photos · claim "% time saved" anywhere · submit anything to LHDN · call Gemini from the browser.
 
 ## Agent notes
 <!-- Agent: append short learnings here (gotchas, commands). Do not edit the sections above. -->

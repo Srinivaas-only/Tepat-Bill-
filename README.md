@@ -84,7 +84,7 @@ A kedai runcit receives goods, gets a signed delivery bon, and later an invoice.
 Tepat Bill keeps **one record from delivery to invoice to supplier follow-up**, using the rule **AI reads → rules decide → the owner approves**.
 
 1. **Snap** the order, the delivery bon and the invoice (photo, screenshot or PDF page 1). Google Gemini reads them.
-2. **Count** what actually arrived. Staff type it; the AI never guesses counts.
+2. **Count** what actually arrived. Managers type it; the AI never guesses counts.
 3. **Compare** order ↔ bon ↔ invoice. Fixed, tested TypeScript rules turn differences into flags in exact RM: *short quantity*, *price change*, *not ordered*.
 4. **Approve** (owner only) and open a ready-made WhatsApp message with a read-only **evidence link**.
 5. **Track** the complaint until the supplier settles it (credit note, deduction or redelivery). The ledger shows what is still owed.
