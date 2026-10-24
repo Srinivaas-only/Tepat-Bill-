@@ -468,7 +468,7 @@ export const ms = {
   'act.count.corrected': "Kiraan dibetulkan",
   'act.invoice.resync': "Kiraan invois dikemas kini",
   'flag.previewDraft': "Lihat draf",
-  'flag.draftPreviewNote': "Ini draf sahaja. Lulus aduan dahulu untuk membuka WhatsApp; pautan bukti hanya berfungsi selepas diluluskan.",
+  'flag.draftPreviewNote': "Ini draf sahaja. Lulus aduan dahulu untuk membuka WhatsApp; pautan bukti hanya berfungsi selepas diluluskan. Mesej sebenar boleh menggabungkan aduan lain daripada invois yang sama.",
   'flag.unverified': "Belum disahkan: ini bukan harga yang dipersetujui. Tetapkan harga dipersetujui untuk bukti yang lebih kukuh.",
   'ev.unverified': "Harga rujukan ini diambil daripada rekod terdahulu, bukan harga yang telah dipersetujui.",
   'flag.acceptHelp': "Direkodkan oleh anda. Tuntutan {rm}. Masukkan jumlah yang pembekal bersetuju (kredit atau tolak) dan rujukan mereka.",

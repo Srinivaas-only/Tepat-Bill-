@@ -67,7 +67,8 @@ export function draftMessage(m: MessageInput): string {
   const requests = new Set<FlagRequest>();
   for (const l of m.lines) {
     out.push(l.type === 'short_qty' ? t.short(l, k) : l.type === 'price_change' ? t.price(l) : t.notOrdered(l, k));
-    requests.add(l.request);
+    // a historical (PO / previous-invoice) price is not an agreement: never ask the supplier to "charge the agreed price" for it
+    requests.add(l.type === 'price_change' && l.request === 'agreed_price' && l.baselineSource !== undefined && l.baselineSource !== 'agreed' ? 'deduct' : l.request);
   }
   const sum = m.lines.reduce((s, l) => s + l.amountSen, 0);
   if (m.lines.length > 1 && (k === 'invoice' || sum > 0)) out.push(t.total(formatRM(sum), k));

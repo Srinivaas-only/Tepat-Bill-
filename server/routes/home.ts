@@ -33,9 +33,10 @@ export function homeRouter(deps: AppDeps) {
     const recent = ev.map(e => ({ id: e.id, at: e.at.getTime(), role: e.role, action: e.action, ref: e.ref, meta: e.meta }));
     const dels = await db.select({ d: S.deliveries, supplierName: S.suppliers.name }).from(S.deliveries).innerJoin(S.suppliers, eq(S.suppliers.id, S.deliveries.supplierId)).orderBy(desc(S.deliveries.receivedAt)).limit(5);
     const dflags = dels.length ? await db.select().from(S.flags).where(inArray(S.flags.deliveryId, dels.map(x => x.d.id))) : [];
+    const dcounted = new Set((dels.length ? await db.selectDistinct({ id: S.deliveryCounts.deliveryId }).from(S.deliveryCounts).where(inArray(S.deliveryCounts.deliveryId, dels.map(x => x.d.id))) : []).map(r => r.id));
     const deliveries = dels.map(x => {
       const all = dflags.filter(f => f.deliveryId === x.d.id);
-      const state = stateOf(x.d, all);
+      const state = stateOf(x.d, all, dcounted.has(x.d.id));
       return { id: x.d.id, doNo: x.d.doNo, supplierName: x.supplierName, receivedAt: x.d.receivedAt.getTime(), invoiceId: x.d.invoiceId, state };
     });
     const [checks] = await db.select().from(S.settings).where(eq(S.settings.key, 'checks_left'));

@@ -80,7 +80,8 @@ export function flagActionsRouter(deps: AppDeps) {
     needProposed(row.status);
     const allowed = requestsFor(row);
     if (row.type === 'price_change' && row.direction === 'down') throw new ApiError(422, 'not_claimable', 'Harga turun: hanya boleh diabaikan');
-    const request = body.data.request ?? allowed[0];
+    // a price reference that is only history (PO / previous invoice) is not an agreement: default to deducting the difference, not "charge the agreed price"
+    const request = body.data.request ?? (row.type === 'price_change' && row.baselineSource !== null && row.baselineSource !== 'agreed' && allowed.includes('deduct') ? 'deduct' : allowed[0]);
     if (!allowed.includes(request)) throw new ApiError(422, 'bad_request', 'Permintaan tidak sesuai');
     const next = { ...transition(flagRowToCore(row), 'open', Date.now()), request };
     const out = await db.transaction(async tx => {

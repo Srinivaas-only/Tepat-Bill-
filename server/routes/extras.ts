@@ -89,14 +89,14 @@ export function extrasRouter(deps: AppDeps) {
     const sups = await db.select().from(S.suppliers);
     const flags = (await db.select().from(S.flags)).filter(f => f.stage === 'invoice' && f.status !== 'proposed' && f.status !== 'dismissed');
     const lines = await db.select().from(S.invoiceLines);
-    const head = ['Supplier', 'Invoice no', 'Invoice date', 'Printed date (Tarikh cetak)', 'Currency', 'Invoice total (RM)', 'Payment', 'Flag type', 'Item', 'Flag amount (RM)', 'Flag status', 'Request', 'Settlement'];
+    const head = ['Supplier', 'Invoice no', 'Invoice date', 'Printed date (Tarikh cetak)', 'Currency', 'Invoice total (RM)', 'Payment', 'Flag type', 'Item', 'Flag amount (RM)', 'Flag status', 'Request', 'Settlement', 'Accepted by supplier (RM)', 'Supplier reference'];
     const out = [head.map(csvCell).join(',')];
     for (const i of invs) {
       const sup = sups.find(s => s.id === i.supplierId)?.name ?? '';
       const base = [sup, i.invoiceNo, dmy(i.issuedAt), isoDmy(i.docDate), i.currency, rm(i.totalSen), i.payment === 'paid' ? 'Paid' : 'Unpaid'];
       const fl = flags.filter(f => f.invoiceId === i.id);
-      if (!fl.length) out.push([...base, '', '', '', '', '', ''].map(csvCell).join(','));
-      for (const f of fl) out.push([...base, f.type, lines.find(l => l.invoiceId === i.id && l.lineId === f.invoiceLineId)?.description ?? '', rm(f.amountSen), f.status, f.request ?? '', f.settlement ?? ''].map(csvCell).join(','));
+      if (!fl.length) out.push([...base, '', '', '', '', '', '', '', ''].map(csvCell).join(','));
+      for (const f of fl) out.push([...base, f.type, lines.find(l => l.invoiceId === i.id && l.lineId === f.invoiceLineId)?.description ?? '', rm(f.amountSen), f.status, f.request ?? '', f.settlement ?? '', f.acceptedSen != null ? rm(f.acceptedSen) : '', f.settlementRef ?? ''].map(csvCell).join(','));
     }
     await logEvent(db, req.role!, 'export.csv', null);
     res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="tepat-bill-export.csv"' }).send('\ufeff' + out.join('\r\n') + '\r\n');

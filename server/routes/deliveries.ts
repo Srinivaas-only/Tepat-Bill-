@@ -73,7 +73,8 @@ export function deliveriesRouter(deps: AppDeps) {
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const rows = await db.select({ d: S.deliveries, supplierName: S.suppliers.name }).from(S.deliveries).innerJoin(S.suppliers, eq(S.suppliers.id, S.deliveries.supplierId)).orderBy(desc(S.deliveries.receivedAt)).limit(limit);
     const flags = rows.length ? await db.select().from(S.flags).where(inArray(S.flags.deliveryId, rows.map(x => x.d.id))) : [];
-    res.json({ deliveries: rows.map(x => ({ id: x.d.id, doNo: x.d.doNo, docDate: x.d.docDate, supplierId: x.d.supplierId, supplierName: x.supplierName, receivedAt: x.d.receivedAt.getTime(), invoiceId: x.d.invoiceId, state: stateOf(x.d, flags.filter(f => f.deliveryId === x.d.id)) })) });
+    const counted = new Set((rows.length ? await db.selectDistinct({ id: S.deliveryCounts.deliveryId }).from(S.deliveryCounts).where(inArray(S.deliveryCounts.deliveryId, rows.map(x => x.d.id))) : []).map(r => r.id));
+    res.json({ deliveries: rows.map(x => ({ id: x.d.id, doNo: x.d.doNo, docDate: x.d.docDate, supplierId: x.d.supplierId, supplierName: x.supplierName, receivedAt: x.d.receivedAt.getTime(), invoiceId: x.d.invoiceId, state: stateOf(x.d, flags.filter(f => f.deliveryId === x.d.id), counted.has(x.d.id)) })) });
   });
 
   r.get('/deliveries/:id', async (req, res) => {
@@ -93,12 +94,13 @@ export function deliveriesRouter(deps: AppDeps) {
       const invs = await db.select({ id: S.invoices.id }).from(S.invoices).where(eq(S.invoices.poId, c.del.poId));
       const billed = invs.length ? await db.select({ description: S.invoiceLines.description, qty: S.invoiceLines.qty }).from(S.invoiceLines).where(inArray(S.invoiceLines.invoiceId, invs.map(i => i.id))) : [];
       full = fulfilment({ supplierId: c.del.supplierId, po: c.po, aliases: c.aliases, invoiceLines: billed,
-        deliveries: ctxs.map(x => ({ lines: x.delLines, received: { ...defaultDeliveryCounts(x), ...x.saved } })) });
+        deliveries: ctxs.map(x => ({ lines: x.delLines, // a delivery nobody counted yet is not proof of receipt: it contributes 0 received
+          received: Object.keys(x.saved).length || x.del.id === c.del.id ? { ...defaultDeliveryCounts(x), ...x.saved } : Object.fromEntries(x.delLines.map(l => [`line:${l.lineId}`, 0])) })) });
     }
     res.json({
       fulfilment: full,
       delivery: { id: c.del.id, doNo: c.del.doNo, docDate: c.del.docDate, receivedAt: c.del.receivedAt.getTime(), supplierId: c.del.supplierId, supplierName: sup?.name ?? '', poId: c.del.poId, poNo: c.poRow?.poNo ?? null,
-        invoiceId: c.del.invoiceId, ownerMarkedCorrect: c.del.ownerMarkedCorrect, state: stateOf(c.del, flagRows), documentId: c.del.documentId, hasCounts: Object.keys(c.saved).length > 0,
+        invoiceId: c.del.invoiceId, ownerMarkedCorrect: c.del.ownerMarkedCorrect, state: stateOf(c.del, flagRows, Object.keys(c.saved).length > 0), documentId: c.del.documentId, hasCounts: Object.keys(c.saved).length > 0,
         doc: doc ? { id: doc.id, width: doc.width, height: doc.height } : null },
       lines: c.lines.map(l => ({ lineId: l.lineId, description: l.description, qty: l.qty, unit: l.unit, box: l.box, matchedSku: l.sku, receivedQty: counts[`line:${l.lineId}`] ?? l.qty })),
       flags, estimateSen: claimableSen(flags.filter(f => f.status === 'proposed' && !f.supersededBy)),
@@ -119,13 +121,17 @@ export function deliveriesRouter(deps: AppDeps) {
       if (Object.keys(body.data.counts).some(k => !allowed.has(k))) throw new ApiError(400, 'bad_request', 'Kiraan tidak sah');
       const prev = { ...defaultDeliveryCounts(c), ...c.saved };
       const merged = { ...prev, ...body.data.counts };
-      // a delivery already compared with an invoice that is approved/paid/complained about: changing its counts is an owner-reviewed correction
-      if (c.del.invoiceId && Object.keys(c.saved).length > 0 && Object.keys(merged).some(k => merged[k] !== prev[k])) {
-        const [inv] = await tx.select().from(S.invoices).where(eq(S.invoices.id, c.del.invoiceId));
-        if (inv && await invoiceCountsGuarded(tx, inv)) {
+      // Once a delivery is relied on (owner-confirmed, a live/sent complaint of its own, or an invoice that is approved/paid/complained about),
+      // changing its counts is an owner-reviewed correction: owner + reason, logged with before/after, and the owner must confirm it again.
+      const changes = Object.keys(merged).filter(k => merged[k] !== prev[k]).map(k => ({ key: k, from: prev[k] ?? null, to: merged[k] }));
+      if (Object.keys(c.saved).length > 0 && changes.length > 0) {
+        const own = await tx.select({ id: S.flags.id }).from(S.flags).where(and(eq(S.flags.deliveryId, id), eq(S.flags.stage, 'delivery'), isNull(S.flags.supersededBy), inArray(S.flags.status, ['open', 'disputed', 'settled']))).limit(1);
+        const [inv] = c.del.invoiceId ? await tx.select().from(S.invoices).where(eq(S.invoices.id, c.del.invoiceId)) : [];
+        if (c.del.ownerMarkedCorrect || own.length > 0 || (inv && await invoiceCountsGuarded(tx, inv))) {
           if (!can(req.role!, 'mark_correct')) throw new ApiError(403, 'owner_review_required', 'Kiraan semula selepas lulus/aduan perlu semakan pemilik');
           if (!body.data.reason) throw new ApiError(422, 'reason_required', 'Sebab pembetulan diperlukan');
-          await logEvent(tx, req.role!, 'count.corrected', id, { reason: body.data.reason, changes: Object.keys(merged).filter(k => merged[k] !== prev[k]).map(k => ({ key: k, from: prev[k] ?? null, to: merged[k] })).slice(0, 50) });
+          await logEvent(tx, req.role!, 'count.corrected', id, { reason: body.data.reason, changes: changes.slice(0, 50) });
+          if (c.del.ownerMarkedCorrect) await tx.update(S.deliveries).set({ ownerMarkedCorrect: false }).where(eq(S.deliveries.id, id));
         }
       }
       await tx.delete(S.deliveryCounts).where(eq(S.deliveryCounts.deliveryId, id));

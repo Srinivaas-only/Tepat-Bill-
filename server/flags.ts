@@ -156,8 +156,8 @@ export async function markStaleFlags(db: Conn, invoiceId: string, detected: Dete
   let stale = 0;
   for (const f of rows) {
     const d = detected.find(x => x.invoiceLineId === f.invoiceLineId && x.type === f.type);
-    // short_qty / not_ordered amounts follow from the quantities; only a price_change amount is compared directly
-    const differs = !d || (d.missingQty ?? null) !== (f.missingQty ?? null) || (f.type === 'price_change' && d.amountSen !== f.amountSen);
+    // a higher claim than the flag holds needs a recheck; a LOWER one is the foreign-line clamp on a pre-existing flag, not a change of facts
+    const differs = !d || (d.missingQty ?? null) !== (f.missingQty ?? null) || (f.type === 'price_change' ? d.amountSen !== f.amountSen : d.amountSen > f.amountSen);
     if (differs) stale++;
     if (differs !== f.needsRecheck) await db.update(S.flags).set({ needsRecheck: differs }).where(eq(S.flags.id, f.id));
   }

@@ -59,7 +59,7 @@ export function messagesRouter(deps: AppDeps) {
     group.sort((a, b) => pos(a.invoiceLineId) - pos(b.invoiceLineId) || ORDER[a.type] - ORDER[b.type]);
     const lines: MessageLine[] = group.map(g => {
       const l = p.lines.find(x => x.lineId === g.invoiceLineId)!;
-      const base = { type: g.type as FlagType, item: l.description, amountSen: g.amountSen, request: (g.request ?? (preview && chosen) ?? requestsFor(g)[0]) as MessageLine['request'] };
+      const base = { type: g.type as FlagType, item: l.description, amountSen: g.amountSen, request: (g.request ?? (preview ? chosen : undefined) ?? requestsFor(g)[0]) as MessageLine['request'] };
       if (g.type === 'short_qty') return { ...base, billedQty: l.qty, receivedQty: l.qty - (g.missingQty ?? 0), missingQty: g.missingQty ?? 0 };
       if (g.type === 'price_change') return { ...base, invoiceUnitSen: g.invoiceUnitSen ?? l.unitPriceSen, agreedUnitSen: g.baselineUnitSen ?? 0, pricedQty: g.pricedQty ?? 0, baselineSource: (g.baselineSource ?? undefined) as MessageLine['baselineSource'] };
       return { ...base, qty: l.qty };

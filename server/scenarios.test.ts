@@ -325,7 +325,7 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     const d = await call('POST', '/api/deliveries', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', doNo: 'DO-ST-1', lines: dLines('do_lim_brothers_DO-LB-0901') });
     await call('PUT', `/api/deliveries/${d.json.id}/counts`, staffCookie, { counts: {} });
     const state = async () => (await call('GET', '/api/deliveries', ownerCookie)).json.deliveries.find((x: any) => x.id === d.json.id).state;
-    expect(await state()).toBe('waiting');
+    expect(await state()).toBe('confirm');   // counted clean: the owner still has to confirm it
     const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', deliveryId: d.json.id, invoiceNo: 'LB-ST-1', currency: 'MYR', totalSen: 28560, lines: iLines('invoice_lim_brothers_LB-7810') });
     expect(inv.status).toBe(201);
     expect(await state()).toBe('confirm');
@@ -355,6 +355,26 @@ describe.skipIf(!process.env.DATABASE_URL)('scenarios + round 3 (own schema)', (
     expect(r.status).toBe(200);
     expect(r.json.simulated).toBe(true);
     expect(JSON.stringify((await call('GET', '/api/activity', ownerCookie)).json)).toContain('accounting.handoff_sim');
+  });
+
+  it('delivery recount under a sent complaint needs the owner + reason even with no invoice, and resets the confirmation', async () => {
+    const d = await call('POST', '/api/deliveries', staffCookie, { supplierId: 'sup_lim', poId: 'po_006', doNo: 'DO-RC-1', lines: dLines('do_lim_brothers_DO-LB-0901') });
+    const c = await call('PUT', `/api/deliveries/${d.json.id}/counts`, staffCookie, { counts: { 'line:L1': 1 } });
+    const f = c.json.flags.find((x: any) => x.type === 'short_qty');
+    expect(f).toBeTruthy();
+    expect((await call('POST', `/api/flags/${f.id}/approve`, ownerCookie, {})).status).toBe(200);
+    expect((await call('PUT', `/api/deliveries/${d.json.id}/counts`, staffCookie, { counts: { 'line:L1': 2 } })).status).toBe(403);
+    expect((await call('PUT', `/api/deliveries/${d.json.id}/counts`, ownerCookie, { counts: { 'line:L1': 2 } })).status).toBe(422);
+    expect((await call('PUT', `/api/deliveries/${d.json.id}/counts`, ownerCookie, { counts: { 'line:L1': 2 }, reason: 'Kiraan semula' })).status).toBe(200);
+  });
+
+  it('a historical price reference is never asked for as the "agreed" price', async () => {
+    const inv = await call('POST', '/api/invoices', staffCookie, { supplierId: 'sup_ali', invoiceNo: 'AGR-1', lines: [{ description: 'Gula Pasir 1kg', qty: 10, unitPriceSen: 330 }], totalSen: 3300 });
+    const f = (await call('PUT', `/api/invoices/${inv.json.id}/counts`, staffCookie, { counts: {}, confirmed: 'all' })).json.flags.find((x: any) => x.type === 'price_change');
+    if (!f || f.baselineSource === 'agreed') return;                  // only meaningful when the reference is history
+    expect((await call('POST', `/api/flags/${f.id}/approve`, ownerCookie, {})).status).toBe(200);
+    const m = await call('GET', `/api/flags/${f.id}/message?lang=en`, ownerCookie);
+    expect(m.json.text).not.toContain('agreed price');
   });
 
   it('T3 a delivery document cannot be attached to an invoice', async () => {

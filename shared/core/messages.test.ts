@@ -64,3 +64,12 @@ describe('price reference wording (audit: history is not agreement)', () => {
     expect(draftMessage({ ...base, lang: 'en', lines: [line('last_invoice')] })).not.toContain('agreed price');
   });
 });
+
+describe('closing request for a non-agreed price reference', () => {
+  it('does not ask to charge the "agreed" price when the reference is only history', () => {
+    const l = { type: 'price_change' as const, item: 'Gula 1kg', invoiceUnitSen: 320, agreedUnitSen: 280, pricedQty: 50, amountSen: 2000, request: 'agreed_price' as const, baselineSource: 'last_invoice' as const };
+    const m = draftMessage({ ...base, lang: 'en', lines: [l] });
+    expect(m).not.toContain('agreed price'); expect(m).toContain('Please deduct');
+    expect(draftMessage({ ...base, lang: 'en', lines: [{ ...l, baselineSource: 'agreed' }] })).toContain('Please charge the agreed price.');
+  });
+});

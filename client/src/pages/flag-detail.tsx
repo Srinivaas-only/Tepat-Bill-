@@ -71,6 +71,7 @@ export default function FlagDetail() {
   const openMsg = () => { setMsgOpenCount(n => n + 1); setMsg(true); };
   const [settleOpen, setSettleOpen] = useState(false);
   const [settleKind, setSettleKind] = useState<'credit_note' | 'deducted' | null>(null);
+  useEffect(() => { if (!settleOpen) setSettleKind(null); }, [settleOpen]);
   const [acceptedRM, setAcceptedRM] = useState('');
   const [settleRef, setSettleRef] = useState('');
   const [dismissOpen, setDismissOpen] = useState(false);
