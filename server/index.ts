@@ -7,6 +7,7 @@ import { createApp, mountErrorHandlers } from './app';
 import { getDb } from './db';
 import { makeStorage } from './storage';
 import { seedIfEmpty } from './seed';
+import { upgradeSchema } from './schema-upgrade';
 import { getPins } from './auth';
 
 function assertProductionConfig() {
@@ -26,6 +27,7 @@ async function main() {
   logPinState();
   const { db } = getDb();
   const storage = makeStorage();
+  await upgradeSchema(db).catch(e => console.error('[schema] upgrade skipped:', (e as Error).message));   // a redeploy must never leave new columns missing
   if (process.env.SEED_ON_BOOT === '1') {
     try { await seedIfEmpty(db, storage); } catch (e) { console.error('[seed] failed, continuing without it:', (e as Error).message); }
   }
