@@ -251,6 +251,7 @@ export default function Count({ mode = 'invoice' }: { mode?: 'invoice' | 'delive
           {result && (result.processed ? (
             <div className="stagger space-y-4">
               <p className="text-ink-2">{t(isDel ? 'count.processedDelivery' : 'count.processed')}</p>
+              {result.extras.length > 0 && <><h3 className="text-base font-semibold">{t('count.extraTitle')}</h3><ExtraList extras={result.extras} /><p className="text-sm text-ink-2">{t(isDel ? 'count.extraBodyDel' : 'count.extraBody')}</p></>}
               <Button block onClick={() => nav('/flags', { replace: true })}>{t('count.view')}</Button>
               <Button block variant="ghost" onClick={() => setResult(null)}>{t('count.done')}</Button>
             </div>
