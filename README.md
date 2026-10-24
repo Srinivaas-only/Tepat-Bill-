@@ -308,18 +308,7 @@ Covered: the rules engine and ledger (including property-based invariants), deli
 
 ---
 
-## Submission Checklist
 
-- [x] Team name, domain (Domain 2) and SDG track filled in
-- [ ] Slide deck link added
-- [ ] Demo video link added
-- [x] Replit used, with proof of use in `submission/`
-- [ ] RunPod used, with proof of use in `submission/` *(not used; see `runpod/README.md`)*
-- [ ] Preliminary submission completed (`submission/SDC2026_AltWinR_Preliminary.pdf`)
-- [ ] Technology declaration completed (`submission/SDC2026_AltWinR_TechDeclaration.pdf`)
-- [ ] Submission files named with the team name (`AltWinR`) *(Replit proof of use done; add the other two when final)*
-- [x] "How to Run" steps verified
-- [x] No API keys or secrets committed to the repository *(only documented demo PINs)*
 
 ## License
 
