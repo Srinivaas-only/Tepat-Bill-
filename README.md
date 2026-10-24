@@ -18,6 +18,20 @@ SDC Hackathon 2026 · Domain 2 · Orbyte Smart SME Challenge · Team **Alt + Win
 
 **Live demo: https://tepat-bill.replit.app**
 
+<br/>
+
+<table>
+  <tr>
+    <td align="center" bgcolor="#2457D6">
+      <br/>
+      <b>&nbsp;&nbsp;&nbsp;LOG IN WITH THIS DEMO PIN&nbsp;&nbsp;&nbsp;</b>
+      <h1>&nbsp;&nbsp;🔑&nbsp;&nbsp;<code>5 6 7 8</code>&nbsp;&nbsp;</h1>
+      <sub>Staff access · scan, count and record deliveries</sub>
+      <br/><br/>
+    </td>
+  </tr>
+</table>
+
 </div>
 
 ---
@@ -65,7 +79,7 @@ A shop receives goods, gets a signed delivery bon, and later an invoice. Shortag
 
 ## Try it in two minutes
 
-1. Open the live demo and log in with the **owner** or **staff** PIN provided in the submission notes.
+1. Open the live demo and enter the demo PIN **`5678`** (staff access). The PIN screen appears on every page load by design. The owner PIN, which can approve, send and settle, is in the submission notes.
 2. Tap **Imbas / Scan**, then **Cuba fail contoh / Try sample files**. Tap *Invois Borong Ali (has differences)*. The sample documents are synthetic, so you do not need photos of your own.
 3. Review the read, save, enter the received counts, and see the flags in RM.
 4. As owner, approve a flag, preview the message, and open WhatsApp.
